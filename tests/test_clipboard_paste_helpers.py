@@ -1094,4 +1094,3 @@ class TestStopTimeTargetSnapshotGate:
         assert ok is True
         detect_mock.assert_not_called()
         assert dispatch_mock.call_args.args[0] is True  # is_terminal=True from stop_target.process_name
-

@@ -237,4 +237,3 @@ class TestStopTimeTargetSnapshotWindows:
         assert no_proc_snap.hwnd == 0x3333
         assert no_proc_snap.pid == 5555
         assert no_proc_snap.process_name is None
-

@@ -142,4 +142,3 @@ class TestGoogleBubbleLevels:
         assert paste_kwargs["pasted_text"] == "Dictated words"
         assert paste_kwargs["target_snapshot"].prefix_context.verdict == "empty"
         assert app.history_db.add_transcription.call_args.args[0] == "dictated words"
-

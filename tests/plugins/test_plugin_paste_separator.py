@@ -180,4 +180,3 @@ class TestPluginSeparator:
 
         app.clipboard.copy.assert_called_once_with(" hello world")
         assert app.clipboard.paste.call_args.kwargs["target_snapshot"].prefix_context.before == "target prefix"
-

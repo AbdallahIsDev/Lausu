@@ -627,4 +627,3 @@ class TestUnicodeAndStopSnapshotDelivery:
         assert delivery_text_for_target("hello", prefix_context=empty_ctx) == "Hello"
         unknown_ctx = caret_text._PrefixContext(None, "unknown", False)
         assert delivery_text_for_target("hello", prefix_context=unknown_ctx) == "hello"
-

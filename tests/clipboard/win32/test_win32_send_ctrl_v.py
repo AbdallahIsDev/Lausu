@@ -321,4 +321,3 @@ class TestStopSnapshotWin32PasteDispatch:
         assert ok is False
         mock_user32.SendInput.assert_not_called()
         mock_user32.SetForegroundWindow.assert_not_called()
-
