@@ -221,6 +221,16 @@ jobs:
           set -euo pipefail
           bash scripts/build/fetch_ffmpeg_lgpl_win64.sh
 
+      # ADR-0031: install the SHA-256-pinned transcribe.cpp runner beside the
+      # ffmpeg binary before any freeze/bundle step. The script verifies
+      # archive size + hash and exits non-zero on mismatch. No model is
+      # downloaded here; models are downloaded on first use by the app.
+      - name: Fetch + verify transcribe.cpp runner (win x64, SHA-256 pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/build/fetch_transcribe_cpp_win64.sh
+
       - name: Build the sidecar with Nuitka (ADR-0020 §4.2)
         shell: pwsh
         run: |
@@ -508,6 +518,16 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/build/fetch_ffmpeg_lgpl_win64.sh
+
+      # ADR-0031: install the SHA-256-pinned transcribe.cpp runner beside the
+      # ffmpeg binary before any freeze/bundle step. The script verifies
+      # archive size + hash and exits non-zero on mismatch. No model is
+      # downloaded here; models are downloaded on first use by the app.
+      - name: Fetch + verify transcribe.cpp runner (win x64, SHA-256 pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/build/fetch_transcribe_cpp_win64.sh
 
       # plan-runtime-pack-split.md §4.4 / §11.5 — Worker exe build.
       # FV-58: PYBS extracts to C:\tools\pybs\python\python.exe; the script
@@ -812,6 +832,16 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/build/fetch_ffmpeg_lgpl_win64.sh
+
+      # ADR-0031: install the SHA-256-pinned transcribe.cpp runner beside the
+      # ffmpeg binary before any freeze/bundle step. The script verifies
+      # archive size + hash and exits non-zero on mismatch. No model is
+      # downloaded here; models are downloaded on first use by the app.
+      - name: Fetch + verify transcribe.cpp runner (win x64, SHA-256 pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/build/fetch_transcribe_cpp_win64.sh
 
       - name: Build the Tauri app (ADR-0020 §7)
         shell: pwsh
