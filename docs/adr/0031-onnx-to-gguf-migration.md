@@ -6,6 +6,23 @@ Proposed (spike done, decision pending)
 
 ---
 
+## FOLLOW-UP RESULTS (round 28, plain English, read this first)
+
+**No application code changed.** All new downloads, binaries, logs and transcripts stayed under `C:\Users\11\gguf-spike\`.
+
+1. **The model you actually want is Fluid Speech Pro**, not the plain Parakeet Ultra GGUF tested in round 27. It is a 676,653,088-byte Q8_0 file built on Parakeet TDT 0.6B v3 / Parakeet Ultra with one extra "FrameCleaner" block between subsampling and the first Conformer layer. Its license is CC BY 4.0. All WER/benchmark numbers on its card are **upstream claims, not verified here**. (VERIFIED — Firecrawl scrape of model card, Files tab and HF JSON API.)
+2. **transcribe.cpp cannot load it.** Both CPU and Vulkan fail at load with the exact error `gguf load error (status 4)` (`TRANSCRIBE_ERR_GGUF`). No transcribe.cpp timing exists for this model. (VERIFIED — measured in `round28/fluid-{cpu,vulkan}/load-error.json`.)
+3. **CrispASR can load it.** The official Windows CPU zip (9.25 MB) and Vulkan zip (36.1 MB) both transcribed the same 480.49 s WAV with 8 threads. CPU: 43.01 s / 41.49 s, peak 2.22 GB. Vulkan: 25.86 s on the cold first run and 8.85 s warm, peak 956 MB / 750 MB. Load time from the CLI is **UNVERIFIED** because the verbose log does not print a separable model-load number. (VERIFIED — measured runs.)
+4. **CrispASR is the runner built for this exact model.** MIT code, latest release v0.8.55 (21 Nov 2026), runs Whisper, Parakeet (including Fluid Speech Pro), Qwen3-ASR and VAD. It can consume transcribe.cpp GGUFs, but no source says it is a drop-in replacement — a parity spike is still needed before deciding it replaces transcribe.cpp. (VERIFIED source facts + INFERENCE.)
+5. **The hallucination gate is weaker than "on" for Parakeet today.** Only faster-whisper supplies `avg_logprob`/`no_speech_prob`. Parakeet and Qwen get a narrow RMS-only phrase blacklist; 6 ambiguous phrases are never rejected and Tier 2 never fires because the confidence values are `None`. transcribe.cpp has no segment confidence; CrispASR outputs per-token `p` but no segment `avg_logprob`/`no_speech_prob` in the JSON we produced. (VERIFIED — code + outputs.)
+6. **Removing ONNX packages will not shrink the installer as much as it looks.** The 108 MB sidecar is one compressed bundle; realistic net CPU+Vulkan change is **+23.6 MB to +52.6 MB** (added 56.24 MB transcribe.cpp; removed estimated 3.7–32.6 MB). The provably exclusive Whisper packages were already excluded from the shipped sidecar. (ESTIMATE — stated assumptions in §19.)
+7. **RNNoise-only is a real downgrade.** It removes the default DPDFNet model, the GTCRN safety net when `rnnoise.dll` is missing, the 16 kHz no-resample path, and dual-runtime redundancy. No exact-architecture GGUF backend exists for GTCRN or DPDFNet. (VERIFIED.)
+8. **Why transcribe.cpp CPU used 1.80 GB:** its weights are memory-mapped (705.8 MiB touched), 48 convolution weights are promoted F16→F32 on CPU, and Parakeet has no KV cache (`max_kv_bytes=0`). The extra peak over file size comes from inference buffers, not KV cache; the exact native allocation breakdown is **UNVERIFIED**. (VERIFIED facts + UNVERIFIED remainder.)
+
+**Decisions still open:** choose CrispASR vs transcribe.cpp for this model; decide the gate fallback; choose CPU/Vulkan/CUDA; choose how to distribute the runner; decide whether to keep any non-ONNX noise model; decide whether to shrink ffmpeg with a custom build.
+
+---
+
 ## SPIKE RESULTS (plain English, read this first)
 
 This round measured, outside the repo, whether the owner's chosen GGUF direction is viable.  
@@ -460,6 +477,7 @@ Counts: **15 local models/artifacts — 12 READY, 1 UNCERTAIN, 2 NO BACKEND.** "
 | Whisper large-v3 | CTranslate2, `Systran/faster-whisper-large-v3`, 3000 MB | YES | transcribe.cpp v0.4.2 | MIT | READY | https://github.com/handy-computer/transcribe.cpp |
 | Whisper large-v3-turbo | CTranslate2, `dropbox-dash/...turbo`, 1618 MB | YES | transcribe.cpp v0.4.2 | MIT | READY | https://github.com/handy-computer/transcribe.cpp |
 | Parakeet Ultra (`parakeet`) | ONNX int8, `Masterx/parakeet-tdt-0.6b-ultra-onnx`, rev `99b09f03`, ~670 MB | YES | transcribe.cpp v0.4.2 | CC-BY-4.0 | READY | https://huggingface.co/handy-computer/parakeet-ultra-gguf |
+| Fluid Speech Pro (`cstr` GGUF, owner's wanted model) | not used today | YES — `fluid-speech-pro-q8_0.gguf`, 676,653,088 B | **CrispASR v0.8.55**; transcribe.cpp v0.4.2 **fails to load** | CC-BY-4.0 | READY (CrispASR only) | https://huggingface.co/cstr/fluid-speech-pro-GGUF |
 | Qwen3-ASR 1.7B | ONNX int4, `andrewleech/qwen3-asr-1.7b-onnx`, 3943 MB | YES | transcribe.cpp v0.4.2 | Apache-2.0 | READY | https://github.com/handy-computer/transcribe.cpp |
 | Qwen3-ASR 0.6B | ONNX int4, `andrewleech/qwen3-asr-0.6b-onnx`, 1940 MB | YES | transcribe.cpp v0.4.2 | Apache-2.0 | READY | https://github.com/handy-computer/transcribe.cpp |
 | Silero VAD | `silero_vad.onnx`, 2,327,524 B, onnxruntime CPU-only | YES (`silero-vad-v6.2`, `silero-vad-F32.gguf`) | transcribe.cpp / s2s.cpp | model MIT (upstream), runtimes MIT | READY (caveat: older local export; internal to STT runtime, not drop-in ORT swap) | https://github.com/handy-computer/transcribe.cpp |
@@ -479,7 +497,7 @@ Cloud providers and rule-based "AI enhancement" are not local weights and are no
 | repo | file | quantization | exact bytes | runtime target | model identity | license |
 |---|---|---|---:|---|---|---|
 | `moondream/parakeet-ultra` | `model.safetensors` | full precision | 1,255,353,386 | Photon/transformers layout, not a shipped GGUF | fine-tuned Ultra | CC-BY-4.0 |
-| `cstr/fluid-speech-pro-GGUF` | `fluid-speech-pro-q8_0.gguf` | Q8_0 | 676,653,088 | CrispASR (`-m fluid-speech-pro`) | built on Ultra but with an extra residual block — **not exact Ultra** | CC-BY-4.0 |
+| `cstr/fluid-speech-pro-GGUF` | `fluid-speech-pro-q8_0.gguf` | Q8_0 | 676,653,088 | **CrispASR** (`-m fluid-speech-pro`); transcribe.cpp load fails | Fluid Speech Pro — Ultra + extra FrameCleaner block | CC-BY-4.0 |
 | `dawsonvosburg/parakeet-ultra-gguf` | `parakeet-ultra.q8_0.gguf` | Q8_0 | 714,456,704 | NeMo-Speech.cpp | fine-tuned Ultra | CC-BY-4.0 |
 | `handy-computer/parakeet-ultra-gguf` | `parakeet-ultra-Q8_0.gguf` | Q8_0 | 740,363,168 | **transcribe.cpp** | fine-tuned Ultra | CC-BY-4.0 |
 
@@ -500,6 +518,13 @@ Audio: extracted once from `C:\Users\11\Downloads\How To Build a Clean Gaming La
 | 3 | installed ONNX int8 | GPU | 1/2 | — | — | — | — | 8 | **NOT RUN** — see §13 |
 | 4 | fine-tuned Ultra GGUF Q8_0 | Vulkan0 (RTX 5060) | 1 | 8.46 | 15.68 | 30.65 | 736,219,136 | 8 | first run includes Vulkan pipeline/load |
 | 4 | fine-tuned Ultra GGUF Q8_0 | Vulkan0 (RTX 5060) | 2 | — | 4.98 | 96.55 | 573,440,000 | 8 | warm |
+| A | Fluid Speech Pro Q8_0 | transcribe.cpp CPU | 1/2 | — | — | — | — | 8 | **LOAD FAILED** — `gguf load error (status 4)` |
+| A | Fluid Speech Pro Q8_0 | transcribe.cpp Vulkan | 1/2 | — | — | — | — | 8 | **LOAD FAILED** — same exact error |
+| A | Fluid Speech Pro Q8_0 | CrispASR CPU zip CLI | 1 | UNVERIFIED | 43.01 | 11.17 | 2,218,799,104 | 8 | RAN |
+| A | Fluid Speech Pro Q8_0 | CrispASR CPU zip CLI | 2 | UNVERIFIED | 41.49 | 11.58 | 2,225,356,800 | 8 | RAN |
+| A | Fluid Speech Pro Q8_0 | CrispASR Vulkan zip CLI | 1 | UNVERIFIED | 25.86 | 18.58 | 956,047,360 | 8 | RAN, cold |
+| A | Fluid Speech Pro Q8_0 | CrispASR Vulkan zip CLI | 2 | UNVERIFIED | 8.85 | 54.29 | 750,096,384 | 8 | RAN, warm |
+| A | Fluid Speech Pro Q8_0 | CrispASR Vulkan wheel Python | 1/2 | 0.88 / 2.73 | — | — | 4,020,666,368 / 3,915,444,224 | 8 | **RUN FAILED** — `OSError: [WinError -529697949] Windows Error 0xe06d7363`; no timing used |
 
 GGUF segment output: 18 segments, fields `t0_ms`, `t1_ms`, `text`, `first_token`, `n_tokens`, `first_word`, `n_words`, `speaker_id`. `timestamp_kind = segment`; no confidence fields. ONNX text word count 2,161, GGUF 1,924; word-level diff ratio 0.0903. Both transcripts are single-line text, so "first 30 lines" means the line itself; excerpts are in the spike folder, not in the repo. **No WER and no quality conclusion** — the weights differ. (VERIFIED — measured outputs under `C:\Users\11\gguf-spike\`.)
 
@@ -565,6 +590,10 @@ Distribution options (facts only, no decision):
 
 ## 15. RISKS, REVISED PLAN, OWNER DECISIONS
 
+> Round-28 note: the owner-decision list at the end of this section is superseded by §21, which
+> includes the Fluid Speech Pro / CrispASR findings. The revised plan below is unchanged except
+> that step 4 must account for transcribe.cpp failing to load Fluid Speech Pro. (VERIFIED — §16.)
+
 **Hallucination gate:** app consumes `seg.avg_logprob`, `seg.no_speech_prob`, `first_segment_start`, `last_segment_end` (`voice_typer/server/transcription_result.py:227-305`; `voice_typer/server/hallucination.py:90-102,134-186`). transcribe.cpp segment rows expose `t0_ms`, `t1_ms`, `text`, `first_token`, `n_tokens`, `first_word`, `n_words`, `speaker_id` — timestamps yes, confidence/no-speech **no**. Options: (a) change the gate to accept missing confidence as a conservative fallback, (b) ask upstream for per-segment logprob/no-speech, (c) keep a small ONNX confidence model — which would defeat full ONNX removal. (VERIFIED — binding source and measured output.)
 
 **Revised plan (owner decision already made: remove onnxruntime entirely; one round per model family, safest first):**
@@ -591,6 +620,99 @@ Distribution options (facts only, no decision):
 
 ---
 
+## 16. ROUND-28 FLUID SPEECH PRO AND CRISPASR (Part A)
+
+All online facts in this section came from Firecrawl scrapes saved under `C:\Users\11\gguf-spike\round28\firecrawl\`. No internal search/fetch tool was used.
+
+**Fluid Speech Pro:** `cstr/fluid-speech-pro-GGUF/fluid-speech-pro-q8_0.gguf`, exact 676,653,088 bytes (HF tree API, `size` and `lfs.size` agree). Base chain: NVIDIA Parakeet TDT 0.6B v3 → `moondream/parakeet-ultra` → `FluidVoice-Labs/fluid-speech-pro` → cstr GGUF conversion. Converted from `fluid-speech-pro.nemo` rev `46027a3b`, sha256 `f3e377b792ae5a52a3c071adb7eba5504306f2f4bdcf933ae9da2cbcab6f0449`. License CC BY 4.0. Runtimes listed upstream: Transformers, NeMo, ONNX Runtime, MLX, parakeet.cpp, Core ML; cstr's GGUF files specifically target CrispASR. (VERIFIED primary artifact / upstream claim.)
+
+**Extra block (exact):** one residual "FrameCleaner" block between the encoder subsampling and the first Conformer layer: `LayerNorm → Linear → depthwise Conv1d(k=15) → GELU → Linear`. cstr converted from the `.nemo` checkpoint so the tensors are present; upstream Transformers weights and the plain parakeet.cpp GGUF leave it out. CrispASR's parakeet backend executes it when present. (VERIFIED — Firecrawl model card + CrispASR README.)
+
+**Accuracy claims — NOT VERIFIED:** author cards publish 6.06 average WER, 5.43 public-set average, 9.83 URGENT, ~3,700× realtime and FLEURS improvements. These are **upstream claims, not independently verified here**, and are not used for any decision in this ADR.
+
+**CrispASR:** MIT-licensed C++ ggml runtime hub, started as a fork of whisper.cpp. Latest release v0.8.55, 21 Nov 2026. Windows assets: CPU zip 9.25 MB (measured 9,702,256 bytes), Vulkan zip 36.1 MB (measured 37,841,105 bytes), CUDA assets 542–752 MB (over the 500 MB rule), Vulkan wheel 28.6 MB (measured 29,993,561 bytes). It runs Whisper, Parakeet including Fluid Speech Pro, Qwen3-ASR and VAD (Silero/FireRedVAD/MarbleNet/Whisper-VAD-EncDec). It vendors `CrispStrobe/ggml` at pinned commit `434c2d7` — same lineage/GGUF format as llama.cpp, not the same fork. Backends: CPU, Vulkan, CUDA 12.6/12.8/13, HIP, Metal. (VERIFIED — Firecrawl release assets/docs.)
+
+**Could CrispASR replace transcribe.cpp?** It is the only runner proven here to load the owner's wanted model, accepts existing transcribe.cpp GGUFs, and ships a small Windows binary. But no source claims drop-in parity, and a transcript/timestamp/API parity spike is still required. This is an evidence-backed candidate, not a decision. (INFERENCE.)
+
+**Runtime output fields (measured):** CrispASR `-ojf` JSON has `transcription[].timestamps`, `offsets`, `text`, `words[]`, `tokens[]`; each token has `text`, `p`, `t0`, `t1`, `offsets`. There is **no** segment `avg_logprob` or `no_speech_prob`. Token `p` was numeric for 621/621 tokens in both CPU and Vulkan runs (min 0.5297 / 0.5238, max 1.0). The Vulkan wheel Python binding failed with `OSError: [WinError -529697949] Windows Error 0xe06d7363`, so all Vulkan numbers in §12 come from the official Vulkan CLI zip.
+
+---
+
+## 17. ROUND-28 HALLUCINATION GATE ANALYSIS (Part B)
+
+| engine | confidence source | gate behavior with missing values | effect today |
+|---|---|---|---|
+| faster-whisper (worker + in-process) | `Segment.avg_logprob` / `no_speech_prob` collected at `transcription_result.py:232-237`, reduced at `:292-293`, passed at `:294-305` | no substitution; empty lists give `None` → fail-open | full gate works on the live `transcribe_unlocked` path. Legacy `worker/whisper/engine.py:465-484` omits probs but has no production callers. |
+| Parakeet | none; `recognize()` returns text only (`parakeet_engine/_transcribe.py:104-109`); gate call has only `(text, rms)` at `:117` | `_decoder_confirms_silence(None, None)` returns False (`hallucination.py:100-101`); Tier 2 dead because all timing args are None (`:173-181`) | narrow RMS-only phrase blacklist: 10 unambiguous phrases can be rejected at `rms < 0.01` (`:168`); 6 ambiguous phrases never rejected. |
+| Qwen3-ASR | none; `Transcription` has only `text` (`qwen_onnx_model.py:47-51`); logits discarded after argmax (`:352-372`) | same fail-open; gate calls only `(engine, text, rms)` at `qwen_engine.py:247`, `qwen_chunking.py:180,225` | same narrow RMS-only blacklist. |
+| cloud | none; response reduced to text (`cloud/_engine.py:249-304`); no gate symbols under `server/cloud/` | n/a | no gate, no rejection reason. |
+
+Mode default is `balanced` (`_schema.py:83-86`, `hallucination.py:29`). Invalid mode also falls back to balanced (`hallucination.py:81-87`); `off` disables everything (`:149-150`). `0.0` is a real number and does not trigger the fail-open branch (`:100-102`). Tier 1 with missing `silence_pct`/`duration` reduces to `rms < 0.01` (`:168`). Stamp logic is at `:123-131`.
+
+Candidate runtimes: transcribe.cpp segment struct has timestamps but no confidence (`transcribe-src/include/transcribe.h:2589-2599`); token `p` exists but is NaN when unsupported and "not a calibrated probability" (`:2616-2635`); Whisper-family chunk traces expose `avg_logprob`, `no_speech_prob`, `compression_ratio`, `n_fallbacks` per 30 s window (`include/transcribe/whisper.h:174-199`) but the public Python binding does not expose them. CrispASR docs show per-token confidence and four VAD backends but no pinned no-speech field; our JSON confirms only token `p`. whisper.cpp confidence remains **UNVERIFIED** (no local upstream header read).
+
+Fact-based options, not implemented: (1) accept the existing fail-open/RMS behavior; (2) use token `p` as a mean-logprob proxy with explicit caveats and a redesigned rule (there is no `no_speech_prob` to AND with); (3) use transcribe.cpp Whisper chunk telemetry via C API (granularity mismatch, no CLI path); (4) strengthen VAD/silence filtering; (5) repetition/compression-ratio heuristics from `compression_ratio`/`n_fallbacks` or CrispASR `-n`; (6) `strict` mode as a user-facing lever, with its documented false-positive risk (`hallucination.py:58-61`).
+
+---
+
+## 18. ROUND-28 INSTALLER SIZE (Part C)
+
+Verified venv sizes (Python 3.13.7 proxy; production freeze is 3.12.x): onnxruntime 41.19 MB, ctranslate2 62.67 MB, faster_whisper 1.48 MB, av + av.libs 69.15 MB, numpy + numpy.libs 45.17 MB, scipy + scipy.libs 145.76 MB, tokenizers 7.85 MB, huggingface_hub 6.23 MB — total 379.51 MB. Reverse `Requires-Dist` scan: **only ctranslate2 is exclusively required by faster_whisper**; onnxruntime, av, numpy, scipy, tokenizers and huggingface_hub are also required directly by `lausu` or other subsystems.
+
+Nuitka flags: sidecar excludes faster_whisper/ctranslate2/torch at `scripts/build/build_sidecar_windows.sh:162-164` and includes av at `:174`; worker includes onnxruntime at `scripts/build/build_worker_windows.sh:247`. `scripts/build/nuitka_freeze.sh:19-21` comments are stale. The measured NSIS payload has no worker binary, so the only exclusive Whisper packages contribute **0 installer bytes**.
+
+The shipped 108,075,008-byte sidecar was stream-decompressed read-only: 412,292,268 B raw → 107,996,734 B zstd, ratio 0.261942. Present: onnxruntime, numpy, scipy, tokenizers, huggingface_hub, av+av.libs. Absent: ctranslate2.dll, libiomp5md.dll, faster_whisper/. Applying the whole-payload ratio gives ~82.6 MB (76.5%) of the sidecar from those packages — **ESTIMATE**, not per-file measurement.
+
+| scenario | removed from 108 MB sidecar | net CPU+Vulkan payload change |
+|---|---:|---:|
+| Whisper libs only | 0 | +56.24 MB |
+| + tokenizers + huggingface_hub | 3.69 MB | +52.55 MB |
+| + onnxruntime | 14.48 MB | +41.76 MB |
+| + av + av.libs | 32.59 MB | +23.65 MB |
+| + numpy + scipy (aggressive, shared) | 82.60 MB | −26.37 MB |
+
+Headline **ESTIMATE: +23.6 MB to +52.6 MB net increase**, verified-safe floor +56.24 MB. Only full de-ONNXification including shared numpy/scipy turns it negative; that is not a consequence of this migration alone. Models are not bundled.
+
+**ffmpeg:** current `ffmpeg.exe` is 134,459,904 B. Firecrawl-verified BtbN/FFmpeg-Builds LGPL win64 static zip 170.8 MiB, LGPL win64 shared 79.2 MiB, n9.0 LGPL shared 74.2 MiB; no official audio-only variant exists (variants API has only per-target `*-lgpl*.sh`, `*-gpl*.sh`, etc.). A custom audio-only configure line can be assembled from verified switches (`--disable-everything`, `--enable-demuxer/decoder/muxer/protocol=…`) but its size is **UNVERIFIED** without a real CI build. FFmpeg's legal checklist recommends dynamic linking (DLLs), shipping exact source + configure line, no `--enable-gpl`/`--enable-nonfree`, and attribution; gyan's 34 MB essentials build is GPLv3 and therefore ruled out. No build or change was made.
+
+---
+
+## 19. ROUND-28 NOISE MODELS (Part D)
+
+Setting: `noise_suppression_method`, default `dpdfnet` (`voice_typer/server/config/_schema.py:426`); UI descriptor `audioFilterRowDescriptors.ts:137-161`, labels `en.json:1041-1045`; legacy `noise_filter_rnnoise` at `_schema.py:419`; migrations `deepfilternet→gtcrn`, `speex→rnnoise` at `loader.py:76-78`. Chain builder: `audio_chain_builder.py:90-99`.
+
+Fallback chain (`noise_suppressor.py`): rnnoise missing → gtcrn substitute (`:153-173`, `:129-151`); gtcrn fail → rnnoise (`:185-213`); dpdfnet not preloaded → rnnoise + pending promotion (`:215-279`); unknown → none. Effective/degraded truth in `effective_backend.py:47-81`. Sizes: `dpdfnet2.onnx` 10,178,747 B; `gtcrn_simple.onnx` 535,190 B.
+
+RNNoise-only loses: the default and strongest denoiser, the GTCRN safety net when `rnnoise.dll` is missing (then denoising becomes `none`), the native 16 kHz no-resample path, runtime diversity, background DPDFNet promotion/RTF gate, and most UI/fallback meaning. Upstream GTCRN claims PESQ 2.87 vs RNNoise 2.29 and DNSMOS 3.44 vs 3.15 — upstream claims, not app-side A/B.
+
+GGUF/non-ORT research: no exact-architecture GGUF for `gtcrn_simple` or `dpdfnet2` found with Firecrawl; `"GTCRN" "GGUF"` returned "No results found." LocalVQE `GTCRN-AEC` GGUF is a distinct architecture (Apache-2.0, GGML C++ engine, Windows UNVERIFIED). DPDFNet has upstream TFLite/PyTorch checkpoints and a Linux-only native Rust reimplementation, neither GGUF nor Windows-ready. Sherpa-onnx supports both on Windows but is ONNX-based. Licenses: official GTCRN MIT, DPDFNet Apache-2.0, RNNoise BSD-3-Clause. **Correction:** the round-27 table's GTCRN "Apache-2.0" referred to LocalVQE; the app's current GTCRN is MIT.
+
+---
+
+## 20. ROUND-28 MEMORY FINDING (Part E)
+
+Binding source states weights are memory-mapped for host-memory devices (`transcribe_cpp/__init__.py:1061-1066`). Measured stage RSS on the 740 MB Ultra GGUF, same WAV, 8 threads:
+
+| mode | baseline | after load | after session | after run | load ms | run ms |
+|---|---:|---:|---:|---:|---:|---:|
+| mmap (default) | 115,748,864 | 663,904,256 | 663,928,832 | 1,128,714,240 | 1,618 | 31,611 |
+| `TRANSCRIBE_NO_MMAP=1` | 115,593,216 | 1,233,334,272 | 1,233,354,752 | 1,222,885,376 | 6,970 | 27,871 |
+
+Native log at load: `weights memory-mapped: 705.8 MiB in CPU_Mapped`, `promoted 48 conv pointwise weights from F16 → F32 for CPU backend`, `SessionLimits(effective_n_ctx=0, effective_max_audio_ms=0, max_kv_bytes=0)`. So the 1.80 GB earlier peak is not KV cache (Parakeet reports zero) and not Python binding overhead; it is touched mmap pages plus inference/compute buffers, with the exact native allocation breakdown **UNVERIFIED**.
+
+---
+
+## 21. ROUND-28 OWNER DECISIONS (plain English with options and facts)
+
+1. **Which runner for Fluid Speech Pro?** Facts: transcribe.cpp fails to load this exact GGUF; CrispASR CPU and Vulkan both load and transcribe it. Options: (a) adopt CrispASR for this model, (b) keep transcribe.cpp for other models and add CrispASR only here, (c) wait for transcribe.cpp support. Evidence favors (a) or (b); (c) has no working path today. This does **not** by itself decide replacing transcribe.cpp everywhere — a parity spike is still needed.
+2. **Do we accept a weaker gate?** Facts: Parakeet's confidence half is already inert; CrispASR gives token `p` but no segment no-speech field. Options: fail-open/RMS as today, token-probability proxy with a redesigned rule, VAD-based filtering, or strict mode with false-positive risk. Evidence favors fail-open plus VAD/repetition heuristics until a calibrated signal exists.
+3. **Which GPU backend?** Facts: CrispASR Vulkan warm 8.85 s vs CPU 41.49 s; transcribe.cpp Ultra Vulkan warm 4.98 s vs CPU 27.58 s; CUDA speed for either runner is **NOT RUN** (binaries exceed 500 MB). Evidence favors Vulkan on this machine; no cross-platform decision is made.
+4. **How to ship the runner?** Facts: CrispASR CPU zip is 9.25 MB, Vulkan 36.1 MB, transcribe.cpp CPU+Vulkan extracted 56.24 MB. Bundling is consistent with ffmpeg/llama.cpp; first-use download lowers installer size but adds SmartScreen/update risk. No decision made.
+5. **What about GTCRN/DPDFNet?** Facts: no exact GGUF backend found; RNNoise-only removes the default model and the GTCRN safety net. Options: keep a non-ONNX runtime for these two, accept RNNoise-only with its losses, or ask for new GGUF conversions. Evidence favors not silently dropping them.
+6. **Shrink ffmpeg?** Facts: current 134.46 MB; verified LGPL shared win64 79.2 MiB; no official audio-only build; custom build size unknown. Options: keep as-is, switch to LGPL shared, or fund a custom audio-only CI build. Evidence favors LGPL shared only if license/source-offer work is accepted; no change now.
+
+---
+
 ## 10. Sources
 
 **Upstream (fetched during this research):**
@@ -610,6 +732,19 @@ Distribution options (facts only, no decision):
 - https://github.com/polyformproject/polyform-licenses/blob/1.0.0/README.md
 - https://pypi.org/project/whispercpp-kit
 - https://github.com/localai-org/moss-transcribe.cpp
+- https://huggingface.co/cstr/fluid-speech-pro-GGUF
+- https://huggingface.co/api/models/cstr/fluid-speech-pro-GGUF/tree/main?recursive=true
+- https://huggingface.co/FluidVoice-Labs/fluid-speech-pro
+- https://github.com/CrispStrobe/CrispASR
+- https://github.com/CrispStrobe/CrispASR/releases
+- https://github.com/CrispStrobe/CrispASR/releases/expanded_assets/v0.8.55
+- https://github.com/CrispStrobe/CrispASR/blob/main/docs/cli.md
+- https://github.com/BtbN/FFmpeg-Builds
+- https://github.com/BtbN/FFmpeg-Builds/releases
+- https://ffmpeg.org/legal.html
+- https://github.com/Xiaobin-Rong/gtcrn
+- https://github.com/ceva-ip/DPDFNet
+- https://github.com/xiph/rnnoise
 
 **Secondary (labelled as such in §3):**
 - https://kompozy.io/reviews/transcribe-cpp
