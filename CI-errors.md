@@ -1,16 +1,16 @@
 # CI Errors
 
-> Generated: 2026-11-23T12:40:24Z
-> Data branch commit: `e316165`
+> Generated: 2026-11-23T13:25:01Z
+> Data branch commit: `c10d162`
 
 ## Currently failing
 
 ### 1. Build installer — failure
 
-- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
 - Event: push · Branch: main
-- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
 - Step: Run tests with coverage
 - Category: pytest
 
@@ -22,12 +22,12 @@
 
 ### 2. Build installer — failure
 
-- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
 - Event: push · Branch: main
-- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
-- Step: Run tests with coverage
-- Category: pytest
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: Rust clippy + cargo audit · Leg: ubuntu-22.04
+- Step: Run rustsec/audit-check@v2
+- Category: cargo test/clippy/audit
 
 - Error excerpt:
 
@@ -37,12 +37,12 @@
 
 ### 3. Build installer — failure
 
-- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
 - Event: push · Branch: main
-- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
-- Step: Run tests with coverage
-- Category: pytest
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: Pre-commit hygiene · Leg: ubuntu-22.04
+- Step: Run pre-commit hygiene hooks
+- Category: pre-commit hygiene
 
 - Error excerpt:
 
@@ -52,10 +52,10 @@
 
 ### 4. Build installer — failure
 
-- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
 - Event: push · Branch: main
-- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
 - Step: Run tests with coverage
 - Category: pytest
 
@@ -67,10 +67,10 @@
 
 ### 5. Build installer — failure
 
-- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
 - Event: push · Branch: main
-- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
 - Step: Run tests with coverage
 - Category: pytest
 
@@ -82,10 +82,10 @@
 
 ### 6. Build installer — failure
 
-- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
 - Event: push · Branch: main
-- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
 - Step: Run tests with coverage
 - Category: pytest
 
@@ -97,10 +97,10 @@
 
 ### 7. Build installer — failure
 
-- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
 - Event: push · Branch: main
-- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
 - Step: Run tests with coverage
 - Category: pytest
 
@@ -112,10 +112,10 @@
 
 ### 8. Build installer — failure
 
-- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
 - Event: push · Branch: main
-- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
 - Step: Run tests with coverage
 - Category: pytest
 
@@ -127,7 +127,127 @@
 
 ## Recent failures
 
-### 1. CI error collector — failure
+### 1. Build installer — failure
+
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
+- Event: push · Branch: main
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 2. Build installer — failure
+
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
+- Event: push · Branch: main
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: Rust clippy + cargo audit · Leg: ubuntu-22.04
+- Step: Run rustsec/audit-check@v2
+- Category: cargo test/clippy/audit
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 3. Build installer — failure
+
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
+- Event: push · Branch: main
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: Pre-commit hygiene · Leg: ubuntu-22.04
+- Step: Run pre-commit hygiene hooks
+- Category: pre-commit hygiene
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 4. Build installer — failure
+
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
+- Event: push · Branch: main
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 5. Build installer — failure
+
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
+- Event: push · Branch: main
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 6. Build installer — failure
+
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
+- Event: push · Branch: main
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 7. Build installer — failure
+
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
+- Event: push · Branch: main
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 8. Build installer — failure
+
+- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
+- Event: push · Branch: main
+- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
+- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 9. CI error collector — failure
 
 - Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -142,7 +262,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 2. Build installer — failure
+### 10. Build installer — failure
 
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
@@ -157,7 +277,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 3. Build installer — failure
+### 11. Build installer — failure
 
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
@@ -172,7 +292,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 4. Build installer — failure
+### 12. Build installer — failure
 
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
@@ -187,7 +307,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 5. Build installer — failure
+### 13. Build installer — failure
 
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
@@ -202,7 +322,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 6. Build installer — failure
+### 14. Build installer — failure
 
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
@@ -217,7 +337,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 7. Build installer — failure
+### 15. Build installer — failure
 
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
@@ -232,7 +352,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 8. Build installer — failure
+### 16. Build installer — failure
 
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
@@ -247,7 +367,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 9. Build installer — failure
+### 17. Build installer — failure
 
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
@@ -262,7 +382,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 10. Build installer — failure
+### 18. Build installer — failure
 
 - Run: [45081430214](https://github.com/AbdallahIsDev/Lausu/actions/runs/45081430214) (attempt 1)
 - Event: push · Branch: main
@@ -277,7 +397,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 11. Build installer — failure
+### 19. Build installer — failure
 
 - Run: [45081430214](https://github.com/AbdallahIsDev/Lausu/actions/runs/45081430214) (attempt 1)
 - Event: push · Branch: main
@@ -292,7 +412,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 12. Build installer — failure
+### 20. Build installer — failure
 
 - Run: [45081430214](https://github.com/AbdallahIsDev/Lausu/actions/runs/45081430214) (attempt 1)
 - Event: push · Branch: main
@@ -307,7 +427,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 13. CI error collector — failure
+### 21. CI error collector — failure
 
 - Run: [45076536525](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076536525) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -322,7 +442,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 14. CI error collector — failure
+### 22. CI error collector — failure
 
 - Run: [45076441804](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076441804) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -337,7 +457,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 15. CI error collector — failure
+### 23. CI error collector — failure
 
 - Run: [45076235547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076235547) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -352,7 +472,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 16. CI error collector — failure
+### 24. CI error collector — failure
 
 - Run: [45075751604](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075751604) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -367,7 +487,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 17. CI error collector — failure
+### 25. CI error collector — failure
 
 - Run: [45075732518](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075732518) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -382,7 +502,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 18. CI error collector — failure
+### 26. CI error collector — failure
 
 - Run: [45075544010](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075544010) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -397,7 +517,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 19. CI error collector — failure
+### 27. CI error collector — failure
 
 - Run: [45075063722](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075063722) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -412,7 +532,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 20. CI error collector — failure
+### 28. CI error collector — failure
 
 - Run: [45075045477](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075045477) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -427,7 +547,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 21. CI error collector — failure
+### 29. CI error collector — failure
 
 - Run: [45074658464](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074658464) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -442,7 +562,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 22. CI error collector — failure
+### 30. CI error collector — failure
 
 - Run: [45074378791](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074378791) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -457,7 +577,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 23. CI error collector — failure
+### 31. CI error collector — failure
 
 - Run: [45074366812](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074366812) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -472,82 +592,82 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 24. Client CI — failure
+### 32. Client CI — failure
 
 - Run: [45074349566](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074349566) (attempt 1)
 - Event: push · Branch: main
 - Commit: `360dbee` — fix(ci): generate collector report before switching to data branch
-- Job: Typecheck + Lint + Test · Leg: ubuntu-22.04
-- Step: Test (Vitest + coverage)
-- Category: eslint/vitest
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 25. CI error collector — failure
+### 33. CI error collector — failure
 
 - Run: [45074212066](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074212066) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
-- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
-- Step: Generate report
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
 - Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 26. CI error collector — failure
+### 34. CI error collector — failure
 
 - Run: [45073962563](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073962563) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
-- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
-- Step: Generate report
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
 - Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 27. CI error collector — failure
+### 35. CI error collector — failure
 
 - Run: [45073947148](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073947148) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
-- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
-- Step: Generate report
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
 - Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 28. CI error collector — failure
+### 36. CI error collector — failure
 
 - Run: [45073936225](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073936225) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
-- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
-- Step: Generate report
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
 - Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 29. CI error collector — failure
+### 37. CI error collector — failure
 
 - Run: [45073868160](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073868160) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -562,7 +682,7 @@
 (no job log available)
 ```
 
-### 30. Build installer — failure
+### 38. Build installer — failure
 
 - Run: [45073732975](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073732975) (attempt 1)
 - Event: push · Branch: main
@@ -577,7 +697,7 @@
 (no job log available)
 ```
 
-### 31. Build installer — failure
+### 39. Build installer — failure
 
 - Run: [45035935992](https://github.com/AbdallahIsDev/Lausu/actions/runs/45035935992) (attempt 1)
 - Event: push · Branch: main
@@ -592,7 +712,7 @@
 (no job log available)
 ```
 
-### 32. Build installer — failure
+### 40. Build installer — failure
 
 - Run: [45024078547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45024078547) (attempt 1)
 - Event: push · Branch: main
@@ -607,7 +727,7 @@
 (no job log available)
 ```
 
-### 33. Build Windows — failure
+### 41. Build Windows — failure
 
 - Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -622,7 +742,7 @@
 (no job log available)
 ```
 
-### 34. Build installer — failure
+### 42. Build installer — failure
 
 - Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
 - Event: push · Branch: main
@@ -637,7 +757,7 @@
 (no job log available)
 ```
 
-### 35. Build Windows — failure
+### 43. Build Windows — failure
 
 - Run: [44904197738](https://github.com/AbdallahIsDev/Lausu/actions/runs/44904197738) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -652,7 +772,7 @@
 (no job log available)
 ```
 
-### 36. Build installer — failure
+### 44. Build installer — failure
 
 - Run: [44902843881](https://github.com/AbdallahIsDev/Lausu/actions/runs/44902843881) (attempt 1)
 - Event: push · Branch: main
@@ -667,7 +787,7 @@
 (no job log available)
 ```
 
-### 37. Build installer — failure
+### 45. Build installer — failure
 
 - Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
 - Event: push · Branch: main
@@ -682,7 +802,7 @@
 (no job log available)
 ```
 
-### 38. Build Linux — failure
+### 46. Build Linux — failure
 
 - Run: [44844000820](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000820) (attempt 1)
 - Event: push · Branch: main
@@ -697,7 +817,7 @@
 (no job log available)
 ```
 
-### 39. Build installer — failure
+### 47. Build installer — failure
 
 - Run: [44844000713](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000713) (attempt 1)
 - Event: push · Branch: main
@@ -712,7 +832,7 @@
 (no job log available)
 ```
 
-### 40. Client CI — failure
+### 48. Client CI — failure
 
 - Run: [44844000708](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000708) (attempt 1)
 - Event: push · Branch: main
@@ -727,7 +847,7 @@
 (no job log available)
 ```
 
-### 41. Build Windows — failure
+### 49. Build Windows — failure
 
 - Run: [44834921579](https://github.com/AbdallahIsDev/Lausu/actions/runs/44834921579) (attempt 1)
 - Event: workflow_dispatch · Branch: lausu/rounds-1-11-lgpl-notices-ci
@@ -797,15 +917,15 @@
 - Run: [45074349566](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074349566) (attempt 1)
 - Event: push · Branch: main
 - Commit: `360dbee` — fix(ci): generate collector report before switching to data branch
-- Job: Typecheck + Lint + Test · Leg: ubuntu-22.04
-- Step: Test (Vitest + coverage)
-- Category: eslint/vitest
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 - Fixed by: [45075040623](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075040623) (success)
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
 ### 5. Build Windows — failure
