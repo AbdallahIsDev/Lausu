@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T20:13:32Z
+> Generated: 2026-11-23T20:18:38Z
 > Data branch commit: `4b69717`
 
 ## Currently failing
@@ -987,21 +987,6 @@
 - Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
 - Event: push · Branch: main
 - Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 59. Build Windows — failure
-
-- Run: [44904197738](https://github.com/AbdallahIsDev/Lausu/actions/runs/44904197738) (attempt 1)
-- Event: workflow_dispatch · Branch: main
-- Commit: `349cc26` — docs(ci): update CI-errors.md from latest test run
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
 - Category: other
