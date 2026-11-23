@@ -2,7 +2,27 @@
 
 ## Status
 
-Proposed (research only, no decision yet)
+Proposed (spike done, decision pending)
+
+---
+
+## SPIKE RESULTS (plain English, read this first)
+
+This round measured, outside the repo, whether the owner's chosen GGUF direction is viable.  
+**No application code changed.** All models, binaries, transcripts and logs live under `C:\Users\11\gguf-spike\`.
+
+**What we learned, plainly:**
+
+1. The "about 677 MB" GGUF is **not Parakeet Ultra**. It is `fluid-speech-pro-q8_0.gguf` (676,653,088 bytes) from `cstr/fluid-speech-pro-GGUF`, built on Ultra but with an extra residual block and targeting CrispASR, not transcribe.cpp. It is **not** the file to ship. (VERIFIED — Firecrawl scrape of the model card and Files tab; Hugging Face JSON API.)
+2. Exactly one clear file meets all three owner criteria — fine-tuned Ultra, 8-bit/Q8_0, transcribe.cpp runtime: `handy-computer/parakeet-ultra-gguf/parakeet-ultra-Q8_0.gguf`, 740,363,168 bytes. It was downloaded and tested. (VERIFIED — Firecrawl scrape of model card and Files tab; exact byte size from the Hugging Face JSON API.)
+3. On this machine, with the same 8:00.49 audio and 8 threads, CPU wall time was ~29 s for installed ONNX and ~27 s for GGUF; GGUF used more peak RAM (1.80 GB vs 1.02 GB). Vulkan GGUF was much faster on warm run (4.98 s vs 27 s CPU). These are speed/memory facts only — **no WER and no quality conclusion**, because the ONNX file is non-fine-tuned Ultra and the GGUF file is fine-tuned Ultra with different weights. (VERIFIED — measured runs in §11.)
+4. ONNX GPU is **NOT RUN**. The app uses an ONNX Runtime CPU wheel with no CUDA provider. Installing the GPU wheel in a throwaway venv exposed the real dependency error: `onnxruntime_providers_cuda.dll` depends on `cublasLt64_13.dll`, which is missing; ORT docs require CUDA 13.0 + cuDNN 9.x. NuGet's GPU Windows package supplied `onnxruntime_providers_cuda.dll` but still not the CUDA/cuDNN runtime DLLs. No fix under the 500 MB-per-file rule was completed, so there is no ONNX GPU number. (VERIFIED — §12.)
+5. The hallucination gate needs `no_speech_prob`, `avg_logprob`, `first_segment_start`, and `last_segment_end`; transcribe.cpp exposes segment `t0_ms`/`t1_ms`/`text` but **not** those confidence fields. This is the largest integration risk. (VERIFIED — §13.)
+6. Installer sizes are partly measured and partly unknown: the shipped NSIS payload is 243.47 MiB, dominated by a 128.27 MiB ffmpeg and a 103.04 MiB one-file Python sidecar. We cannot measure how many bytes of that sidecar are onnxruntime/CTranslate2/PyAV because it is one compressed executable. Added transcribe.cpp binaries are measured: 53.63 MiB CPU+Vulkan, 237.38 MiB CUDA. (VERIFIED/UNVERIFIED mix — §14.)
+
+**Still unknown:** exact sidecar bytes saved by removing ORT/CT2/PyAV; whether llama.cpp and transcribe.cpp can share ggml DLLs; whether a CUDA 13/cuDNN 9 runtime can be supplied with acceptable per-file sizes; quality parity on the same weights.
+
+**Owner decisions still required:** (1) accept the confidence-field gap and change the gate, or require a runtime that emits those fields; (2) bundle transcribe.cpp, download on first use, or make it optional; (3) CPU/Vulkan/CUDA target; (4) whether to purge old GitHub history after junk removal; (5) whether to accept higher peak RAM on CPU. Facts and options are in §15.
 
 ---
 
@@ -422,9 +442,152 @@ grep -n "seg\.\|info\.language\|word\." voice_typer/server/transcription_result.
 - W0: web-search first before implementing; E10: investigation before implementation; E12: no
   downgrades; E1: verify with `cargo check` / typecheck / `pytest --collect-only`. (VERIFIED —
   `AGENTS.md` "Golden Rule", W0, E1, E10, E12.)
+- Online research: use the Firecrawl CLI, not the harness's internal search tools. (VERIFIED —
+  owner correction, round 27.)
 - No task IDs in code; tag conventions `SEC-*`, `RACE-*`, `PERF-*` only. (VERIFIED — `AGENTS.md`.)
 - After using xerj for reference coding, submit the field report; index peer corpora under their
   own prefixes. (VERIFIED — `AGENTS.md` "XERJ (code search)".)
+
+---
+
+## 11. ROUND-27 MODEL INVENTORY (Part A)
+
+Counts: **15 local models/artifacts — 12 READY, 1 UNCERTAIN, 2 NO BACKEND.** "GGUF exists?" means the family/variant has a GGUF artifact, not that this app ships it. This table was assembled from repo code plus upstream research; external URLs outside the Hugging Face candidate tables were collected before the Firecrawl-only correction and should be re-verified with Firecrawl before implementation. (VERIFIED — local `file:line` evidence; PARTIAL — upstream URLs.)
+
+| model | today | GGUF exists? | runtime | license | status | evidence URL |
+|---|---|---|---|---|---|---|
+| Whisper tiny | CTranslate2, `Systran/faster-whisper-tiny`, 75 MB | YES | transcribe.cpp v0.4.2 | MIT | READY | https://github.com/handy-computer/transcribe.cpp |
+| Whisper large-v3 | CTranslate2, `Systran/faster-whisper-large-v3`, 3000 MB | YES | transcribe.cpp v0.4.2 | MIT | READY | https://github.com/handy-computer/transcribe.cpp |
+| Whisper large-v3-turbo | CTranslate2, `dropbox-dash/...turbo`, 1618 MB | YES | transcribe.cpp v0.4.2 | MIT | READY | https://github.com/handy-computer/transcribe.cpp |
+| Parakeet Ultra (`parakeet`) | ONNX int8, `Masterx/parakeet-tdt-0.6b-ultra-onnx`, rev `99b09f03`, ~670 MB | YES | transcribe.cpp v0.4.2 | CC-BY-4.0 | READY | https://huggingface.co/handy-computer/parakeet-ultra-gguf |
+| Qwen3-ASR 1.7B | ONNX int4, `andrewleech/qwen3-asr-1.7b-onnx`, 3943 MB | YES | transcribe.cpp v0.4.2 | Apache-2.0 | READY | https://github.com/handy-computer/transcribe.cpp |
+| Qwen3-ASR 0.6B | ONNX int4, `andrewleech/qwen3-asr-0.6b-onnx`, 1940 MB | YES | transcribe.cpp v0.4.2 | Apache-2.0 | READY | https://github.com/handy-computer/transcribe.cpp |
+| Silero VAD | `silero_vad.onnx`, 2,327,524 B, onnxruntime CPU-only | YES (`silero-vad-v6.2`, `silero-vad-F32.gguf`) | transcribe.cpp / s2s.cpp | model MIT (upstream), runtimes MIT | READY (caveat: older local export; internal to STT runtime, not drop-in ORT swap) | https://github.com/handy-computer/transcribe.cpp |
+| DPDFNet | `dpdfnet2.onnx`, 10,178,747 B, onnxruntime | NOT FOUND | none found | Apache-2.0 | NO BACKEND (exhaustiveness UNVERIFIED) | https://github.com/ceva-ip/DPDFNet |
+| RNNoise | native C library via ctypes; no ORT/CT2 | N/A | native C | BSD | NO BACKEND (GGUF not applicable; no backend needed) | https://jmvalin.ca/demo/rnnoise |
+| GTCRN | `gtcrn_simple.onnx`, 535,190 B, onnxruntime | PARTIAL — LocalVQE GGUF is a different GTCRN-AEC architecture | LocalVQE GGML engine v1.3 | Apache-2.0 | UNCERTAIN (different architecture; Windows unverified) | https://github.com/localai-org/LocalVQE |
+| Translation `index-translate-2b-q4-k-m` | already GGUF, 1,312,164,352 B | YES — shipped today | llama.cpp `llama-server` | Apache-2.0 / MIT | READY | in-repo `voice_typer/server/translation/catalogue.py:17-25` |
+| Local ONNX polish model | user-supplied `*.onnx` + `.onnx_data`, onnxruntime | YES — any GGUF LLM | llama.cpp `llama-server` | user model UNVERIFIED | READY (runtime) | in-repo `voice_typer/server/model_providers/local_onnx/models.py:27-32,195-224` |
+| Audio8 TTS Realistic 0.6B | already GGUF, 1,890,480,128 B | YES | `audio8` native | weights UNVERIFIED | READY | in-repo `voice_typer/server/tts/packs.py:105-113` |
+| MagpieTTS Multilingual 357M | already GGUF, 568,663,328 B | YES | `nemo-speech` native | weights UNVERIFIED | READY | in-repo `voice_typer/server/tts/packs.py:115-127` |
+| Magpie NanoCodec decoder | already GGUF, 78,823,104 B | YES | `nemo-speech` native | weights UNVERIFIED | READY | in-repo `voice_typer/server/tts/packs.py:129-140` |
+
+Cloud providers and rule-based "AI enhancement" are not local weights and are not counted.
+
+### 11.1 Parakeet Ultra candidate comparison (Firecrawl-verified)
+
+| repo | file | quantization | exact bytes | runtime target | model identity | license |
+|---|---|---|---:|---|---|---|
+| `moondream/parakeet-ultra` | `model.safetensors` | full precision | 1,255,353,386 | Photon/transformers layout, not a shipped GGUF | fine-tuned Ultra | CC-BY-4.0 |
+| `cstr/fluid-speech-pro-GGUF` | `fluid-speech-pro-q8_0.gguf` | Q8_0 | 676,653,088 | CrispASR (`-m fluid-speech-pro`) | built on Ultra but with an extra residual block — **not exact Ultra** | CC-BY-4.0 |
+| `dawsonvosburg/parakeet-ultra-gguf` | `parakeet-ultra.q8_0.gguf` | Q8_0 | 714,456,704 | NeMo-Speech.cpp | fine-tuned Ultra | CC-BY-4.0 |
+| `handy-computer/parakeet-ultra-gguf` | `parakeet-ultra-Q8_0.gguf` | Q8_0 | 740,363,168 | **transcribe.cpp** | fine-tuned Ultra | CC-BY-4.0 |
+
+Choice: `handy-computer/parakeet-ultra-gguf/parakeet-ultra-Q8_0.gguf`. It is the only file satisfying all three owner criteria, and its card documents transcribe.cpp compatibility and pins upstream commit `73175eb`. (VERIFIED — Firecrawl scrape of model card and Files tab; Hugging Face JSON API via Firecrawl.)
+
+---
+
+## 12. ROUND-27 MEASUREMENTS (Part B)
+
+Audio: extracted once from `C:\Users\11\Downloads\How To Build a Clean Gaming Laptop Setup_(240P).mp4` with the shipped `src-tauri/bin/ffmpeg-x86_64-pc-windows-msvc.exe` to 16 kHz mono s16 WAV, 480.4905625 s, 15,375,776 bytes. (VERIFIED — command output.) No PATH ffmpeg was used. All runs used 8 threads; ONNX used `OMP_NUM_THREADS=8`/`ORT_NUM_THREADS=8`, GGUF used `session(n_threads=8)`.
+
+| Test | Model | Backend | Run | Load s | Wall s | RTF (audio s / wall s) | Peak RSS bytes | Threads | Notes |
+|---|---|---|---:|---:|---:|---:|---:|---:|---|
+| 1 | installed ONNX int8 non-fine-tuned Ultra | CPU | 1 | 3.04 | 29.35 | 16.37 | 1,022,423,040 | 8 | app `ParakeetEngine(device="cpu")` |
+| 1 | installed ONNX int8 non-fine-tuned Ultra | CPU | 2 | — | 28.82 | 16.67 | 1,023,045,632 | 8 | warm |
+| 2 | fine-tuned Ultra GGUF Q8_0 | CPU | 1 | 1.05 | 27.23 | 17.65 | 1,787,817,984 | 8 | standalone transcribe.cpp binding, no app integration |
+| 2 | fine-tuned Ultra GGUF Q8_0 | CPU | 2 | — | 27.58 | 17.42 | 1,804,812,288 | 8 | warm |
+| 3 | installed ONNX int8 | GPU | 1/2 | — | — | — | — | 8 | **NOT RUN** — see §13 |
+| 4 | fine-tuned Ultra GGUF Q8_0 | Vulkan0 (RTX 5060) | 1 | 8.46 | 15.68 | 30.65 | 736,219,136 | 8 | first run includes Vulkan pipeline/load |
+| 4 | fine-tuned Ultra GGUF Q8_0 | Vulkan0 (RTX 5060) | 2 | — | 4.98 | 96.55 | 573,440,000 | 8 | warm |
+
+GGUF segment output: 18 segments, fields `t0_ms`, `t1_ms`, `text`, `first_token`, `n_tokens`, `first_word`, `n_words`, `speaker_id`. `timestamp_kind = segment`; no confidence fields. ONNX text word count 2,161, GGUF 1,924; word-level diff ratio 0.0903. Both transcripts are single-line text, so "first 30 lines" means the line itself; excerpts are in the spike folder, not in the repo. **No WER and no quality conclusion** — the weights differ. (VERIFIED — measured outputs under `C:\Users\11\gguf-spike\`.)
+
+---
+
+## 13. GPU DIAGNOSIS
+
+- GPU: NVIDIA GeForce RTX 5060, driver 610.88, 8151 MiB. Two Vulkan devices found (RTX 5060 and AMD Radeon). (VERIFIED — `nvidia-smi` and ggml Vulkan init.)
+- Project venv: `onnxruntime 1.29.0`, providers `['AzureExecutionProvider','CPUExecutionProvider']`. App requests `CUDAExecutionProvider` when available (`voice_typer/server/parakeet_engine/_load.py:100-116`); it falls back to CPU because the provider is absent. (VERIFIED — code + probe.)
+- Missing DLLs probed: `cudart64_12.dll`, `cublas64_12.dll`, `cublasLt64_12.dll`, `cudnn64_9.dll`, `cudnn_engines_precompiled64_9.dll`, `onnxruntime_providers_cuda.dll`. Only `onnxruntime_providers_shared.dll` was present. (VERIFIED — ctypes probe.)
+- Throwaway venv with `onnxruntime-gpu==1.29.0` (148,181,781-byte wheel from PyPI, under 500 MB) gave providers including CUDA, but loading the model failed: `onnxruntime_providers_cuda.dll` depends on `cublasLt64_13.dll`, missing (Error 126). ORT docs require CUDA 13.0 + cuDNN 9.x for ORT 1.29.x. (VERIFIED — Firecrawl scrape of ORT CUDA docs and PyPI JSON; run output.)
+- NuGet `Microsoft.ML.OnnxRuntime.Gpu.Windows` 1.32.0 (148.02 MB, under 500 MB) supplied `onnxruntime_providers_cuda.dll` (195,548,512 B) but not the CUDA/cuDNN runtime DLLs. `nvidia-cudnn-cu13` PyPI win_amd64 wheel is 407,065,099 B (under 500 MB), but a CUDA 13 `cublasLt` package with Windows binaries was not identified within this round. (VERIFIED — Firecrawl scrapes; extracted NuGet package.) Therefore **TEST 3 is NOT RUN**, not zero.
+
+---
+
+## 14. INSTALLER SIZE (Part C)
+
+Most recent local installer: `C:/Users/11/ci-run-2/Lausu-Windows-Installer/Lausu_1.0.0_x64-setup.exe`, extracted read-only with `C:/Program Files/7-Zip/7z.exe` to `C:\Users\11\gguf-spike\installer\setup`. Payload total 255,297,922 bytes (243.47 MiB), 16 files. Largest contained items:
+
+| bytes | component | item |
+|---:|---|---|
+| 134,459,904 | ffmpeg (LGPL build) | `ffmpeg.exe` |
+| 108,075,008 | Python sidecar (blended runtime + packages) | `python-sidecar.exe` |
+| 12,387,328 | Rust host | `lausu-tauri.exe` |
+| 168,448 | native key listener | `resources/native/windows-key-listener.exe` |
+| 97,862 | notices | `_up_/docs/THIRD_PARTY_NOTICES.md` |
+| 34,304 | NSIS | `$PLUGINSDIR/nsis_tauri_utils.dll` |
+| 26,494 | NSIS | `$PLUGINSDIR/modern-wizard.bmp` |
+| 15,360 | NSIS | `$PLUGINSDIR/NSISdl.dll` |
+| 12,288 | NSIS | `$PLUGINSDIR/System.dll` |
+| 9,728 | NSIS | `$PLUGINSDIR/nsDialogs.dll` |
+| 7,680 | NSIS | `$PLUGINSDIR/StartMenu.dll` |
+| 760–681 | tray icons | four PNGs |
+
+Measured transcribe.cpp release v0.4.2 binaries (Firecrawl release page; real downloads):
+
+| build | archive bytes | extracted bytes | largest DLLs |
+|---|---:|---:|---|
+| Windows x86_64 CPU+Vulkan | 18,052,817 | 56,239,103 | `ggml-vulkan.dll` 43,652,608; `transcribe.dll` 2,052,608; CPU kernels ~1.2 MB each |
+| Windows x86_64 CUDA | 202,569,132 | 248,914,431 | `ggml-cuda.dll` 201,624,576; `ggml-vulkan.dll` 43,652,608; `transcribe.dll` 2,052,608 |
+
+`transcribe.dll`, `ggml.dll`, `ggml-base.dll` and `ggml-vulkan.dll` are **different** between CPU+Vulkan and CUDA builds (SHA-256 differs), so they cannot simply be shared. No `llama-server` binary was present in this installer artifact; its size and duplicate-ggml comparison with transcribe.cpp are **UNVERIFIED**.
+
+Scenarios (`R` = bytes actually removed from the one-file sidecar; **UNVERIFIED** because package contents are not separately visible in the installer):
+
+| scenario | arithmetic | measured vs assumed |
+|---|---|---|
+| CPU-only GGUF | 255,297,922 + 56,239,103 − R | added measured; R assumed |
+| GGUF + Vulkan | 255,297,922 + 56,239,103 − R | same release build as CPU+Vulkan; added measured; R assumed |
+| GGUF + CUDA | 255,297,922 + 248,914,431 − R | added measured; R assumed |
+
+Model files are not bundled: registry rows use `network_behavior="downloads-on-first-use-consent-gated"` and `load()` never downloads (`voice_typer/server/model_registry.py:65,87,110,138,162,185`; `voice_typer/worker/whisper/engine.py:161`). They do not affect installer size. Other expected shrink/grow: Python packages `onnxruntime`, `ctranslate2`, `faster-whisper`, `av` drop with the old stack; `numpy` may remain for other code; THIRD_PARTY_NOTICES needs GGUF model and transcribe.cpp entries. Exact byte deltas are **UNVERIFIED** until a frozen build is measured.
+
+Distribution options (facts only, no decision):
+
+| option | installer size | update flow | antivirus/SmartScreen | offline use | license/source offer | consistent with app today |
+|---|---|---|---|---|---|---|
+| bundled next to sidecar | +53.63 MiB CPU/Vulkan or +237.38 MiB CUDA | updated with app release | signed installer helps; new unsigned DLLs may trigger detection | works offline | MIT source offer for transcribe.cpp + ggml | YES — ffmpeg and llama-server already ship as sibling binaries |
+| downloaded on first use | no installer growth, model-like download flow | separate update path needed | downloaded executable has higher SmartScreen risk | needs prior download | same notices, plus download integrity | partially — matches model downloads, not current binary pattern |
+| separate optional download | no installer growth | user-managed | highest user-facing risk | user must opt in before offline use | same | NO — no current optional-binary flow |
+
+---
+
+## 15. RISKS, REVISED PLAN, OWNER DECISIONS
+
+**Hallucination gate:** app consumes `seg.avg_logprob`, `seg.no_speech_prob`, `first_segment_start`, `last_segment_end` (`voice_typer/server/transcription_result.py:227-305`; `voice_typer/server/hallucination.py:90-102,134-186`). transcribe.cpp segment rows expose `t0_ms`, `t1_ms`, `text`, `first_token`, `n_tokens`, `first_word`, `n_words`, `speaker_id` — timestamps yes, confidence/no-speech **no**. Options: (a) change the gate to accept missing confidence as a conservative fallback, (b) ask upstream for per-segment logprob/no-speech, (c) keep a small ONNX confidence model — which would defeat full ONNX removal. (VERIFIED — binding source and measured output.)
+
+**Revised plan (owner decision already made: remove onnxruntime entirely; one round per model family, safest first):**
+
+1. Spike the gate-field adapter and decide the fallback; files: `transcription_result.py`, `hallucination.py`; tests: hallucination gate unit tests; verify with targeted pytest.
+2. Wire the transcribe.cpp sibling binary via `__compiled__.containing_dir`; files: freeze scripts, binary locator, `tauri_spawn.py:196`; verify: compiled onefile probe.
+3. Migrate Whisper/faster-whisper to transcribe.cpp GGUF; remove CT2/faster-whisper in a later milestone; verify: dictation + media decode parity.
+4. Migrate Parakeet Ultra (fine-tuned GGUF chosen above); verify: speed/memory and transcript excerpt checks.
+5. Migrate Qwen3-ASR 0.6B/1.7B; verify: multilingual smoke, timestamps.
+6. Replace Silero VAD with the STT runtime's VAD; verify: silence gate and short-audio tests.
+7. Replace GTCRN/DPDFNet — **NO BACKEND/UNCERTAIN**; owner must choose LocalVQE or another runtime before this round.
+8. Final GGUF milestone: remove PyAV, faster-whisper, CTranslate2 and onnxruntime, then set `ENFORCE_NO_GPL_DLLS=1`; verify full suite + installer artifact.
+
+**Owner decisions still open:**
+
+1. Gate confidence fields — options (a)/(b)/(c) above; research favors (a) with a conservative fallback plus upstream request.
+2. transcribe.cpp distribution — bundled is most consistent with current app; first-use download lowers installer size but adds SmartScreen/update risk.
+3. Target backend — Vulkan measured 4.98 s warm on RTX 5060; CPU 27 s; CUDA measured only as binary size, not speed. Research does not decide.
+4. Accept CPU peak RAM increase (1.80 GB GGUF vs 1.02 GB ONNX) — facts measured.
+5. GTCRN/DPDFNet backend — no exact GGUF backend found; needs owner choice.
+6. History purge for old junk files — separate irreversible decision; not done.
+
+**Handoff rule added:** Online research: use the Firecrawl CLI, not the harness's internal search tools.
 
 ---
 
