@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T17:04:29Z
+> Generated: 2026-11-23T17:59:04Z
 > Data branch commit: `4b69717`
 
 ## Currently failing
@@ -1042,24 +1042,25 @@
 (no job log available)
 ```
 
-### 62. Build installer — failure
+## Resolved recently
 
-- Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9cbbcf4` — merge: sync origin/main CI-errors.md updates into CI-fix branch
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+### 1. CI error collector — failure
+
+- Run: [45222873082](https://github.com/AbdallahIsDev/Lausu/actions/runs/45222873082) (attempt 1)
+- Event: workflow_run · Branch: main
+- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
+- Fixed by: [45223585271](https://github.com/AbdallahIsDev/Lausu/actions/runs/45223585271) (success)
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
-## Resolved recently
-
-### 1. CI error collector — failure
+### 2. CI error collector — failure
 
 - Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1075,7 +1076,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 2. Build installer — failure
+### 3. Build installer — failure
 
 - Run: [45073732975](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073732975) (attempt 1)
 - Event: push · Branch: main
@@ -1091,7 +1092,7 @@
 (no job log available)
 ```
 
-### 3. CI error collector — failure
+### 4. CI error collector — failure
 
 - Run: [45076536525](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076536525) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1107,7 +1108,7 @@
 (no job log available)
 ```
 
-### 4. Client CI — failure
+### 5. Client CI — failure
 
 - Run: [45074349566](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074349566) (attempt 1)
 - Event: push · Branch: main
@@ -1123,7 +1124,7 @@
 (no job log available)
 ```
 
-### 5. Build Windows — failure
+### 6. Build Windows — failure
 
 - Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
 - Event: workflow_dispatch · Branch: main
