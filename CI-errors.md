@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T23:29:02Z
+> Generated: 2026-11-23T23:29:45Z
 > Data branch commit: `884603f`
 
 ## Currently failing
@@ -942,21 +942,6 @@
 - Run: [45073732975](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073732975) (attempt 1)
 - Event: push · Branch: main
 - Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 56. Build installer — failure
-
-- Run: [45035935992](https://github.com/AbdallahIsDev/Lausu/actions/runs/45035935992) (attempt 1)
-- Event: push · Branch: main
-- Commit: `3c9fd7a` — Merge remote-tracking branch 'origin/main'
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
 - Category: other
