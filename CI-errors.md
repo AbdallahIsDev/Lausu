@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T20:58:25Z
+> Generated: 2026-11-23T21:08:47Z
 > Data branch commit: `4b69717`
 
 ## Currently failing
@@ -853,21 +853,6 @@ _None._
 
 - Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
 - Event: workflow_dispatch · Branch: main
-- Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 58. Build installer — failure
-
-- Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
-- Event: push · Branch: main
 - Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
