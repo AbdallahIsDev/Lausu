@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T10:42:20Z
+> Generated: 2026-11-23T10:42:50Z
 > Data branch commit: `885a10c`
 
 ## Currently failing
@@ -835,21 +835,6 @@
 ### 48. Client CI — failure
 
 - Run: [44807636293](https://github.com/AbdallahIsDev/Lausu/actions/runs/44807636293) (attempt 1)
-- Event: push · Branch: main
-- Commit: `8451198` — test: reconcile regression suites, fixtures and remaining artifacts
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 49. Build installer — failure
-
-- Run: [44807636025](https://github.com/AbdallahIsDev/Lausu/actions/runs/44807636025) (attempt 1)
 - Event: push · Branch: main
 - Commit: `8451198` — test: reconcile regression suites, fixtures and remaining artifacts
 - Job: (job details unavailable) · Leg: n/a
