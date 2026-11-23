@@ -516,3 +516,241 @@ class TestStopTimeDestinationAnthropicBridgePath:
         assert env.set_foreground_calls == []
         assert env.clipboard["text"] == " dictated"
         assert app.history_db.add_transcription.call_args.args[0] == "Dictated"
+
+
+class TestMergeOverlapContracts:
+    """Explicit tests for the three merge overlaps between stop-time snapshot and origin/main."""
+
+    def _make_plugin_app(self):
+        cm = make_clipboard_manager()
+        cm._PASTE_RATE_LIMIT = 0.0
+        cm._last_paste_time = 0.0
+        app = SimpleNamespace(
+            config=SimpleNamespace(device="cpu", language="en", auto_capitalize=True),
+            clipboard=cm,
+            history_db=MagicMock(),
+            _last_transcription=None,
+            _duck_volume=lambda: None,
+            _restore_volume=lambda: None,
+            tray=MagicMock(),
+        )
+        app.history_db.add_transcription.return_value = 1
+        return app
+
+    def test_overlap_i_ensure_tab_window_pending_snapshot_survives_not_overwritten_and_never_reused(
+        self, monkeypatch
+    ):
+        windows = {
+            0x1001: _FakeWindow(0x1001, 101, "app_a.exe", "alpha"),
+            0x2002: _FakeWindow(0x2002, 202, "app_b.exe", ""),
+        }
+        env = _FakeDesktopEnv(windows, initial_hwnd=0x1001)
+        _install_fake_desktop(monkeypatch, env)
+
+        app = self._make_plugin_app()
+        session = anthropic_plugin.PluginSession(app)
+        monkeypatch.setattr(session, "_stop_meter", lambda: None)
+        monkeypatch.setattr(session, "_publish_state", lambda _s: None)
+        monkeypatch.setattr(session, "_session_events", lambda *, start: None)
+        monkeypatch.setattr(session, "_clear_prompt_box", lambda: None)
+        monkeypatch.setattr(session, "_ensure_daemon", lambda: True)
+        monkeypatch.setattr(session, "_ensure_browser", lambda timeout=None: True)
+        monkeypatch.setattr(anthropic_plugin, "LevelMeter", lambda _app: MagicMock())
+
+        phase = {"cycle": 1}
+
+        def _post(path: str, timeout: float = 0.0) -> dict:
+            if phase["cycle"] == 1 and path == "/ensure-tab":
+                assert timeout == 20.0
+                # PTT released during /ensure-tab while A is focused.
+                assert session.stop() is True
+                assert session._pending_stop_snapshot.hwnd == 0x1001
+                # Transient switch + stray duplicate stop during /ensure-tab must NOT overwrite #1.
+                env.switch_to(0x2002)
+                assert session.stop() is True
+                assert session._pending_stop_snapshot.hwnd == 0x1001
+                # Return to A before dispatch; #1 snapshot must still be intact (no expiry).
+                env.switch_to(0x1001)
+                return {"tabId": 11, "ready": True}
+            if path == "/start":
+                if phase["cycle"] == 2:
+                    raise anthropic_plugin.BridgeError("start failed", kind="bridge-error")
+                return {}
+            if path == "/stop":
+                return {"text": "Beta", "duration_s": 1.0}
+            return {}
+
+        monkeypatch.setattr(session, "_post", _post)
+
+        session.start()
+        assert session._pending_stop_snapshot is None
+        assert env.clipboard["text"] == " beta"
+        assert env.sendinputs == [(0x1001, 4)]
+
+        # Cycle 2: deferred release during /ensure-tab, then /start raises -> must not reuse old snapshot.
+        phase["cycle"] = 2
+        env.switch_to(0x2002)
+
+        def _post_cycle2(path: str, timeout: float = 0.0) -> dict:
+            if path == "/ensure-tab":
+                assert session.stop() is True
+                assert session._pending_stop_snapshot.hwnd == 0x2002
+                return {"tabId": 11, "ready": True}
+            if path == "/start":
+                raise anthropic_plugin.BridgeError("boom", kind="bridge-error")
+            return {}
+
+        monkeypatch.setattr(session, "_post", _post_cycle2)
+        session.start()
+        assert session._pending_stop_snapshot is None
+        assert session._stop_requested is False
+        assert env.sendinputs == [(0x1001, 4)]
+
+    def test_overlap_ii_translation_with_app_kwarg_preserves_stop_time_prefix_context(
+        self, monkeypatch
+    ):
+        from tools.internal_plugins._common import delivery
+        from voice_typer.server.clipboard_target_safety import (
+            StopTimeTargetSnapshot,
+            capture_stop_time_target_snapshot,
+        )
+
+        windows = {
+            0x1001: _FakeWindow(0x1001, 101, "notepad.exe", "Existing"),
+            0x2002: _FakeWindow(0x2002, 202, "other.exe", ""),
+        }
+        env = _FakeDesktopEnv(windows, initial_hwnd=0x1001)
+        _install_fake_desktop(monkeypatch, env)
+
+        app = self._make_plugin_app()
+        app.config.translation_enabled = True
+        app.config.translation_target_language = "en"
+        app.config.language = "ar"
+
+        snap: StopTimeTargetSnapshot = capture_stop_time_target_snapshot()
+        assert snap.hwnd == 0x1001
+        assert snap.prefix_context.verdict == "needs-space"
+
+        seen: dict[str, object] = {}
+
+        def _fake_translate(text, config, target_lang, spoken_lang, *, app=None):
+            seen["app"] = app
+            # Caret changes elsewhere during translation; delivery must still use snap.prefix_context!
+            monkeypatch.setattr(caret_text, "_char_before_caret", lambda: "")
+            return "Translated Phrase"
+
+        monkeypatch.setitem(
+            __import__("sys").modules,
+            "voice_typer.server.translation.service",
+            __import__("types").SimpleNamespace(translate_text=_fake_translate),
+        )
+
+        delivery.deliver_transcription(
+            app,
+            "النص الأصلي",
+            1.5,
+            "anthropic",
+            __import__("logging").getLogger("test"),
+            target_snapshot=snap,
+        )
+
+        assert seen["app"] is app
+        assert env.clipboard["text"] == " translated Phrase"
+        assert env.sendinputs == [(0x1001, 4)]
+        assert app.history_db.add_transcription.call_args.args[0] == "Translated Phrase"
+        assert app.history_db.add_transcription.call_args.kwargs["original_text"] == "النص الأصلي"
+
+    def test_overlap_iii_tab_resolution_disagreeing_with_os_focus_loses_to_os_stop_target(
+        self, monkeypatch
+    ):
+        windows = {
+            0x9999: _FakeWindow(0x9999, 999, "chrome.exe", "chrome prompt "),
+            0x3003: _FakeWindow(0x3003, 303, "notepad.exe", "target field"),
+        }
+        # Even if start time happened while Chrome (or tab-resolution window) was focused,
+        # user moves to Notepad before stop() -> stop-time OS target must win.
+        env = _FakeDesktopEnv(windows, initial_hwnd=0x9999)
+        _install_fake_desktop(monkeypatch, env)
+
+        app = self._make_plugin_app()
+        session = anthropic_plugin.PluginSession(app)
+        monkeypatch.setattr(session, "_stop_meter", lambda: None)
+        monkeypatch.setattr(session, "_publish_state", lambda _s: None)
+        monkeypatch.setattr(session, "_session_events", lambda *, start: None)
+        monkeypatch.setattr(session, "_clear_prompt_box", lambda: None)
+        monkeypatch.setattr(session, "_ensure_daemon", lambda: True)
+        monkeypatch.setattr(session, "_ensure_browser", lambda timeout=None: True)
+        monkeypatch.setattr(anthropic_plugin, "LevelMeter", lambda _app: MagicMock())
+
+        def _post(path: str, timeout: float = 0.0) -> dict:
+            if path == "/ensure-tab":
+                return {"tabId": 77, "created": False, "ready": True}
+            if path == "/start":
+                return {}
+            if path == "/stop":
+                return {"text": "Words", "duration_s": 1.0}
+            return {}
+
+        monkeypatch.setattr(session, "_post", _post)
+        session.start()
+
+        # User focuses Notepad before stopping; Chrome tab 77 only supplied audio/ASR.
+        env.switch_to(0x3003)
+        assert session.stop() is True
+
+        assert env.clipboard["text"] == " words"
+        assert env.sendinputs == [(0x3003, 4)]
+        assert env.set_foreground_calls == []
+
+    def test_anthropic_post_stop_switch_with_save_restore_on_aborts_and_keeps_clipboard(
+        self, monkeypatch
+    ):
+        from voice_typer.server.clipboard_snapshot import ClipboardSnapshot
+
+        windows = {
+            0x1001: _FakeWindow(0x1001, 101, "app_a.exe", "already"),
+            0x2002: _FakeWindow(0x2002, 202, "app_b.exe", ""),
+        }
+        env = _FakeDesktopEnv(windows, initial_hwnd=0x1001)
+        env.clipboard["text"] = "prior clipboard content"
+        _install_fake_desktop(monkeypatch, env)
+
+        saved_snap = ClipboardSnapshot(platform="win32", items=[], captured_at=0.0)
+        monkeypatch.setattr(ClipboardSnapshot, "capture", classmethod(lambda cls: saved_snap))
+        restored: list[bool] = []
+        monkeypatch.setattr(saved_snap, "restore", lambda: restored.append(True))
+
+        app = self._make_plugin_app()
+        app.clipboard._clipboard_save_restore_enabled = True
+        session = anthropic_plugin.PluginSession(app)
+        session._active = True
+        session._t0 = time.monotonic() - 1.0
+        session._cycle = 4
+        monkeypatch.setattr(session, "_stop_meter", lambda: None)
+        monkeypatch.setattr(session, "_publish_state", lambda _s: None)
+        monkeypatch.setattr(session, "_session_events", lambda *, start: None)
+        monkeypatch.setattr(session, "_clear_prompt_box", lambda: None)
+
+        deferred_events: list[dict] = []
+        orig_publish = event_bus.publish
+        monkeypatch.setattr(
+            event_bus,
+            "publish",
+            lambda evt: (
+                deferred_events.append(evt) if evt.get("type") == "paste_deferred" else None,
+                orig_publish(evt),
+            )[1],
+        )
+
+        def _slow_stop(path: str, timeout: float = 0.0) -> dict:
+            env.switch_to(0x2002)
+            return {"text": "Dictated", "duration_s": 1.0}
+
+        monkeypatch.setattr(session, "_post", _slow_stop)
+        assert session.stop() is True
+
+        assert env.sendinputs == []
+        assert env.set_foreground_calls == []
+        assert restored == []
+        assert env.clipboard["text"] == " dictated"
+        assert any(e.get("type") == "paste_deferred" for e in deferred_events)

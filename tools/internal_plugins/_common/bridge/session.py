@@ -334,8 +334,9 @@ class PluginSession:
         """Stop the cycle: a release during a start is deferred, not dropped."""
         with self._lock:
             if self._starting:
-                self._stop_requested = True
-                self._pending_stop_snapshot = _capture_target_snapshot()
+                if not self._stop_requested:
+                    self._stop_requested = True
+                    self._pending_stop_snapshot = _capture_target_snapshot()
                 self._log.debug("[PLUGIN] stop deferred: the start is still in flight")
                 return True
             if not self._active:
@@ -512,10 +513,10 @@ class PluginSession:
     def cancel(self) -> bool:
         """ESC path: abort the session without pasting; clear the page."""
         with self._lock:
-            self._pending_stop_snapshot = None
             if not self._active:
                 return False
             self._active = False
+            self._pending_stop_snapshot = None
         self._log.info(
             "[PLUGIN] cycle cancelled (ESC, cycle=#%d, captured=%s)",
             self._cycle,
