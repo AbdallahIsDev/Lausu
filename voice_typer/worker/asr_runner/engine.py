@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from voice_typer.server.hallucination import REJECTION_REASON_HALLUCINATION
@@ -19,6 +20,7 @@ from voice_typer.server.transcription_result import (
     transcribe_unlocked as _transcribe_unlocked_impl,
     transcribe_words_unlocked as _transcribe_words_unlocked_impl,
 )
+from voice_typer.worker.asr_runner.families import gguf_model_path_for
 from voice_typer.worker.asr_runner.runner import GgufRunner, RunnerError
 
 if TYPE_CHECKING:
@@ -71,10 +73,28 @@ class GgufTranscriptionEngine:
 
     worker_backed = True
 
-    def __init__(self, model_size: str, *, model_path: str, config: Any = None, device: str = "cpu") -> None:
+    def __init__(
+        self,
+        model_size: str = "",
+        *,
+        model_path: str | None = None,
+        config: Any = None,
+        device: str = "cpu",
+        language: str | None = None,
+        **_: Any,
+    ) -> None:
         self.model_size = model_size
-        self.model_path = model_path
+        if config is None:
+            config = SimpleNamespace(
+                asr_backend="whisper",
+                model_size=model_size,
+                language=language,
+                hallucination_filter_mode="balanced",
+            )
         self.config = config
+        if model_path is None:
+            model_path = gguf_model_path_for(config)
+        self.model_path = model_path
         self.language: str | None = None
         self.beam_size = 1
         self.condition_on_previous_text = False

@@ -88,13 +88,14 @@ class WorkerTranscriber:
         from voice_typer.server.asr_registry import AsrBackendRegistry
 
         registry = AsrBackendRegistry(config)
-        # C7: the slim registry maps "whisper" to the worker-backed shim
-        # (no faster_whisper in the sidecar). The worker process owns the
-        # real engine, so repoint this instance's spec at the moved class
-        # (instance attribute shadow: the class-level slim mapping is
-        # untouched, no other process sees this).
+        # ADR-0031 Phase 1: one GGUF runner serves all three local ASR
+        # families. The worker keeps the registry boundary; only the engine
+        # class behind each name changes. One model is resident at a time.
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine
+
         specs = dict(type(registry)._BACKEND_SPECS)
-        specs["whisper"] = ("voice_typer.worker.whisper", "TranscriptionEngine")
+        for backend in ("whisper", "parakeet", "qwen"):
+            specs[backend] = ("voice_typer.worker.asr_runner", GgufTranscriptionEngine.__name__)
         registry._BACKEND_SPECS = specs
         name = getattr(config, "asr_backend", "whisper")
         if name == "parakeet":
@@ -179,14 +180,17 @@ class WorkerTranscriber:
                             return {"loaded": True, "backend": "whisper", "device_info": info, "error": None}
                     except Exception:
                         pass
-                from voice_typer.worker.whisper.engine import TranscriptionEngine
+                from voice_typer.server.config import Config
+                from voice_typer.worker.asr_runner import GgufTranscriptionEngine, gguf_model_path_for_key
 
-                engine = TranscriptionEngine(
+                config = Config.load()
+                engine = GgufTranscriptionEngine(
                     model_size=model_size,
+                    model_path=gguf_model_path_for_key(model_size, language),
                     device=device if device is not None else "auto",
-                    # None stays None: that is Auto (model detects the
-                    # language). A fallback "en" silently pins English.
+                    # None stays None: that is Auto (model detects the language).
                     language=language,
+                    config=config,
                 )
                 engine.load()
                 self._engine = engine
@@ -222,21 +226,18 @@ class WorkerTranscriber:
                     except Exception:
                         pass
                 from voice_typer.server.config import Config
-                from voice_typer.server.parakeet_engine import ParakeetEngine
+                from voice_typer.worker.asr_runner import GgufTranscriptionEngine, gguf_model_path_for_key
 
                 config = Config.load()
-                engine = ParakeetEngine(
+                effective_language = language if language is not None else config.language
+                engine = GgufTranscriptionEngine(
+                    model_size="parakeet",
+                    model_path=gguf_model_path_for_key("parakeet", effective_language),
                     device=device if device is not None else "auto",
-                    language=language if language is not None else config.language,
+                    language=effective_language,
                     config=config,
                 )
-                if engine.load() is False:
-                    return {
-                        "loaded": False,
-                        "backend": "parakeet",
-                        "device_info": None,
-                        "error": "parakeet model load failed",
-                    }
+                engine.load()
                 self._engine = engine
                 self._registry = None
                 self._engine_language = language
@@ -271,22 +272,18 @@ class WorkerTranscriber:
                     except Exception:
                         pass
                 from voice_typer.server.config import Config
-                from voice_typer.server.qwen_engine import QwenEngine
+                from voice_typer.worker.asr_runner import GgufTranscriptionEngine
 
                 config = Config.load()
-                engine = QwenEngine(
+                effective_language = language if language is not None else config.language
+                engine = GgufTranscriptionEngine(
+                    model_size="qwen3-1.7b",
                     model_path=model_path,
                     device=device if device is not None else "auto",
-                    language=language if language is not None else config.language,
+                    language=effective_language,
                     config=config,
                 )
-                if engine.load() is False:
-                    return {
-                        "loaded": False,
-                        "backend": "qwen",
-                        "device_info": None,
-                        "error": "qwen model load failed",
-                    }
+                engine.load()
                 self._engine = engine
                 self._registry = None
                 self._engine_language = language
