@@ -8,12 +8,12 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-
-from tests.fixtures.fake_asr_runner import FIXED_TEXT, write_fake_runner
 from voice_typer.server.media_ingest import ffmpeg_binaries
 from voice_typer.worker.asr_runner import GgufRunner, RunnerError
 from voice_typer.worker.asr_runner.contract import parse_runner_line, parse_runner_output
 from voice_typer.worker.asr_runner.runner import resolve_runner_path
+
+from tests.fixtures.fake_asr_runner import FIXED_TEXT, write_fake_runner
 
 
 def test_upstream_json_shape_is_pinned() -> None:

@@ -129,7 +129,7 @@ class GgufTranscriptionEngine:
             if self._model is not None:
                 return
             runner = GgufRunner(self.model_path)
-            runner.executable  # resolve early; fail before a record starts
+            _ = runner.executable  # resolve early; fail before a record starts
             self._model = _GgufModelAdapter(self, runner)
 
     def unload(self) -> None:

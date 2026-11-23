@@ -5,14 +5,13 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-
+from voice_typer.worker._transcribe import WorkerTranscriber
 from voice_typer.worker.asr_runner.families import (
     LanguageNotSupportedError,
     assert_model_language,
     gguf_model_path_for_key,
     model_key_for,
 )
-from voice_typer.worker._transcribe import WorkerTranscriber
 
 
 @pytest.mark.parametrize(

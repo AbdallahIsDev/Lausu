@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from voice_typer.server.gguf_model_registry import (
     GGUF_MODELS,
     PLACEHOLDER_SHA256,

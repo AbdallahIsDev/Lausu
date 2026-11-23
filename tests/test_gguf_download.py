@@ -8,7 +8,6 @@ from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
 import pytest
-
 from voice_typer.server import gguf_download
 from voice_typer.server.gguf_model_registry import GGUF_MODELS, GgufModelSpec
 
