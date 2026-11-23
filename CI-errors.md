@@ -1,7 +1,7 @@
 # CI Errors
 
-> Generated: 2026-11-23T10:45:44Z
-> Data branch commit: `885a10c`
+> Generated: 2026-11-23T12:40:24Z
+> Data branch commit: `e316165`
 
 ## Currently failing
 
@@ -522,14 +522,14 @@
 - Run: [45073947148](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073947148) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 28. CI error collector — failure
@@ -537,14 +537,14 @@
 - Run: [45073936225](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073936225) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 29. CI error collector — failure
@@ -732,21 +732,6 @@
 - Run: [44834921579](https://github.com/AbdallahIsDev/Lausu/actions/runs/44834921579) (attempt 1)
 - Event: workflow_dispatch · Branch: lausu/rounds-1-11-lgpl-notices-ci
 - Commit: `45c5762` — docs: record rounds 9-12 (ffmpeg pin, notices, CI wiring and onefile gate)
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 42. Client CI — failure
-
-- Run: [44807636293](https://github.com/AbdallahIsDev/Lausu/actions/runs/44807636293) (attempt 1)
-- Event: push · Branch: main
-- Commit: `8451198` — test: reconcile regression suites, fixtures and remaining artifacts
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
 - Category: other
