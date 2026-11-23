@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T00:05:02Z
+> Generated: 2026-11-23T00:09:08Z
 > Data branch commit: `885a10c`
 
 ## Currently failing
@@ -524,14 +524,14 @@ _None._
 - Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
+- Job: tauri-windows-build (x86_64, x86_64-pc-windows-msvc, windows-2022, tauri.windows-x86_64-slim.conf... · Leg: windows-2022
+- Step: Post-build verification gate (bundle + ffmpeg + GPL DLL + summary)
+- Category: gate
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 36. Build installer — failure
@@ -849,24 +849,25 @@ _None._
 (no job log available)
 ```
 
-### 57. Client CI — failure
+## Resolved recently
 
-- Run: [43461756029](https://github.com/AbdallahIsDev/Lausu/actions/runs/43461756029) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5f418be` — Merge remote-tracking branch 'origin/pr-100'
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+### 1. CI error collector — failure
+
+- Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
+- Event: workflow_run · Branch: main
+- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
+- Fixed by: [45086665963](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086665963) (success)
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
-## Resolved recently
-
-### 1. Build installer — failure
+### 2. Build installer — failure
 
 - Run: [45073732975](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073732975) (attempt 1)
 - Event: push · Branch: main
@@ -882,7 +883,7 @@ _None._
 (job log unavailable: HTTP 403)
 ```
 
-### 2. Build installer — failure
+### 3. Build installer — failure
 
 - Run: [45073732975](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073732975) (attempt 1)
 - Event: push · Branch: main
@@ -898,7 +899,7 @@ _None._
 (job log unavailable: HTTP 403)
 ```
 
-### 3. CI error collector — failure
+### 4. CI error collector — failure
 
 - Run: [45076536525](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076536525) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -914,7 +915,7 @@ _None._
 (job log unavailable: HTTP 403)
 ```
 
-### 4. Client CI — failure
+### 5. Client CI — failure
 
 - Run: [45074349566](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074349566) (attempt 1)
 - Event: push · Branch: main
@@ -930,23 +931,23 @@ _None._
 (job log unavailable: HTTP 403)
 ```
 
-### 5. Build Windows — failure
+### 6. Build Windows — failure
 
 - Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
+- Job: tauri-windows-build (x86_64, x86_64-pc-windows-msvc, windows-2022, tauri.windows-x86_64-slim.conf... · Leg: windows-2022
+- Step: Post-build verification gate (bundle + ffmpeg + GPL DLL + summary)
+- Category: gate
 - Fixed by: [45024128135](https://github.com/AbdallahIsDev/Lausu/actions/runs/45024128135) (success)
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
-### 6. Client CI — failure
+### 7. Client CI — failure
 
 - Run: [44809895405](https://github.com/AbdallahIsDev/Lausu/actions/runs/44809895405) (attempt 1)
 - Event: pull_request · Branch: dependabot/pip/python-deps-54bd6b4550
@@ -962,7 +963,7 @@ _None._
 (no job log available)
 ```
 
-### 7. Build Linux — failure
+### 8. Build Linux — failure
 
 - Run: [44844000820](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000820) (attempt 1)
 - Event: push · Branch: main
@@ -978,7 +979,7 @@ _None._
 (no job log available)
 ```
 
-### 8. Client CI — failure
+### 9. Client CI — failure
 
 - Run: [44844000708](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000708) (attempt 1)
 - Event: push · Branch: main
@@ -994,7 +995,7 @@ _None._
 (no job log available)
 ```
 
-### 9. Client CI — failure
+### 10. Client CI — failure
 
 - Run: [43929363738](https://github.com/AbdallahIsDev/Lausu/actions/runs/43929363738) (attempt 1)
 - Event: push · Branch: main
@@ -1003,22 +1004,6 @@ _None._
 - Step: 
 - Category: other
 - Fixed by: [43933041592](https://github.com/AbdallahIsDev/Lausu/actions/runs/43933041592) (success)
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 10. Client CI — failure
-
-- Run: [43461756029](https://github.com/AbdallahIsDev/Lausu/actions/runs/43461756029) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5f418be` — Merge remote-tracking branch 'origin/pr-100'
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-- Fixed by: [43706560142](https://github.com/AbdallahIsDev/Lausu/actions/runs/43706560142) (success)
 
 - Error excerpt:
 
