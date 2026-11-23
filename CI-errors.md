@@ -1,7 +1,7 @@
 # CI Errors
 
-> Generated: 2026-11-23T21:08:47Z
-> Data branch commit: `4b69717`
+> Generated: 2026-11-23T21:54:33Z
+> Data branch commit: `884603f`
 
 ## Currently failing
 
@@ -849,21 +849,6 @@ _None._
 (no job log available)
 ```
 
-### 57. Build Windows — failure
-
-- Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
-- Event: workflow_dispatch · Branch: main
-- Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
 ## Resolved recently
 
 ### 1. Build installer — failure
@@ -1083,22 +1068,6 @@ _None._
 - Step: 
 - Category: other
 - Fixed by: [45075040623](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075040623) (success)
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 15. Build Windows — failure
-
-- Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
-- Event: workflow_dispatch · Branch: main
-- Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-- Fixed by: [45024128135](https://github.com/AbdallahIsDev/Lausu/actions/runs/45024128135) (success)
 
 - Error excerpt:
 
