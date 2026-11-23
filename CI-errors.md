@@ -1,7 +1,7 @@
 # CI Errors
 
-> Generated: 2026-11-23T14:07:58Z
-> Data branch commit: `c10d162`
+> Generated: 2026-11-23T14:15:18Z
+> Data branch commit: `4b69717`
 
 ## Currently failing
 
@@ -612,14 +612,14 @@
 - Run: [45075732518](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075732518) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `f3bee17` — fix(ci): tolerate unavailable job logs in collector
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 34. CI error collector — failure
@@ -627,14 +627,14 @@
 - Run: [45075544010](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075544010) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `c2a25d7` — fix(ci): use GitHub JSON Accept header for job logs
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 35. CI error collector — failure
@@ -642,14 +642,14 @@
 - Run: [45075063722](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075063722) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `c2a25d7` — fix(ci): use GitHub JSON Accept header for job logs
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 36. CI error collector — failure
@@ -657,14 +657,14 @@
 - Run: [45075045477](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075045477) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `c2a25d7` — fix(ci): use GitHub JSON Accept header for job logs
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 37. CI error collector — failure
@@ -1064,23 +1064,7 @@
 (no job log available)
 ```
 
-### 6. Client CI — failure
-
-- Run: [44809895405](https://github.com/AbdallahIsDev/Lausu/actions/runs/44809895405) (attempt 1)
-- Event: pull_request · Branch: dependabot/pip/python-deps-54bd6b4550
-- Commit: `58472e5` — chore(deps): bump the python-deps group across 1 directory with 44 updates
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-- Fixed by: [44896249143](https://github.com/AbdallahIsDev/Lausu/actions/runs/44896249143) (success)
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 7. Build Linux — failure
+### 6. Build Linux — failure
 
 - Run: [44844000820](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000820) (attempt 1)
 - Event: push · Branch: main
@@ -1096,7 +1080,7 @@
 (no job log available)
 ```
 
-### 8. Client CI — failure
+### 7. Client CI — failure
 
 - Run: [44844000708](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000708) (attempt 1)
 - Event: push · Branch: main
