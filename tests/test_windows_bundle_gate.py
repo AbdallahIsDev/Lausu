@@ -161,7 +161,7 @@ def test_main_collects_all_failures_but_still_runs_gpl_scan_and_summary(
 
     monkeypatch.setattr(gate, "check_bundle_contents", _bad_bundle)
     monkeypatch.setattr(gate, "run_sidecar_smoke", _bad_selfcheck)
-    monkeypatch.setattr(gate, "onefile_extraction_dir", lambda _x=None: tmp_path / "extract")
+    monkeypatch.setattr(gate, "onefile_extraction_dir", lambda *_args, **_kwargs: tmp_path / "extract")
     monkeypatch.setattr(gate, "gpl_gate", _gpl)
     sidecar = tmp_path / "sidecar.exe"
     sidecar.write_bytes(b"")
