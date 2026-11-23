@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T00:13:03Z
+> Generated: 2026-11-23T00:26:12Z
 > Data branch commit: `885a10c`
 
 ## Currently failing
@@ -612,14 +612,14 @@
 - Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: tauri-windows-build (x86_64, x86_64-pc-windows-msvc, windows-2022, tauri.windows-x86_64-slim.conf... · Leg: windows-2022
-- Step: Post-build verification gate (bundle + ffmpeg + GPL DLL + summary)
-- Category: gate
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
 ### 39. Build installer — failure
@@ -627,377 +627,62 @@
 - Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
 - Event: push · Branch: main
 - Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
-- Step: Run tests with coverage
-- Category: pytest
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 40. Build installer — failure
-
-- Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
-- Event: push · Branch: main
-- Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 41. Build installer — failure
-
-- Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
-- Event: push · Branch: main
-- Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: Pre-commit hygiene · Leg: ubuntu-22.04
-- Step: Run pre-commit hygiene hooks
-- Category: pre-commit hygiene
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 42. Build installer — failure
-
-- Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
-- Event: push · Branch: main
-- Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 43. Build installer — failure
-
-- Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
-- Event: push · Branch: main
-- Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 44. Build installer — failure
-
-- Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
-- Event: push · Branch: main
-- Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 45. Build installer — failure
-
-- Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
-- Event: push · Branch: main
-- Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 46. Build installer — failure
-
-- Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
-- Event: push · Branch: main
-- Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 47. Build Windows — failure
+### 40. Build Windows — failure
 
 - Run: [44904197738](https://github.com/AbdallahIsDev/Lausu/actions/runs/44904197738) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `349cc26` — docs(ci): update CI-errors.md from latest test run
-- Job: tauri-windows-build (x86_64, x86_64-pc-windows-msvc, windows-2022, tauri.windows-x86_64-slim.conf... · Leg: windows-2022
-- Step: Post-build verification gate (bundle + ffmpeg + GPL DLL + summary)
-- Category: gate
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 48. Build installer — failure
+### 41. Build installer — failure
 
 - Run: [44902843881](https://github.com/AbdallahIsDev/Lausu/actions/runs/44902843881) (attempt 1)
 - Event: push · Branch: main
 - Commit: `5ec0af0` — Merge remote-tracking branch 'origin/main' into lausu/rounds-1-11-lgpl-notices-ci
-- Job: Pre-commit hygiene · Leg: ubuntu-22.04
-- Step: Run pre-commit hygiene hooks
-- Category: pre-commit hygiene
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 49. Build installer — failure
-
-- Run: [44902843881](https://github.com/AbdallahIsDev/Lausu/actions/runs/44902843881) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5ec0af0` — Merge remote-tracking branch 'origin/main' into lausu/rounds-1-11-lgpl-notices-ci
-- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 50. Build installer — failure
-
-- Run: [44902843881](https://github.com/AbdallahIsDev/Lausu/actions/runs/44902843881) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5ec0af0` — Merge remote-tracking branch 'origin/main' into lausu/rounds-1-11-lgpl-notices-ci
-- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
-- Step: mypy (ratchet compare against baseline)
-- Category: mypy ratchet
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 51. Build installer — failure
-
-- Run: [44902843881](https://github.com/AbdallahIsDev/Lausu/actions/runs/44902843881) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5ec0af0` — Merge remote-tracking branch 'origin/main' into lausu/rounds-1-11-lgpl-notices-ci
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 52. Build installer — failure
-
-- Run: [44902843881](https://github.com/AbdallahIsDev/Lausu/actions/runs/44902843881) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5ec0af0` — Merge remote-tracking branch 'origin/main' into lausu/rounds-1-11-lgpl-notices-ci
-- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 53. Build installer — failure
-
-- Run: [44902843881](https://github.com/AbdallahIsDev/Lausu/actions/runs/44902843881) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5ec0af0` — Merge remote-tracking branch 'origin/main' into lausu/rounds-1-11-lgpl-notices-ci
-- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 54. Build installer — failure
-
-- Run: [44902843881](https://github.com/AbdallahIsDev/Lausu/actions/runs/44902843881) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5ec0af0` — Merge remote-tracking branch 'origin/main' into lausu/rounds-1-11-lgpl-notices-ci
-- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
-- Step: mypy (ratchet compare against baseline)
-- Category: mypy ratchet
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 55. Build installer — failure
-
-- Run: [44902843881](https://github.com/AbdallahIsDev/Lausu/actions/runs/44902843881) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5ec0af0` — Merge remote-tracking branch 'origin/main' into lausu/rounds-1-11-lgpl-notices-ci
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 56. Build installer — failure
+### 42. Build installer — failure
 
 - Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
 - Event: push · Branch: main
 - Commit: `9cbbcf4` — merge: sync origin/main CI-errors.md updates into CI-fix branch
-- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
-- Step: Run tests with coverage
-- Category: pytest
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 57. Build installer — failure
-
-- Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9cbbcf4` — merge: sync origin/main CI-errors.md updates into CI-fix branch
-- Job: Pre-commit hygiene · Leg: ubuntu-22.04
-- Step: Run pre-commit hygiene hooks
-- Category: pre-commit hygiene
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 58. Build installer — failure
-
-- Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9cbbcf4` — merge: sync origin/main CI-errors.md updates into CI-fix branch
-- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 59. Build installer — failure
-
-- Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9cbbcf4` — merge: sync origin/main CI-errors.md updates into CI-fix branch
-- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 60. Build installer — failure
-
-- Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9cbbcf4` — merge: sync origin/main CI-errors.md updates into CI-fix branch
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 61. Build installer — failure
-
-- Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9cbbcf4` — merge: sync origin/main CI-errors.md updates into CI-fix branch
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 62. Build installer — failure
-
-- Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9cbbcf4` — merge: sync origin/main CI-errors.md updates into CI-fix branch
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
-- Step: mypy (ratchet compare against baseline)
-- Category: mypy ratchet
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 63. Build installer — failure
-
-- Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9cbbcf4` — merge: sync origin/main CI-errors.md updates into CI-fix branch
-- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
-- Step: mypy (ratchet compare against baseline)
-- Category: mypy ratchet
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 64. Build Linux — failure
+### 43. Build Linux — failure
 
 - Run: [44844000820](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000820) (attempt 1)
 - Event: push · Branch: main
@@ -1012,7 +697,7 @@
 (no job log available)
 ```
 
-### 65. Build installer — failure
+### 44. Build installer — failure
 
 - Run: [44844000713](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000713) (attempt 1)
 - Event: push · Branch: main
@@ -1027,7 +712,7 @@
 (no job log available)
 ```
 
-### 66. Client CI — failure
+### 45. Client CI — failure
 
 - Run: [44844000708](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000708) (attempt 1)
 - Event: push · Branch: main
@@ -1042,7 +727,7 @@
 (no job log available)
 ```
 
-### 67. Build Windows — failure
+### 46. Build Windows — failure
 
 - Run: [44834921579](https://github.com/AbdallahIsDev/Lausu/actions/runs/44834921579) (attempt 1)
 - Event: workflow_dispatch · Branch: lausu/rounds-1-11-lgpl-notices-ci
@@ -1057,7 +742,7 @@
 (no job log available)
 ```
 
-### 68. Client CI — failure
+### 47. Client CI — failure
 
 - Run: [44807636293](https://github.com/AbdallahIsDev/Lausu/actions/runs/44807636293) (attempt 1)
 - Event: push · Branch: main
@@ -1072,7 +757,7 @@
 (no job log available)
 ```
 
-### 69. Build installer — failure
+### 48. Build installer — failure
 
 - Run: [44807636025](https://github.com/AbdallahIsDev/Lausu/actions/runs/44807636025) (attempt 1)
 - Event: push · Branch: main
@@ -1087,7 +772,7 @@
 (no job log available)
 ```
 
-### 70. Build Linux — failure
+### 49. Build Linux — failure
 
 - Run: [44807635944](https://github.com/AbdallahIsDev/Lausu/actions/runs/44807635944) (attempt 1)
 - Event: push · Branch: main
@@ -1102,7 +787,7 @@
 (no job log available)
 ```
 
-### 71. Build installer — failure
+### 50. Build installer — failure
 
 - Run: [43938770940](https://github.com/AbdallahIsDev/Lausu/actions/runs/43938770940) (attempt 1)
 - Event: schedule · Branch: main
@@ -1117,7 +802,7 @@
 (no job log available)
 ```
 
-### 72. Build Linux — failure
+### 51. Build Linux — failure
 
 - Run: [43936472984](https://github.com/AbdallahIsDev/Lausu/actions/runs/43936472984) (attempt 1)
 - Event: push · Branch: main
@@ -1132,7 +817,7 @@
 (no job log available)
 ```
 
-### 73. Build installer — failure
+### 52. Build installer — failure
 
 - Run: [43933041460](https://github.com/AbdallahIsDev/Lausu/actions/runs/43933041460) (attempt 1)
 - Event: push · Branch: main
@@ -1147,7 +832,7 @@
 (no job log available)
 ```
 
-### 74. Client CI — failure
+### 53. Client CI — failure
 
 - Run: [43929363738](https://github.com/AbdallahIsDev/Lausu/actions/runs/43929363738) (attempt 1)
 - Event: push · Branch: main
@@ -1162,7 +847,7 @@
 (no job log available)
 ```
 
-### 75. Build installer — failure
+### 54. Build installer — failure
 
 - Run: [43929363577](https://github.com/AbdallahIsDev/Lausu/actions/runs/43929363577) (attempt 1)
 - Event: push · Branch: main
@@ -1177,7 +862,7 @@
 (no job log available)
 ```
 
-### 76. Build installer — failure
+### 55. Build installer — failure
 
 - Run: [43743970692](https://github.com/AbdallahIsDev/Lausu/actions/runs/43743970692) (attempt 1)
 - Event: push · Branch: main
@@ -1192,7 +877,7 @@
 (no job log available)
 ```
 
-### 77. Build Linux — failure
+### 56. Build Linux — failure
 
 - Run: [43741204654](https://github.com/AbdallahIsDev/Lausu/actions/runs/43741204654) (attempt 1)
 - Event: push · Branch: main
@@ -1207,41 +892,11 @@
 (no job log available)
 ```
 
-### 78. Build installer — failure
+### 57. Build installer — failure
 
 - Run: [43741204629](https://github.com/AbdallahIsDev/Lausu/actions/runs/43741204629) (attempt 1)
 - Event: push · Branch: main
 - Commit: `c2682d2` — Merge branch 'main' of https://github.com/AbdallahIsDev/Lausu
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 79. Build Linux — failure
-
-- Run: [43706560091](https://github.com/AbdallahIsDev/Lausu/actions/runs/43706560091) (attempt 1)
-- Event: push · Branch: main
-- Commit: `db44116` — fix: green the whole suite (24 pytest + 12 vitest) and make the ASR download test hermetic
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 80. Build installer — failure
-
-- Run: [43706560083](https://github.com/AbdallahIsDev/Lausu/actions/runs/43706560083) (attempt 1)
-- Event: push · Branch: main
-- Commit: `db44116` — fix: green the whole suite (24 pytest + 12 vitest) and make the ASR download test hermetic
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
 - Category: other
@@ -1339,15 +994,15 @@
 - Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `afcc023` — fix(types): clear the mypy per-code ratchet regressions from the typing-baseline drift (8463bfd20..HEAD)
-- Job: tauri-windows-build (x86_64, x86_64-pc-windows-msvc, windows-2022, tauri.windows-x86_64-slim.conf... · Leg: windows-2022
-- Step: Post-build verification gate (bundle + ffmpeg + GPL DLL + summary)
-- Category: gate
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 - Fixed by: [45024128135](https://github.com/AbdallahIsDev/Lausu/actions/runs/45024128135) (success)
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
 ### 7. Client CI — failure
