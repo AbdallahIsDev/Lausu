@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T09:59:49Z
+> Generated: 2026-11-23T10:04:14Z
 > Data branch commit: `885a10c`
 
 ## Currently failing
@@ -867,21 +867,6 @@
 - Run: [44807635944](https://github.com/AbdallahIsDev/Lausu/actions/runs/44807635944) (attempt 1)
 - Event: push · Branch: main
 - Commit: `8451198` — test: reconcile regression suites, fixtures and remaining artifacts
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 51. Build installer — failure
-
-- Run: [43938770940](https://github.com/AbdallahIsDev/Lausu/actions/runs/43938770940) (attempt 1)
-- Event: schedule · Branch: main
-- Commit: `3852efc` — docs(agents): C-TEST-18 - query page chrome by role under the skeleton crossfade
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
 - Category: other
