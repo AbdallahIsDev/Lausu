@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T23:33:39Z
+> Generated: 2026-11-23T23:34:07Z
 > Data branch commit: `884603f`
 
 ## Currently failing
@@ -642,14 +642,14 @@
 - Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 36. Build installer — failure
@@ -1119,15 +1119,15 @@
 - Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
 - Fixed by: [45086665963](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086665963) (success)
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 12. Build installer — failure
