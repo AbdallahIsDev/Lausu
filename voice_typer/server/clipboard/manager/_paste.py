@@ -27,6 +27,7 @@ class PasteMixin:
         force: bool = False,
         pasted_seq: int | None = None,
         expected_fingerprint: tuple[int, str] | None = None,
+        target_snapshot: Any = None,
     ) -> bool:
         """Send a paste keystroke into the focused window."""
         # Register the restore entry first (so the cap-overflow
@@ -34,7 +35,12 @@ class PasteMixin:
         dispatched_ok = False
         try:
             dispatched_ok = self._attempt_paste_dispatch(
-                snapshot, pasted_text, pasted_seq, force, expected_fingerprint=expected_fingerprint
+                snapshot,
+                pasted_text,
+                pasted_seq,
+                force,
+                expected_fingerprint=expected_fingerprint,
+                target_snapshot=target_snapshot,
             )
             return dispatched_ok
         except Exception as e:
@@ -50,9 +56,10 @@ class PasteMixin:
         pasted_seq: int | None,
         force: bool,
         expected_fingerprint: tuple[int, str] | None = None,
+        target_snapshot: Any = None,
     ) -> bool:
         """Run the gate chain + keystroke dispatch. Returns True iff delivered."""
-        # Early-return gates (original order: pynput → rate-limit → paste_enabled).
+        # Early-return gates (original order: pynput -> rate-limit -> paste_enabled).
         if not self._check_pynput_available():
             return False
         if not self._check_rate_limit()[0]:
@@ -72,7 +79,10 @@ class PasteMixin:
         if not self._post_delay_recheck(paste_delay):
             return False
         safe_hwnd, safe_macos_pid = self._capture_target_handle()
-        process_name = self._detect_focused_process()
+        if not self._check_stop_target_match(target_snapshot, safe_hwnd, safe_macos_pid):
+            return False
+        stop_process_name = getattr(target_snapshot, "process_name", None) if target_snapshot is not None else None
+        process_name = stop_process_name if stop_process_name is not None else self._detect_focused_process()
         is_terminal = self._is_terminal_process(process_name)
         self._log_rich_editor(process_name)
         # force (repaste) and terminals bypass the text-field gate;
@@ -84,6 +94,37 @@ class PasteMixin:
         ):
             return False
         return self._finalize_paste(is_terminal, process_name, snapshot)
+
+    def _check_stop_target_match(
+        self,
+        target_snapshot: Any,
+        safe_hwnd: int,
+        safe_macos_pid: int | None,
+    ) -> bool:
+        """Abort safely (without refocusing) if dispatch foreground left stop-time target."""
+        if target_snapshot is None:
+            return True
+        stop_hwnd = getattr(target_snapshot, "hwnd", 0) or 0
+        if stop_hwnd and safe_hwnd != stop_hwnd:
+            _cb.log.warning(
+                "[CLIPBOARD] Foreground window changed since dictation stop "
+                "(stop_hwnd=%d -> dispatch_hwnd=%d), aborting paste to avoid "
+                "delivering into a window different from the stop-time target",
+                stop_hwnd,
+                safe_hwnd,
+            )
+            return False
+        stop_macos_pid = getattr(target_snapshot, "macos_pid", None)
+        if stop_macos_pid is not None and safe_macos_pid is not None and safe_macos_pid != stop_macos_pid:
+            _cb.log.warning(
+                "[CLIPBOARD] Frontmost macOS app changed since dictation stop "
+                "(stop_pid=%d -> dispatch_pid=%d), aborting paste to avoid "
+                "delivering into a window different from the stop-time target",
+                stop_macos_pid,
+                safe_macos_pid,
+            )
+            return False
+        return True
 
     def _settle_pending_restore(
         self,

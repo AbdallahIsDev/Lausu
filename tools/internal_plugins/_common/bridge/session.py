@@ -8,6 +8,7 @@ resolve to the entry module even though the logic lives here.
 
 from __future__ import annotations
 
+import inspect
 import logging
 import threading
 import time
@@ -109,6 +110,25 @@ def _fallback_ensure_browser(client):
     )
 
 
+def _capture_target_snapshot() -> Any:
+    """Capture stop-time target snapshot (lazy import keeps bridge self-contained)."""
+    try:
+        from voice_typer.server.clipboard_target_safety import capture_stop_time_target_snapshot
+
+        return capture_stop_time_target_snapshot()
+    except Exception:
+        log.debug("[PLUGIN] stop-time target snapshot capture failed", exc_info=True)
+        return None
+
+
+def _accepts_kwarg(fn: object, name: str) -> bool:
+    try:
+        params = inspect.signature(fn).parameters.values()  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
+    return any(p.kind == inspect.Parameter.VAR_KEYWORD or p.name == name for p in params)
+
+
 class PluginSession:
     """Toggle state machine bound to the product hotkey + bubble + cues."""
 
@@ -135,6 +155,7 @@ class PluginSession:
         # up (browser launch, daemon spawn, /start handshake). It must stop as
         # soon as the start lands instead of leaving the platform recording.
         self._stop_requested = False
+        self._pending_stop_snapshot: Any = None
         # The user's stop and the platform-stop watchdog can race; only one of
         # them may run the stop/deliver path.
         self._stopping = False
@@ -229,6 +250,7 @@ class PluginSession:
                 return
             self._starting = True
             self._stop_requested = False
+            self._pending_stop_snapshot = None
         try:
             self._start()
         finally:
@@ -236,9 +258,11 @@ class PluginSession:
                 self._starting = False
                 stop_now = self._active and self._stop_requested
                 self._stop_requested = False
+                pending_snapshot = self._pending_stop_snapshot
+                self._pending_stop_snapshot = None
             if stop_now:
                 # The release arrived mid-start: finish the cycle now.
-                self._stop_and_deliver()
+                self._stop_and_deliver(target_snapshot=pending_snapshot)
 
     def _start(self) -> None:
 
@@ -310,27 +334,37 @@ class PluginSession:
         """Stop the cycle: a release during a start is deferred, not dropped."""
         with self._lock:
             if self._starting:
-                self._stop_requested = True
+                if not self._stop_requested:
+                    self._stop_requested = True
+                    self._pending_stop_snapshot = _capture_target_snapshot()
                 self._log.debug("[PLUGIN] stop deferred: the start is still in flight")
                 return True
             if not self._active:
                 self._log.debug("[PLUGIN] stop ignored: no cycle is running")
                 return False
+        stop_snapshot = _capture_target_snapshot()
         self._log.info(
             "[PLUGIN] stop requested (cycle=#%d, captured=%s)",
             self._cycle,
             self._copy.duration(time.monotonic() - self._t0) if self._t0 else " 0.0s",
         )
-        self._stop_and_deliver()
+        self._stop_and_deliver(target_snapshot=stop_snapshot)
         return True
 
-    def _stop_and_deliver(self, *, trigger: str = "hotkey") -> None:
+    def _stop_and_deliver(
+        self,
+        *,
+        trigger: str = "hotkey",
+        target_snapshot: Any = None,
+    ) -> None:
         with self._lock:
             if self._stopping or not self._active:
                 return
             self._stopping = True
             captured = time.monotonic() - self._t0 if self._t0 else 0.0
             cycle = self._cycle
+        if target_snapshot is None:
+            target_snapshot = _capture_target_snapshot()
         t_stop = time.monotonic()
         try:
             self._stop_meter()
@@ -363,6 +397,7 @@ class PluginSession:
                 cycle=cycle,
                 captured=captured,
                 elapsed=time.monotonic() - t_stop,
+                target_snapshot=target_snapshot,
             )
         finally:
             self._stop_meter()
@@ -381,6 +416,7 @@ class PluginSession:
         cycle: int | None = None,
         captured: float | None = None,
         elapsed: float | None = None,
+        target_snapshot: Any = None,
     ) -> None:
         """Deliver a completed stop response (text, history, paste, cleanup)."""
         text = str(res.get("text", "")).strip()
@@ -423,7 +459,10 @@ class PluginSession:
                 )
             return
         t_deliver = time.monotonic()
-        self._deliver(text, duration)
+        if target_snapshot is not None and _accepts_kwarg(self._deliver, "target_snapshot"):
+            self._deliver(text, duration, target_snapshot=target_snapshot)
+        else:
+            self._deliver(text, duration)
         self._log.info(
             "[PLUGIN] delivered %d chars (cycle=#%d, captured=%s, platform=%s, delivery=%s)%s",
             len(text),
@@ -477,6 +516,7 @@ class PluginSession:
             if not self._active:
                 return False
             self._active = False
+            self._pending_stop_snapshot = None
         self._log.info(
             "[PLUGIN] cycle cancelled (ESC, cycle=#%d, captured=%s)",
             self._cycle,
@@ -506,8 +546,24 @@ class PluginSession:
         if not res.get("cleared"):
             self._log.debug("[PLUGIN] prompt box not cleared: %s", res.get("reason") or "unknown")
 
-    def _deliver(self, text: str, duration: float) -> None:
-        deliver_transcription(self._app, text, duration, self._copy.MODEL_LABEL, log)
+    def _deliver(
+        self,
+        text: str,
+        duration: float,
+        *,
+        target_snapshot: Any = None,
+    ) -> None:
+        if target_snapshot is not None and _accepts_kwarg(deliver_transcription, "target_snapshot"):
+            deliver_transcription(
+                self._app,
+                text,
+                duration,
+                self._copy.MODEL_LABEL,
+                log,
+                target_snapshot=target_snapshot,
+            )
+        else:
+            deliver_transcription(self._app, text, duration, self._copy.MODEL_LABEL, log)
 
     def _session_events(self, *, start: bool) -> None:
         from voice_typer.server import event_bus

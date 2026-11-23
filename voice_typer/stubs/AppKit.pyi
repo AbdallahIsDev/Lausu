@@ -6,7 +6,7 @@
 #
 # `NSPasteboard`, `NSPasteboardItem`, and `NSWorkspace` were
 # added because `voice_typer/server/clipboard_snapshot.py` and
-# `voice_typer/server/clipboard_target_safety.py` access them at
+# `voice_typer/server/clipboard_target_safety/` access them at
 # runtime (macOS pasteboard + workspace introspection). They use the
 # same permissive `Any` typing as the existing stub entries.
 from typing import Any

@@ -10,7 +10,10 @@ from typing import Any
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.clipboard import ClipboardCopyError
 from voice_typer.server.clipboard.fingerprint import text_fingerprint
-from voice_typer.server.clipboard_target_safety import delivery_text_for_target
+from voice_typer.server.clipboard_target_safety import (
+    call_clipboard_paste,
+    delivery_text_for_target,
+)
 from voice_typer.server.cycle_guard import is_cycle_live
 from voice_typer.server.i18n import t as _i18n_t
 from voice_typer.server.tray_types import AppState
@@ -23,6 +26,7 @@ class _PasteStepMixin:
 
     # Set by the composing orchestrator (``orchestrator.py:92``); declared
     _device_info: str = ""
+    _target_snapshot: Any = None
 
     # Set by ``_OrchestratorMixin.__init__`` (``app: Any``). Declared on
     _app: Any
@@ -47,12 +51,20 @@ class _PasteStepMixin:
         # Separator + first-letter case are DELIVERY concerns: the clipboard
         # and keystroke carry them, while history, crash recovery and status
         # counts keep the transcription exactly as decoded (C-TRANS-2).
+        target_snapshot = getattr(self, "_target_snapshot", None)
         paste_text = text
         if not skip_clipboard and self._app.config.paste_on_stop:
-            paste_text = delivery_text_for_target(
-                text,
-                auto_capitalize=getattr(self._app.config, "auto_capitalize", True),
-            )
+            if target_snapshot is not None:
+                paste_text = delivery_text_for_target(
+                    text,
+                    auto_capitalize=getattr(self._app.config, "auto_capitalize", True),
+                    prefix_context=target_snapshot.prefix_context,
+                )
+            else:
+                paste_text = delivery_text_for_target(
+                    text,
+                    auto_capitalize=getattr(self._app.config, "auto_capitalize", True),
+                )
 
         pasted = False
         snapshot = None
@@ -138,7 +150,9 @@ class _PasteStepMixin:
                         self._cycle_id,
                     )
                     return
-                pasted = self._app.clipboard.paste(
+                pasted = call_clipboard_paste(
+                    self._app.clipboard,
+                    target_snapshot,
                     snapshot,
                     pasted_text=paste_text,
                     pasted_seq=paste_seq,

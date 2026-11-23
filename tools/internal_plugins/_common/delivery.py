@@ -21,6 +21,7 @@ def deliver_transcription(
     duration: float,
     model_label: str,
     log: logging.Logger,
+    target_snapshot: Any = None,
 ) -> None:
     """Paste the padded text, store the decoded text, publish the events."""
     # Per-phase timings: delivery was seen taking 0.3s on one dictation and
@@ -56,17 +57,35 @@ def deliver_transcription(
     try:
         from voice_typer.server.clipboard_target_safety import delivery_text_for_target
 
-        paste_text = delivery_text_for_target(
-            text,
-            auto_capitalize=getattr(app.config, "auto_capitalize", True),
-        )
+        if target_snapshot is not None:
+            paste_text = delivery_text_for_target(
+                text,
+                auto_capitalize=getattr(app.config, "auto_capitalize", True),
+                prefix_context=target_snapshot.prefix_context,
+            )
+        else:
+            paste_text = delivery_text_for_target(
+                text,
+                auto_capitalize=getattr(app.config, "auto_capitalize", True),
+            )
     except Exception:
         log.debug("[PLUGIN] caret context unavailable, pasting without formatting", exc_info=True)
     t_caret = time.perf_counter()
     try:
         snapshot = app.clipboard.copy(paste_text)
         paste_seq = app.clipboard._clipboard_seq
-        app.clipboard.paste(snapshot=snapshot, pasted_text=paste_text, pasted_seq=paste_seq)
+        if target_snapshot is not None:
+            from voice_typer.server.clipboard_target_safety import call_clipboard_paste
+
+            call_clipboard_paste(
+                app.clipboard,
+                target_snapshot,
+                snapshot=snapshot,
+                pasted_text=paste_text,
+                pasted_seq=paste_seq,
+            )
+        else:
+            app.clipboard.paste(snapshot=snapshot, pasted_text=paste_text, pasted_seq=paste_seq)
     except Exception:
         log.exception("[PLUGIN] paste failed; text stays in clipboard")
     t_paste = time.perf_counter()

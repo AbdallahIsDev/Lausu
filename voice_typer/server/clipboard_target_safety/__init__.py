@@ -84,9 +84,11 @@ _MACOS_SECURE_INPUT_WARNED: bool = False
 # Import order: each submodule is self-contained (no inter-submodule
 
 from .caret_text import (  # noqa: E402,F401
+    _as_context,
     _char_before_caret,
     _linux_char_before_caret,
     _macos_char_before_caret,
+    _PrefixContext,
     _tail_needs_separator,
     _windows_char_before_caret,
     delivery_text_for_target,
@@ -104,6 +106,12 @@ from .injection import (  # noqa: E402,F401
     _get_uia_focused_element,
     _get_uia_singleton,
     _release_uia_pointer,
+)
+from .target_snapshot import (  # noqa: E402,F401
+    StopTimeTargetSnapshot,
+    accepts_kwarg,
+    call_clipboard_paste,
+    capture_stop_time_target_snapshot,
 )
 from .targets import (  # noqa: E402,F401
     _find_focused_atspi_accessible,
@@ -159,6 +167,8 @@ __all__ = [
     "_is_text_field_focused_macos",
     "_is_text_field_focused_windows",
     # Caret context for delivery formatting (caret_text.py)
+    "_PrefixContext",
+    "_as_context",
     "_char_before_caret",
     "_linux_char_before_caret",
     "_macos_char_before_caret",
@@ -166,6 +176,11 @@ __all__ = [
     "_windows_char_before_caret",
     "delivery_text_for_target",
     "needs_leading_space",
+    # Stop-time destination snapshot (target_snapshot.py)
+    "StopTimeTargetSnapshot",
+    "accepts_kwarg",
+    "call_clipboard_paste",
+    "capture_stop_time_target_snapshot",
     # Safety validation (validation.py)
     "_ax_result_value",
     "_is_password_field",

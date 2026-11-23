@@ -42,6 +42,7 @@ class _OrchestratorMixin:
     # Class default matches ``__init__`` so ``__new__``-built pipelines
     # (tests) still read a str and cycle checks fail open instead of raising.
     _cycle_id: str = ""
+    _target_snapshot: Any = None
 
     # Step methods owned by ``_TranscribeStepMixin`` and reached via
     _check_resources_throttled: Callable[[], None]
@@ -50,6 +51,7 @@ class _OrchestratorMixin:
     def __init__(self, app: Any):
         self._app = app
         self._cycle_id = ""
+        self._target_snapshot: Any = None
         self._audio = None
         self._duration = 0.0
         # Pipeline start clock for the History row's processing_seconds.
@@ -102,8 +104,14 @@ class _OrchestratorMixin:
         duration: float,
         recorded_rms: float,
         cycle_id: str,
+        target_snapshot: Any = None,
     ) -> None:
         """This is the entry point called from LausuApp._stop_dictation."""
+        if target_snapshot is None:
+            from voice_typer.server.clipboard_target_safety import capture_stop_time_target_snapshot
+
+            target_snapshot = capture_stop_time_target_snapshot()
+        self._target_snapshot = target_snapshot
         self._audio = audio
         self._duration = duration
         self._recorded_rms = recorded_rms
@@ -250,6 +258,7 @@ class _OrchestratorMixin:
                     self._app._crash_recovery.flush(timeout=0.5)
 
         finally:
+            self._target_snapshot = None
             # Each cleanup step below is delegated to a named helper that
             self._cleanup_sentinel_unlink()
             self._cleanup_audio_zero()

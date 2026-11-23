@@ -553,3 +553,77 @@ class TestDeliveryOnlyContract:
             body = source.read_text(encoding="utf-8")
             assert "delivery_text_for_target(" in body, source.name
             assert "pasted_text_with_separator" not in body, source.name
+
+
+class TestUnicodeAndStopSnapshotDelivery:
+    """R2 Unicode whitespace / Bidi marks / non-Latin / brackets & stop-time prefix_context."""
+
+    @pytest.mark.parametrize("ws", ["\xa0", "\u2003", "\u202f", "\u3000"])
+    def test_unicode_trailing_whitespace_avoids_double_space(self, caret, ws):
+        caret(f"hello{ws}")
+        assert delivery_text_for_target("Dictated words") == "dictated words"
+
+    @pytest.mark.parametrize("ws", ["\xa0", "\u2003", "\u3000"])
+    def test_text_starting_with_unicode_whitespace_is_not_doubled(self, caret, ws):
+        caret("previous")
+        assert delivery_text_for_target(f"{ws}dictated") == f"{ws}dictated"
+
+    @pytest.mark.parametrize("bidi", ["\u200e", "\u200f", "\u061c", "\u202b", "\u2067"])
+    def test_bidi_only_prefix_classifies_as_empty(self, caret, bidi):
+        caret(bidi)
+        assert delivery_text_for_target("hello") == "Hello"
+        assert delivery_text_for_target("مرحبا") == "مرحبا"
+
+    @pytest.mark.parametrize("bidi", ["\u200e", "\u200f", "\u061c", "\u2067"])
+    def test_trailing_space_plus_bidi_mark_avoids_double_space(self, caret, bidi):
+        caret(f"مرحبا {bidi}")
+        assert delivery_text_for_target("بالعالم") == "بالعالم"
+        caret(f"hello {bidi}")
+        assert delivery_text_for_target("World") == "world"
+
+    def test_windows_text_pattern_strips_bidi_trailing_and_empty(self, monkeypatch):
+        helper = TestBlockScopedSeparator()
+        helper._install(
+            monkeypatch,
+            page_text="\u200f",
+            moved=1,
+            text="w",
+            comparison=-1,
+            block_text="\u200f",
+            prefix_text="\u200f",
+        )
+        assert delivery_text_for_target("hello") == "Hello"
+
+        helper._install(
+            monkeypatch,
+            page_text="hello \u200f",
+            moved=1,
+            text="w",
+            comparison=-1,
+            block_text="hello \u200f",
+            prefix_text="hello \u200f",
+        )
+        assert delivery_text_for_target("World") == "world"
+
+    def test_zwnj_inside_or_at_end_is_not_treated_as_empty_invisible(self, caret):
+        caret("می\u200c")
+        assert delivery_text_for_target("خواهم") == " خواهم"
+
+    def test_quotes_and_brackets_keep_leading_delimiter(self, caret):
+        caret("")
+        assert delivery_text_for_target("(hello)") == "(Hello)"
+        assert delivery_text_for_target("«bonjour»") == "«Bonjour»"
+        caret("word")
+        assert delivery_text_for_target("(Hello)") == " (hello)"
+
+    def test_explicit_prefix_context_skips_live_caret_probe(self, monkeypatch):
+        def _boom():
+            raise AssertionError("live _char_before_caret must not run when prefix_context is given")
+
+        monkeypatch.setattr(caret_text, "_char_before_caret", _boom)
+        snap_ctx = caret_text._PrefixContext("existing", "needs-space", True)
+        assert delivery_text_for_target("Hello", prefix_context=snap_ctx) == " hello"
+        empty_ctx = caret_text._PrefixContext("", "empty", True)
+        assert delivery_text_for_target("hello", prefix_context=empty_ctx) == "Hello"
+        unknown_ctx = caret_text._PrefixContext(None, "unknown", False)
+        assert delivery_text_for_target("hello", prefix_context=unknown_ctx) == "hello"

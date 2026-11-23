@@ -15,6 +15,11 @@ import threading
 from typing import TYPE_CHECKING
 
 from voice_typer.server import event_bus
+from voice_typer.server.clipboard_target_safety import (
+    StopTimeTargetSnapshot,
+    accepts_kwarg,
+    capture_stop_time_target_snapshot,
+)
 from voice_typer.server.cloud_backend import active_engine_is_cloud
 from voice_typer.server.keyboard_ownership import keyboard_ownership
 from voice_typer.server.tray_types import AppState
@@ -33,7 +38,12 @@ class RecordingLifecycleStopMixin:
     """Stop-side pre-stop work and cancel/discard teardown."""
 
     if TYPE_CHECKING:
-        def _stop_and_transcribe_worker_entry(self, controller, cycle_id: str) -> None: ...
+        def _stop_and_transcribe_worker_entry(
+            self,
+            controller,
+            cycle_id: str,
+            target_snapshot: StopTimeTargetSnapshot | None = None,
+        ) -> None: ...
 
     def _stop_impl(self, controller) -> None:
         """Inner stop implementation, called under _toggle_lock.
@@ -62,6 +72,9 @@ class RecordingLifecycleStopMixin:
                 app._cycle_id,
             )
             return
+        # Capture destination foreground + caret context synchronously at stop
+        # time so post-transcription delivery uses only this stop-time target.
+        target_snapshot = capture_stop_time_target_snapshot()
         # Emit ``recording_stopped`` push event. Log push failures (see
         try:
             event_bus.publish({"type": "recording_stopped"})
@@ -110,10 +123,16 @@ class RecordingLifecycleStopMixin:
         # Spawn a daemon worker thread that performs ``recorder.stop()``
 
         # Write ``controller._transcription_thread`` under
+        worker_kwargs = (
+            {"target_snapshot": target_snapshot}
+            if accepts_kwarg(self._stop_and_transcribe_worker_entry, "target_snapshot")
+            else {}
+        )
         with controller._watchdog_lock:
             controller._transcription_thread = threading.Thread(
                 target=self._stop_and_transcribe_worker_entry,
                 args=(controller, _captured_cycle_id),
+                kwargs=worker_kwargs,
                 name="Transcription",
                 daemon=True,
             )

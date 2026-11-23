@@ -182,3 +182,58 @@ class TestIsTerminalProcess:
         """Process name comparison should be case-insensitive."""
         assert ClipboardManager._is_terminal_process("CMD.EXE") is True
         assert ClipboardManager._is_terminal_process("PowerShell.EXE") is True
+
+
+class TestStopTimeTargetSnapshotWindows:
+    def test_captures_hwnd_pid_process_and_caret_and_invalidates_atspi_cache(self, fake_win32, monkeypatch):
+        from voice_typer.server.clipboard_target_safety import (
+            capture_stop_time_target_snapshot,
+            caret_text,
+            targets,
+        )
+
+        def _set_pid(hwnd, byref_obj):
+            _set_byref_value(byref_obj, 9876 if hwnd == 0x2222 else 0)
+
+        fake_win32["user32"].GetForegroundWindow.return_value = 0x2222
+        fake_win32["user32"].GetWindowThreadProcessId.side_effect = _set_pid
+        fake_win32["kernel32"].QueryFullProcessImageNameW.return_value = 1
+        fake_win32["buf"].return_value.value = "C:\\Program Files\\WindowsApps\\WindowsTerminal.exe"
+
+        targets._set_focused_atspi_cache("stale-role")
+        monkeypatch.setattr(caret_text, "_char_before_caret", lambda: "previous")
+
+        snap = capture_stop_time_target_snapshot()
+
+        assert targets._LAST_FOCUSED_ROLE is None
+        assert snap.hwnd == 0x2222
+        assert snap.pid == 9876
+        assert snap.process_name == "windowsterminal.exe"
+        assert snap.prefix_context.verdict == "needs-space"
+        assert snap.prefix_context.before == "previous"
+
+    def test_snapshot_handles_zero_hwnd_and_failed_open_process(self, fake_win32, monkeypatch):
+        from voice_typer.server.clipboard_target_safety import (
+            capture_stop_time_target_snapshot,
+            caret_text,
+        )
+
+        monkeypatch.setattr(caret_text, "_char_before_caret", lambda: None)
+
+        fake_win32["user32"].GetForegroundWindow.return_value = 0
+        zero_snap = capture_stop_time_target_snapshot()
+        assert zero_snap.hwnd == 0
+        assert zero_snap.pid is None
+        assert zero_snap.process_name is None
+        assert zero_snap.prefix_context.verdict == "unknown"
+
+        def _set_pid(hwnd, byref_obj):
+            _set_byref_value(byref_obj, 5555)
+
+        fake_win32["user32"].GetForegroundWindow.return_value = 0x3333
+        fake_win32["user32"].GetWindowThreadProcessId.side_effect = _set_pid
+        fake_win32["kernel32"].OpenProcess.return_value = 0
+        no_proc_snap = capture_stop_time_target_snapshot()
+        assert no_proc_snap.hwnd == 0x3333
+        assert no_proc_snap.pid == 5555
+        assert no_proc_snap.process_name is None

@@ -38,10 +38,16 @@ _UIA_TEXT_RANGE_COMPARE_END = 1
 _PREFIX_LIMIT = 256
 _BLOCK_LIMIT = 4096
 _ENDPOINT_COMPARE_MIN = 256
-# Zero-width space / BOM / word joiner / soft hyphen: isspace() is False for all four.
-# Zero-width markers plus U+FFFC, the embedded-object placeholder AX text
-# uses for a widget inside a web editor. None of it is typed by the user.
-_INVISIBLE = "\u200b\ufeff\u2060\u00ad\ufffc"
+# Zero-width markers, embedded-object placeholder, and Unicode Bidi marks:
+# isspace() is False for all of these and none represent user-typed text.
+# Deliberately exclude ZWNJ (\u200c) and ZWJ (\u200d) which appear inside words/emoji.
+_INVISIBLE = (
+    "\u200b\ufeff\u2060\u00ad\ufffc"
+    "\u200e\u200f\u061c"
+    "\u202a\u202b\u202c\u202d\u202e"
+    "\u2066\u2067\u2068\u2069"
+)
+_UNSET: Any = object()
 _FAIL_MSG = "[CLIPBOARD] Windows caret read failed (%s), no separator added"
 _DIAG_MSG = "[CLIPBOARD] separator ct=%s class=%s doc=%d para=%d line=%d hex=%s verdict=%s"
 _DELIVERY_DIAG_MSG = "[CLIPBOARD] delivery verdict=%s case=%s reason=%s textlen=%d hex=%s"
@@ -434,9 +440,10 @@ def _verdict_for(before: str | None) -> str:
     """The single classification shared by the separator and the case rule."""
     if before is None:
         return "unknown"
-    if not before:
+    cleaned = before.strip(_INVISIBLE)
+    if not cleaned:
         return "empty"
-    if before[-1].isspace():
+    if cleaned[-1].isspace():
         return "trailing-space"
     return "needs-space"
 
@@ -481,17 +488,25 @@ def _case_first_letter(text: str, *, upper: bool) -> tuple[str, str, bool]:
     return text, "unchanged", True
 
 
-def delivery_text_for_target(text: str, *, auto_capitalize: bool = True) -> str:
+def delivery_text_for_target(
+    text: str,
+    *,
+    auto_capitalize: bool = True,
+    prefix_context: Any = _UNSET,
+) -> str:
     """Format the transcript for the focused field, delivery-only.
 
     Text is returned for the clipboard copy and paste keystroke; history,
     crash recovery, ``_last_transcription`` and ``transcription_final`` keep
-    the decoded text byte-identical (C-TRANS-2).
+    the decoded text byte-identical (C-TRANS-2). When ``prefix_context`` is
+    supplied (captured in a stop-time target snapshot), no live caret read is
+    performed here.
     """
     if not text:
         return text
     try:
-        context = _as_context(_char_before_caret())
+        raw_context = _char_before_caret() if prefix_context is _UNSET else prefix_context
+        context = _as_context(raw_context)
     except Exception:
         context = _PrefixContext(None, "unknown", False)
 
@@ -529,6 +544,8 @@ def delivery_text_for_target(text: str, *, auto_capitalize: bool = True) -> str:
 
 
 __all__ = [
+    "_PrefixContext",
+    "_as_context",
     "_caret_and_document",
     "_char_before_caret",
     "_linux_char_before_caret",
