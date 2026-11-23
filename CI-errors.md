@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T09:55:19Z
+> Generated: 2026-11-23T09:56:46Z
 > Data branch commit: `885a10c`
 
 ## Currently failing
@@ -907,36 +907,6 @@
 (no job log available)
 ```
 
-### 53. Build installer — failure
-
-- Run: [43933041460](https://github.com/AbdallahIsDev/Lausu/actions/runs/43933041460) (attempt 1)
-- Event: push · Branch: main
-- Commit: `0c8486a` — docs(agents): C-TEST-17 - propagate a fixed test defect to every duplicate copy
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 54. Client CI — failure
-
-- Run: [43929363738](https://github.com/AbdallahIsDev/Lausu/actions/runs/43929363738) (attempt 1)
-- Event: push · Branch: main
-- Commit: `319ada7` — test(shutdown): wait for the off-thread Ctrl+C dispatch instead of asserting it
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
 ## Resolved recently
 
 ### 1. CI error collector — failure
@@ -1076,22 +1046,6 @@
 - Step: 
 - Category: other
 - Fixed by: [44895380182](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380182) (success)
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 10. Client CI — failure
-
-- Run: [43929363738](https://github.com/AbdallahIsDev/Lausu/actions/runs/43929363738) (attempt 1)
-- Event: push · Branch: main
-- Commit: `319ada7` — test(shutdown): wait for the off-thread Ctrl+C dispatch instead of asserting it
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-- Fixed by: [43933041592](https://github.com/AbdallahIsDev/Lausu/actions/runs/43933041592) (success)
 
 - Error excerpt:
 
