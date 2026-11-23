@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T16:12:42Z
+> Generated: 2026-11-23T16:17:16Z
 > Data branch commit: `4b69717`
 
 ## Currently failing
@@ -1072,21 +1072,6 @@
 (no job log available)
 ```
 
-### 64. Client CI — failure
-
-- Run: [44844000708](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000708) (attempt 1)
-- Event: push · Branch: main
-- Commit: `991e0c4` — Merge pull request #105 from AbdallahIsDev/lausu/rounds-1-11-lgpl-notices-ci
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
 ## Resolved recently
 
 ### 1. CI error collector — failure
@@ -1178,22 +1163,6 @@
 - Step: 
 - Category: other
 - Fixed by: [44895380193](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380193) (success)
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 7. Client CI — failure
-
-- Run: [44844000708](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000708) (attempt 1)
-- Event: push · Branch: main
-- Commit: `991e0c4` — Merge pull request #105 from AbdallahIsDev/lausu/rounds-1-11-lgpl-notices-ci
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-- Fixed by: [44895380182](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380182) (success)
 
 - Error excerpt:
 
