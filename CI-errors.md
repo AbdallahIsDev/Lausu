@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T09:56:46Z
+> Generated: 2026-11-23T09:57:36Z
 > Data branch commit: `885a10c`
 
 ## Currently failing
@@ -881,21 +881,6 @@
 
 - Run: [43938770940](https://github.com/AbdallahIsDev/Lausu/actions/runs/43938770940) (attempt 1)
 - Event: schedule · Branch: main
-- Commit: `3852efc` — docs(agents): C-TEST-18 - query page chrome by role under the skeleton crossfade
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 52. Build Linux — failure
-
-- Run: [43936472984](https://github.com/AbdallahIsDev/Lausu/actions/runs/43936472984) (attempt 1)
-- Event: push · Branch: main
 - Commit: `3852efc` — docs(agents): C-TEST-18 - query page chrome by role under the skeleton crossfade
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
