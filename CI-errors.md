@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-23T09:59:15Z
+> Generated: 2026-11-23T09:59:49Z
 > Data branch commit: `885a10c`
 
 ## Currently failing
@@ -597,17 +597,92 @@
 - Run: [45035935992](https://github.com/AbdallahIsDev/Lausu/actions/runs/45035935992) (attempt 1)
 - Event: push · Branch: main
 - Commit: `3c9fd7a` — Merge remote-tracking branch 'origin/main'
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Pre-commit hygiene · Leg: ubuntu-22.04
+- Step: Run pre-commit hygiene hooks
+- Category: pre-commit hygiene
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 33. Build installer — failure
+
+- Run: [45035935992](https://github.com/AbdallahIsDev/Lausu/actions/runs/45035935992) (attempt 1)
+- Event: push · Branch: main
+- Commit: `3c9fd7a` — Merge remote-tracking branch 'origin/main'
+- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 34. Build installer — failure
+
+- Run: [45035935992](https://github.com/AbdallahIsDev/Lausu/actions/runs/45035935992) (attempt 1)
+- Event: push · Branch: main
+- Commit: `3c9fd7a` — Merge remote-tracking branch 'origin/main'
+- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 35. Build installer — failure
+
+- Run: [45035935992](https://github.com/AbdallahIsDev/Lausu/actions/runs/45035935992) (attempt 1)
+- Event: push · Branch: main
+- Commit: `3c9fd7a` — Merge remote-tracking branch 'origin/main'
+- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 36. Build installer — failure
+
+- Run: [45035935992](https://github.com/AbdallahIsDev/Lausu/actions/runs/45035935992) (attempt 1)
+- Event: push · Branch: main
+- Commit: `3c9fd7a` — Merge remote-tracking branch 'origin/main'
+- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 37. Build installer — failure
+
+- Run: [45035935992](https://github.com/AbdallahIsDev/Lausu/actions/runs/45035935992) (attempt 1)
+- Event: push · Branch: main
+- Commit: `3c9fd7a` — Merge remote-tracking branch 'origin/main'
+- Job: Notify on failure · Leg: ubuntu-22.04
+- Step: Emit failure annotation
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
-### 33. Build installer — failure
+### 38. Build installer — failure
 
 - Run: [45024078547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45024078547) (attempt 1)
 - Event: push · Branch: main
@@ -622,7 +697,7 @@
 (no job log available)
 ```
 
-### 34. Build Windows — failure
+### 39. Build Windows — failure
 
 - Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -637,7 +712,7 @@
 (no job log available)
 ```
 
-### 35. Build installer — failure
+### 40. Build installer — failure
 
 - Run: [44934992322](https://github.com/AbdallahIsDev/Lausu/actions/runs/44934992322) (attempt 1)
 - Event: push · Branch: main
@@ -652,7 +727,7 @@
 (no job log available)
 ```
 
-### 36. Build Windows — failure
+### 41. Build Windows — failure
 
 - Run: [44904197738](https://github.com/AbdallahIsDev/Lausu/actions/runs/44904197738) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -667,7 +742,7 @@
 (no job log available)
 ```
 
-### 37. Build installer — failure
+### 42. Build installer — failure
 
 - Run: [44902843881](https://github.com/AbdallahIsDev/Lausu/actions/runs/44902843881) (attempt 1)
 - Event: push · Branch: main
@@ -682,7 +757,7 @@
 (no job log available)
 ```
 
-### 38. Build installer — failure
+### 43. Build installer — failure
 
 - Run: [44895380146](https://github.com/AbdallahIsDev/Lausu/actions/runs/44895380146) (attempt 1)
 - Event: push · Branch: main
@@ -697,7 +772,7 @@
 (no job log available)
 ```
 
-### 39. Build Linux — failure
+### 44. Build Linux — failure
 
 - Run: [44844000820](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000820) (attempt 1)
 - Event: push · Branch: main
@@ -712,7 +787,7 @@
 (no job log available)
 ```
 
-### 40. Build installer — failure
+### 45. Build installer — failure
 
 - Run: [44844000713](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000713) (attempt 1)
 - Event: push · Branch: main
@@ -727,7 +802,7 @@
 (no job log available)
 ```
 
-### 41. Client CI — failure
+### 46. Client CI — failure
 
 - Run: [44844000708](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000708) (attempt 1)
 - Event: push · Branch: main
@@ -742,7 +817,7 @@
 (no job log available)
 ```
 
-### 42. Build Windows — failure
+### 47. Build Windows — failure
 
 - Run: [44834921579](https://github.com/AbdallahIsDev/Lausu/actions/runs/44834921579) (attempt 1)
 - Event: workflow_dispatch · Branch: lausu/rounds-1-11-lgpl-notices-ci
@@ -757,7 +832,7 @@
 (no job log available)
 ```
 
-### 43. Client CI — failure
+### 48. Client CI — failure
 
 - Run: [44807636293](https://github.com/AbdallahIsDev/Lausu/actions/runs/44807636293) (attempt 1)
 - Event: push · Branch: main
@@ -772,7 +847,7 @@
 (no job log available)
 ```
 
-### 44. Build installer — failure
+### 49. Build installer — failure
 
 - Run: [44807636025](https://github.com/AbdallahIsDev/Lausu/actions/runs/44807636025) (attempt 1)
 - Event: push · Branch: main
@@ -787,7 +862,7 @@
 (no job log available)
 ```
 
-### 45. Build Linux — failure
+### 50. Build Linux — failure
 
 - Run: [44807635944](https://github.com/AbdallahIsDev/Lausu/actions/runs/44807635944) (attempt 1)
 - Event: push · Branch: main
@@ -802,7 +877,7 @@
 (no job log available)
 ```
 
-### 46. Build installer — failure
+### 51. Build installer — failure
 
 - Run: [43938770940](https://github.com/AbdallahIsDev/Lausu/actions/runs/43938770940) (attempt 1)
 - Event: schedule · Branch: main
