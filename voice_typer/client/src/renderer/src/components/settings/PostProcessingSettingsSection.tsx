@@ -31,6 +31,20 @@ import { LANGUAGE_OPTIONS } from "@/lib/utils/languages";
 import type { Page } from "@/types/ipc";
 import type { SettingsSectionSharedProps } from "./types";
 
+// ADR-0021 scope lock: the translator only supports the 8 core locales.
+// LANGUAGE_OPTIONS has 28 ASR codes; offering the extras here lets the UI
+// choose a target the backend validator silently rejects.
+const TRANSLATION_TARGET_CODES = new Set([
+	"en",
+	"zh",
+	"hi",
+	"es",
+	"ar",
+	"fr",
+	"ru",
+	"de",
+]);
+
 export const PostProcessingSettingsSection = memo(
 	function PostProcessingSettingsSection({
 		config,
@@ -204,8 +218,8 @@ export const PostProcessingSettingsSection = memo(
 										<SelectItem value="same">
 											<span>{t("settings.translationSameAsSpoken")}</span>
 										</SelectItem>
-										{LANGUAGE_OPTIONS.filter(
-											(lang) => lang.value !== "auto",
+										{LANGUAGE_OPTIONS.filter((lang) =>
+											TRANSLATION_TARGET_CODES.has(lang.value),
 										).map((lang) => (
 											<SelectItem key={lang.value} value={lang.value}>
 												<span>{t(lang.labelKey)}</span>

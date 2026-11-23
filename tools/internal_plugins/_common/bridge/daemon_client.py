@@ -62,6 +62,16 @@ class DaemonClient:
             return {}
 
     @staticmethod
+    def browser_connected(snapshot: dict | None) -> bool:
+        """Transport-only readiness: the extension is up, whatever the tab does.
+
+        A connected browser resolves and recreates its own target tabs, so a
+        missing tab must never be read as "launch Chrome again" (that opens a
+        duplicate tab in the shared profile on every plugin switch).
+        """
+        return bool(snapshot) and snapshot.get("browser") == "connected"
+
+    @staticmethod
     def bridge_ready(snapshot: dict | None) -> bool:
         """Connected AND the tab has answered once (a page state, not unknown)."""
         if not snapshot or snapshot.get("browser") != "connected":

@@ -41,6 +41,7 @@ const PATH = '/extension';
 const HANDSHAKE_TIMEOUT_MS = 5000;
 const DEADLINES = {
   status: 2000,
+  'ensure-tab': 20000,
   start: 30000,
   stop: 75000,
   cancel: 30000,

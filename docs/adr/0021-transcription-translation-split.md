@@ -92,6 +92,15 @@ Other locked points:
   notification per process. Never auto-retry; never overwrite with an empty
   string. `original_text` and the final text are both stored; History shows
   the final text and can reveal the original.
+- The service serializes model POSTs and any `stop()` against one re-entrant
+  lock, so a config change mid-dictation cannot kill a live runtime or leak a
+  process (audit fix 2026-11-22).
+- Standalone (non-Tauri) failure notices go through `app.tray.notify`, the
+  same path LLM-polish failures use; Tauri keeps the native toast (audit fix
+  2026-11-22).
+- History Undo restores `original_text` with the same DEK as `text`; without
+  it an undone translation row decrypted as `<decryption failed>` (audit fix
+  2026-11-22).
 - Transcription is NEVER blocked on language grounds when the model is multilingual (Whisper covers all 8). Refusal is reserved for genuine no-coverage (e.g. Parakeet + Arabic).
 
 ### 5.3 Fallback chain without a translation model (locked)

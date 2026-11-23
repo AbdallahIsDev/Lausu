@@ -158,3 +158,31 @@ tools/internal_plugins/*/chrome_pid.json
 
 # Generated on the ci-reports branch and synced locally by scripts/sync_ci_errors.py.
 CI-errors.md
+
+# Generated test artifacts: caches, coverage, reports, captures, temp outputs.
+# Narrow to tests/ so real test code and fixtures stay visible to git.
+tests/**/__pycache__/
+tests/**/*.py[cod]
+tests/**/.pytest_cache/
+tests/**/.mypy_cache/
+tests/**/.ruff_cache/
+tests/**/.coverage
+tests/**/coverage.xml
+tests/**/htmlcov/
+tests/**/junit*.xml
+tests/**/test-results*.xml
+tests/**/*.log
+tests/**/*.tmp
+tests/**/*.bak
+tests/**/*.swp
+tests/**/*.orig
+tests/**/Thumbs.db
+tests/**/.DS_Store
+tests/**/captured_*
+tests/**/api_response_*
+tests/**/response_dump_*
+tests/**/probe_output_*
+tests/**/tmp/
+tests/**/temp/
+tests/**/out/
+tests/**/output/

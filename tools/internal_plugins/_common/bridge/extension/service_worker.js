@@ -6,9 +6,10 @@
 // as long as a socket is open. The alarms entry is the reconnect backstop for
 // the case where Chrome terminated the worker while the daemon was down.
 
-importScripts('generated/config.js');
+importScripts('generated/config.js', 'tab_resolution.js');
 
 const CFG = self.ANTHROPIC_STT_CONFIG || {};
+const { createTabResolver } = self.SttTabResolution;
 const RECONNECT_ALARM = 'stt-bridge-reconnect';
 const PING_MS = 20000;
 const HANDSHAKE_MS = 5000;
@@ -171,24 +172,13 @@ const TAB_PATTERNS = {
   claude: 'https://claude.ai/*',
   gemini: 'https://gemini.google.com/*',
 };
-
-function tabFor(platform) {
-  const pattern = TAB_PATTERNS[platform];
-  if (!pattern) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    chrome.tabs.query({ url: pattern }, (tabs) => {
-      if (chrome.runtime.lastError || !tabs) {
-        resolve(null);
-        return;
-      }
-      resolve(
-        tabs.find((tab) => tab.active && typeof tab.id === 'number') ||
-          tabs.find((tab) => typeof tab.id === 'number') ||
-          null,
-      );
-    });
-  });
-}
+const TARGET_URLS = {
+  claude: (CFG.platforms && CFG.platforms.claude && CFG.platforms.claude.claudeUrl) || 'https://claude.ai/new',
+  gemini: (CFG.platforms && CFG.platforms.gemini && CFG.platforms.gemini.geminiUrl) || 'https://gemini.google.com/app',
+};
+// Commands that may legitimately open a missing target tab. status is a read;
+// stop/cancel must never create a tab just to answer a command.
+const RESOLVING_COMMANDS = new Set(['start', 'probe', 'clean']);
 
 function reply(id, ok, result, kind, error) {
   if (ok) send({ id, ok: true, result: result || {} });
@@ -266,6 +256,41 @@ async function sendToTab(tabId, cmd, opts) {
   throw lastError;
 }
 
+let tabResolver = null;
+function resolver() {
+  if (!tabResolver) {
+    tabResolver = createTabResolver({
+      chromeApi: chrome,
+      patterns: TAB_PATTERNS,
+      targetUrls: TARGET_URLS,
+      // A created tab answers the port before its content script listens;
+      // sendToTab's own retry ladder covers that window.
+      probe: async (tabId) => {
+        try {
+          await sendToTab(tabId, 'status');
+          return true;
+        } catch (_) {
+          return false;
+        }
+      },
+    });
+  }
+  return tabResolver;
+}
+
+function tabFor(platform) {
+  return resolver().find(platform);
+}
+
+// Resolve on every command, then re-resolve once if the tab vanished between
+// resolution and dispatch. That keeps a hotkey press from surfacing
+// "the target tab is not open" for a tab the user merely closed.
+const { dispatch } = self.SttTabResolution.createDispatcher({
+  resolver: { ensure: (platform, opts) => resolver().ensure(platform, opts), find: (platform) => tabFor(platform) },
+  sendToTab,
+  resolvingCommands: RESOLVING_COMMANDS,
+});
+
 // The popup reads this instead of messaging: a status snapshot costs nothing
 // and survives the worker being suspended (MV3 keeps the values in storage).
 function publishSnapshot(status) {
@@ -273,6 +298,7 @@ function publishSnapshot(status) {
     chrome.storage.local.set({
       snapshot: {
         page: (status && status.page) || 'unknown',
+        hasTab: !!(status && status.has_tab),
         recording: !!(status && status.recording),
         bridge: !!socket && socket.readyState === WebSocket.OPEN && accepted,
         at: Date.now(),
@@ -284,29 +310,47 @@ function publishSnapshot(status) {
 function handleCommand(msg) {
   (async () => {
     try {
-      const tab = await tabFor(msg.opts && msg.opts.platform ? msg.opts.platform : CFG.platform);
+      const platform = (msg.opts && msg.opts.platform) || CFG.platform;
       if (msg.cmd === 'status') {
+        const tab = await tabFor(platform);
         if (!tab) {
-          const cached = cachedStatus || {};
-          reply(msg.id, true, {
-            url: cached.url || '',
-            page: cached.page || 'unknown',
+          // A stale cached page used to make the daemon believe the target
+          // tab was alive, so /start was sent to a tab that did not exist.
+          const result = {
+            url: '',
+            page: 'unknown',
             recording: false,
             has_text: false,
-          });
+            has_tab: false,
+          };
+          publishSnapshot(result);
+          reply(msg.id, true, result);
           return;
         }
         const result = await sendToTab(tab.id, 'status', msg.opts);
-        cachedStatus = result;
-        publishSnapshot(result);
-        reply(msg.id, true, result);
+        cachedStatus = { ...result, has_tab: true };
+        publishSnapshot(cachedStatus);
+        reply(msg.id, true, cachedStatus);
         return;
       }
-      if (!tab) {
-        reply(msg.id, false, null, 'browser-not-open', 'the target tab is not open');
+      if (msg.cmd === 'ensure-tab') {
+        const resolved = await resolver().ensure(platform, msg.opts);
+        if (typeof resolved.tabId !== 'number') {
+          reply(msg.id, false, null, 'browser-not-open', resolved.reason === 'create-failed'
+            ? 'the extension could not open the target tab'
+            : 'the target tab is not open');
+          return;
+        }
+        reply(msg.id, true, {
+          ok: true,
+          tabId: resolved.tabId,
+          created: resolved.created,
+          ready: resolved.ready,
+          platform,
+        });
         return;
       }
-      const result = await sendToTab(tab.id, msg.cmd, msg.opts);
+      const result = await dispatch(platform, msg.cmd, msg.opts);
       reply(msg.id, true, result);
     } catch (err) {
       reply(
@@ -329,16 +373,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     try {
       const tab = await tabFor(msg.opts && msg.opts.platform ? msg.opts.platform : CFG.platform);
       if (!tab) {
-        sendResponse({ ok: true, bridge, page: 'no-tab', recording: false });
+        sendResponse({ ok: true, bridge, page: 'no-tab', has_tab: false, recording: false });
         return;
       }
       const result = await sendToTab(tab.id, 'status');
-      cachedStatus = result;
-      publishSnapshot(result);
+      cachedStatus = { ...result, has_tab: true };
+      publishSnapshot(cachedStatus);
       sendResponse({
         ok: true,
         bridge,
         page: result.page || 'unknown',
+        has_tab: true,
         recording: !!result.recording,
       });
     } catch (err) {

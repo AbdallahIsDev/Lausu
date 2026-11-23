@@ -1723,7 +1723,11 @@
 		"mediaBadge": "Media",
 		"dictationBadge": "Dictation",
 		"viewTranscript": "View transcript",
-		"originalText": "Original text (before translation)"
+		"originalText": "Original text (before translation)",
+		"viewFinal": "Final",
+		"viewOriginal": "Original",
+		"viewCompare": "Compare",
+		"viewModeAria": "Transcript version"
 	},
 	"onboarding": {
 		"applyFailedTitle": "Couldn't finish setup",

@@ -1,0 +1,191 @@
+// Target-tab identity for the shared STT bridge. Only the extension can use
+// chrome.tabs.*, so reuse/create policy lives here and is identical for both
+// plugins. UMD wrapper: importScripts() in the worker, require() in node:test.
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  if (root) root.SttTabResolution = api;
+})(typeof self !== "undefined" ? self : globalThis, function () {
+  "use strict";
+
+  const SETTLE_POLL_MS = 150;
+  const SETTLE_MAX_MS = 8000;
+
+  function matchesUrl(url, pattern) {
+    if (typeof url !== "string" || typeof pattern !== "string") return false;
+    return pattern.endsWith("*")
+      ? url.startsWith(pattern.slice(0, -1))
+      : url === pattern;
+  }
+
+  function queryTabs(chromeApi, pattern) {
+    return new Promise((resolve) => {
+      try {
+        chromeApi.tabs.query({ url: pattern }, (tabs) => {
+          if (chromeApi.runtime && chromeApi.runtime.lastError) {
+            void chromeApi.runtime.lastError;
+            resolve([]);
+            return;
+          }
+          resolve(
+            (tabs || []).filter(
+              (tab) =>
+                tab &&
+                typeof tab.id === "number" &&
+                matchesUrl(tab.url, pattern),
+            ),
+          );
+        });
+      } catch (_) {
+        resolve([]);
+      }
+    });
+  }
+
+  // Deterministic: the active matching tab wins; otherwise the lowest id.
+  // Never pick a tab merely because it is active -- it must match the URL.
+  function pickTab(tabs) {
+    const active = tabs.find((tab) => tab.active);
+    if (active) return active;
+    return tabs.reduce((best, tab) => (!best || tab.id < best.id ? tab : best), null);
+  }
+
+  function createTab(chromeApi, url) {
+    return new Promise((resolve, reject) => {
+      try {
+        chromeApi.tabs.create({ url, active: false }, (tab) => {
+          if (chromeApi.runtime && chromeApi.runtime.lastError) {
+            void chromeApi.runtime.lastError;
+            reject(new Error("chrome refused to create the target tab"));
+            return;
+          }
+          resolve(tab || null);
+        });
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  // Tab selection inside Chrome, never window focus: the dictation path must
+  // not steal focus from the user's target field.
+  function activateTab(chromeApi, tabId) {
+    return new Promise((resolve) => {
+      try {
+        chromeApi.tabs.update(tabId, { active: true }, () => {
+          if (chromeApi.runtime && chromeApi.runtime.lastError) {
+            void chromeApi.runtime.lastError;
+          }
+          resolve();
+        });
+      } catch (_) {
+        resolve();
+      }
+    });
+  }
+
+  function targetUrl(platform, opts, patterns, targetUrls) {
+    const prefix = patterns[platform].slice(0, -1);
+    const configured = opts && opts.url;
+    if (typeof configured === "string" && configured.startsWith(prefix)) {
+      return configured;
+    }
+    return targetUrls[platform];
+  }
+
+  function createTabResolver({
+    chromeApi,
+    patterns,
+    targetUrls,
+    probe = async () => true,
+    delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    maxWaitMs = SETTLE_MAX_MS,
+    activate = true,
+  }) {
+    const inflight = new Map();
+
+    async function find(platform) {
+      const pattern = patterns[platform];
+      if (!pattern) return null;
+      return pickTab(await queryTabs(chromeApi, pattern));
+    }
+
+    async function waitForTab(platform, expectedId) {
+      const started = Date.now();
+      for (;;) {
+        const tab = await find(platform);
+        if (tab && (tab.id === expectedId || !expectedId)) return tab;
+        if (Date.now() - started >= maxWaitMs) return null;
+        await delay(SETTLE_POLL_MS);
+      }
+    }
+
+    async function resolve(platform, opts = {}) {
+      const pattern = patterns[platform];
+      if (!pattern) return { tabId: null, created: false, ready: false, reason: "unknown-platform" };
+
+      let tab = await find(platform);
+      if (tab) {
+        if (activate && opts.activate !== false) await activateTab(chromeApi, tab.id);
+        return { tabId: tab.id, created: false, ready: true, url: tab.url };
+      }
+
+      let created;
+      try {
+        created = await createTab(chromeApi, targetUrl(platform, opts, patterns, targetUrls));
+      } catch (_) {
+        return { tabId: null, created: false, ready: false, reason: "create-failed" };
+      }
+      if (!created) return { tabId: null, created: false, ready: false, reason: "create-failed" };
+
+      tab = await waitForTab(platform, created.id);
+      if (!tab) return { tabId: created.id, created: true, ready: false, reason: "not-visible" };
+      if (activate && opts.activate !== false) await activateTab(chromeApi, tab.id);
+      let ready = false;
+      try {
+        ready = !!(await probe(tab.id));
+      } catch (_) {}
+      return { tabId: tab.id, created: true, ready, url: tab.url };
+    }
+
+    // Two hotkey presses (or an /ensure-tab racing /start) must not both
+    // observe "no tab" and both create one.
+    function ensure(platform, opts = {}) {
+      if (inflight.has(platform)) return inflight.get(platform);
+      const task = resolve(platform, opts);
+      inflight.set(platform, task);
+      const clear = () => {
+        if (inflight.get(platform) === task) inflight.delete(platform);
+      };
+      task.then(clear, clear);
+      return task;
+    }
+
+    return { find, ensure };
+  }
+
+  function createDispatcher({ resolver, sendToTab, resolvingCommands }) {
+    async function dispatch(platform, cmd, opts) {
+      const mayCreate = resolvingCommands.has(cmd);
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const resolved = mayCreate
+          ? await resolver.ensure(platform, opts)
+          : { tabId: (await resolver.find(platform))?.id };
+        if (typeof resolved.tabId !== "number") {
+          throw { kind: "browser-not-open", error: "the target tab is not open" };
+        }
+        try {
+          return await sendToTab(resolved.tabId, cmd, opts);
+        } catch (err) {
+          const retryable = err && (err.kind === "page-not-ready" || err.kind === "browser-not-open");
+          if (attempt === 0 && retryable) continue;
+          throw err;
+        }
+      }
+      throw { kind: "browser-not-open", error: "the target tab is not open" };
+    }
+    return { dispatch };
+  }
+
+  return { createTabResolver, createDispatcher, matchesUrl, pickTab };
+});

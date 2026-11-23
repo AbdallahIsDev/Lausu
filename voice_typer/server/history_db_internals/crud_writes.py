@@ -153,6 +153,7 @@ def restore_row(
     processing_seconds: float | None = None,
     download_seconds: float | None = None,
     method: str | None = None,
+    original_text: str | None = None,
 ) -> int:
     """Re-insert a previously-deleted transcription record."""
     from voice_typer.server import _text_crypto
@@ -163,8 +164,9 @@ def restore_row(
                     INSERT INTO transcriptions
                 (text, duration, model, device, word_count, char_count, language, favorite,
                  kind, source_type, source_title, source_url, file_name, thumbnail_url,
-                 media_duration_seconds, processing_seconds, download_seconds, method)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 media_duration_seconds, processing_seconds, download_seconds, method,
+                 original_text)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 text,
@@ -185,6 +187,7 @@ def restore_row(
                 processing_seconds,
                 download_seconds,
                 method,
+                original_text,
             ),
         )
         new_id = cursor.lastrowid
@@ -193,10 +196,16 @@ def restore_row(
             return -1
         dek = _text_crypto.get_dek_cached()
         if dek is not None:
-            # Flag-flip UPDATE inside the same transaction: the
+            # Flag-flip UPDATE inside the same transaction: the same DEK
+            # protects both the final text and the pre-translation original
+            # (ADR-0030). Leaving original_text plaintext here makes the
+            # reader try to decrypt a non-ciphertext blob on undo.
+            original_cipher = (
+                _text_crypto.encrypt_text(original_text, dek) if original_text else None
+            )
             cursor.execute(
-                "UPDATE transcriptions SET text = ?, text_is_encrypted = 1 WHERE id = ?",
-                (_text_crypto.encrypt_text(text, dek), new_id),
+                "UPDATE transcriptions SET text = ?, original_text = ?, text_is_encrypted = 1 WHERE id = ?",
+                (_text_crypto.encrypt_text(text, dek), original_cipher, new_id),
             )
         conn.commit()
         log.info(
@@ -402,6 +411,7 @@ def submit_restore(db: HistoryDB, record: dict) -> int:
             processing_seconds=_opt("processing_seconds", float),
             download_seconds=_opt("download_seconds", float),
             method=_opt("method", str),
+            original_text=_opt("original_text", str),
         ),
         wait=True,
     )

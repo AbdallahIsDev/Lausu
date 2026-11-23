@@ -508,3 +508,114 @@ class TestSameLanguageSkip:
         monkeypatch.setattr(svc.RuntimeServer, "start", _fail_start)
         result = svc.translate_text("الملف موجود", SimpleNamespace(translation_enabled=True), "ar", "ar")
         assert result == "الملف موجود"
+
+
+class TestAuditFixes:
+    """Regressions for issues found in the final independent audit."""
+
+    def test_arabic_punctuation_does_not_count_as_script_letter(self) -> None:
+        from voice_typer.server.translation.prompt import detect_source_language
+
+        # Arabic punctuation / Arabic-Indic digits are in the Arabic Unicode
+        # block but are not letters; a Latin sentence with them must stay Latin.
+        result = detect_source_language("hello world ١٢٣؟")
+        assert result.code == ""
+        assert result.mixed is False
+
+    def test_translate_text_accepts_optional_app_without_behavior_change(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from voice_typer.server.translation import service as svc
+
+        app = SimpleNamespace()
+        # Same-language skip with an app supplied must still skip and never
+        # touch the tray (no failure happened).
+        assert svc.translate_text(
+            "الملف موجود", SimpleNamespace(translation_enabled=True), "ar", "ar", app=app
+        ) == "الملف موجود"
+
+    def test_stop_waits_for_inflight_request(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """A config swap mid-request must not tear down the live runtime."""
+        import threading
+        import time
+
+        from voice_typer.server.translation import service as svc
+
+        entered = threading.Event()
+        release = threading.Event()
+
+        def _blocking_complete(self: object, prompt: str) -> str:
+            entered.set()
+            assert release.wait(timeout=5.0), "stop() released the request too early"
+            return "ترجمة"
+
+        # Patch the INNER call: _complete() holds self._lock around it.
+        monkeypatch.setattr(svc.TranslationService, "_complete_locked", _blocking_complete)
+        monkeypatch.setattr(svc, "resolve_runtime_path", lambda _c: tmp_path / "llama-server.exe")
+        monkeypatch.setattr(svc, "resolve_model_path", lambda _c: tmp_path / "model.gguf")
+        monkeypatch.setattr(
+            svc.RuntimeServer, "start", lambda *_a, **_k: _FakeRuntime()
+        )
+        config = SimpleNamespace(
+            translation_enabled=True,
+            translation_model="index-translate-2b-q4-k-m",
+            translation_model_path="",
+            translation_runtime_path="",
+            translation_gpu_enabled=True,
+            translation_glossary="",
+            language="ar",
+        )
+        result_box: list[str] = []
+
+        def _worker() -> None:
+            result_box.append(svc.translate_text("نص طويلSy meets text here", config, "en", "ar"))
+
+        thread = threading.Thread(target=_worker)
+        thread.start()
+        assert entered.wait(timeout=5.0)
+        stop_box: list[bool] = []
+
+        def _stopper() -> None:
+            service = svc.get_service(config)
+            service.stop()
+            stop_box.append(True)
+
+        stopper = threading.Thread(target=_stopper)
+        stopper.start()
+        time.sleep(0.1)
+        assert not stop_box, "stop() must wait for the in-flight request"
+        release.set()
+        thread.join(timeout=5.0)
+        stopper.join(timeout=5.0)
+        assert stop_box and result_box
+
+
+def test_restore_row_preserves_original_text(tmp_path: Path) -> None:
+    """Undo after delete must not lose the pre-translation original."""
+    from voice_typer.server.history_db import HistoryDB
+
+    db = HistoryDB(db_path=tmp_path / "undo.db")
+    row_id = db.add_transcription(
+        "the translated final text",
+        original_text="النص الأصلي قبل الترجمة",
+        language="en",
+    )
+    db.flush()
+    record = db.get_transcription_text(row_id)
+    assert record["original_text"] == "النص الأصلي قبل الترجمة"
+
+    assert db.delete(row_id)
+    db.flush()
+    restored_id = db.restore(
+        {
+            "text": "the translated final text",
+            "original_text": record["original_text"],
+            "language": "en",
+        },
+        raise_on_error=True,
+    )
+    db.flush()
+    restored = db.get_transcription_text(restored_id)
+    assert restored["text"] == "the translated final text"
+    assert restored["original_text"] == "النص الأصلي قبل الترجمة"
+    db.close()

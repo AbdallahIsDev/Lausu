@@ -43,7 +43,11 @@ import {
 	runPrefetchFlight,
 	type TimestampedSnapshot,
 } from "@/lib/snapshotCache";
-import type { HistoryRecord, TodayStats } from "@/types/ipc";
+import type {
+	HistoryRecord,
+	TodayStats,
+	TranscriptionTextData,
+} from "@/types/ipc";
 
 import { deriveHistoryCursor, type HistoryCursor } from "../utils/cursor";
 
@@ -130,6 +134,144 @@ export function prefetchHistoryData(call: PrefetchCall): Promise<void> {
 		writeIpcCache(HISTORY_SNAPSHOT_KEY, snap);
 		writeIpcCache(HISTORY_CACHE_KEY, firstPage);
 		writeIpcCache(HISTORY_STATS_CACHE_KEY, stats);
+		// Both versions, not just the list fields: the transcript modal
+		// must open with Final AND Original already in hand. Runs after
+		// the snapshot flight so a hover never delays the page paint.
+		void prefetchHistoryTexts(call, firstPage);
+	});
+}
+
+// ── Full-text cache (Final + Original) ────────────────────────────
+// The list projection carries a 500-char preview and never the
+// original, so the transcript modal used to fetch the row on open (and
+// could only reveal the original after that round-trip). The hover
+// prefetch now warms this map with BOTH versions, and the modal reads
+// it synchronously — opening/switching makes zero IPC calls on a hit.
+// Storage is the shared `ipcCache` (same lifetime + store as every
+// other page snapshot), and the in-flight dedup is `snapshotCache`.
+const HISTORY_TEXTS_KEY = "history.texts";
+/** Cap on retained full texts; the list itself is capped at one page. */
+export const HISTORY_TEXTS_MAX_ENTRIES = 240;
+/** Parallel row fetches during prefetch (local SQLite, small rows). */
+const HISTORY_TEXTS_CONCURRENCY = 4;
+
+export interface HistoryTextEntry {
+	text: string;
+	original_text?: string;
+}
+
+type HistoryTextsStore = Record<string, HistoryTextEntry & { at: number }>;
+
+function readTextStore(): HistoryTextsStore {
+	return peekIpcCache<HistoryTextsStore>(HISTORY_TEXTS_KEY) ?? {};
+}
+
+/** Cached full text for `id`, or null when it was never prefetched. */
+export function peekHistoryText(id: number): HistoryTextEntry | null {
+	const hit = readTextStore()[String(id)];
+	if (!hit) return null;
+	return { text: hit.text, original_text: hit.original_text };
+}
+
+/** Write-through with oldest-first eviction past the cap. */
+export function writeHistoryText(id: number, entry: HistoryTextEntry): void {
+	const store = { ...readTextStore() };
+	// Re-insert so this key becomes the newest in eviction order.
+	delete store[String(id)];
+	store[String(id)] = { ...entry, at: Date.now() };
+	const keys = Object.keys(store);
+	if (keys.length > HISTORY_TEXTS_MAX_ENTRIES) {
+		for (const key of keys.slice(0, keys.length - HISTORY_TEXTS_MAX_ENTRIES)) {
+			delete store[key];
+		}
+	}
+	writeIpcCache(HISTORY_TEXTS_KEY, store);
+}
+
+/** Drop one row (a delete, or an undo whose restore mints a new id). */
+export function forgetHistoryText(id: number): void {
+	const store = { ...readTextStore() };
+	if (!(String(id) in store)) return;
+	delete store[String(id)];
+	writeIpcCache(HISTORY_TEXTS_KEY, store);
+}
+
+/** Keep only rows that still exist in the refreshed window. */
+export function pruneHistoryTexts(ids: readonly number[]): void {
+	const store = readTextStore();
+	const live = new Set(ids.map((id) => String(id)));
+	const keys = Object.keys(store);
+	if (keys.every((key) => live.has(key))) return;
+	const next: HistoryTextsStore = {};
+	for (const key of keys) {
+		const entry = store[key];
+		if (entry && live.has(key)) next[key] = entry;
+	}
+	writeIpcCache(HISTORY_TEXTS_KEY, next);
+}
+
+/** Reset (tests + the page's hard refresh path). */
+export function clearHistoryTexts(): void {
+	writeIpcCache(HISTORY_TEXTS_KEY, {});
+}
+
+/** In-flight text prefetch, if any. */
+export function peekHistoryTextsPrefetch(): Promise<void> | null {
+	return peekPrefetchFlight(HISTORY_TEXTS_KEY);
+}
+
+function needsFullRecord(row: HistoryRecord): boolean {
+	if (typeof row.id !== "number") return false;
+	if (peekHistoryText(row.id)) return false;
+	// A short, untranslated row already has its complete text in the
+	// list payload — fetching it again would be a duplicate query.
+	return row.text_truncated === true || row.has_original === true;
+}
+
+/**
+ * Warm the full-text cache for `rows` (hover prefetch + mount load).
+ * Reuses the shared flight registry, so repeated hovers and a mount
+ * landing mid-flight collapse into one run.
+ */
+export function prefetchHistoryTexts(
+	call: PrefetchCall,
+	rows: readonly HistoryRecord[],
+): Promise<void> {
+	const targets = rows.filter(needsFullRecord).map((row) => row.id);
+	if (targets.length === 0) return Promise.resolve();
+	const room = Math.max(
+		0,
+		HISTORY_TEXTS_MAX_ENTRIES - Object.keys(readTextStore()).length,
+	);
+	const queue = targets.slice(0, room);
+	if (queue.length === 0) return Promise.resolve();
+	return runPrefetchFlight(HISTORY_TEXTS_KEY, async () => {
+		let cursor = 0;
+		const worker = async (): Promise<void> => {
+			while (cursor < queue.length) {
+				const id = queue[cursor];
+				cursor += 1;
+				if (id === undefined) return;
+				try {
+					const full = await call("get_transcription_text", { id });
+					if (!full || typeof full !== "object") continue;
+					const record = full as TranscriptionTextData;
+					writeHistoryText(id, {
+						text: typeof record.text === "string" ? record.text : "",
+						original_text:
+							typeof record.original_text === "string"
+								? record.original_text
+								: undefined,
+					});
+				} catch {
+					// Hover prefetch never surfaces errors; the modal falls
+					// back to its own fetch on a miss.
+				}
+			}
+		};
+		await Promise.all(
+			Array.from({ length: HISTORY_TEXTS_CONCURRENCY }, () => worker()),
+		);
 	});
 }
 
@@ -352,6 +494,9 @@ export function useHistoryCache(): UseHistoryCacheReturn {
 				};
 				setRecords(firstPage);
 				setStats(nextStats);
+				// Direct navigation (no hover) must still make the modal
+				// instant: warm both versions for the page we just loaded.
+				void prefetchHistoryTexts(callRef.current, firstPage);
 				// SWR write-through, the next visit to this page seeds
 				// from this snapshot instead of showing a loading state.
 				writeIpcCache(HISTORY_CACHE_KEY, firstPage);
@@ -450,6 +595,10 @@ export function useHistoryCache(): UseHistoryCacheReturn {
 				callRef.current<TodayStats>("get_today_stats"),
 			]);
 			const safeRows = Array.isArray(rows) ? rows : [];
+			// Invalidate cached full texts for rows the refresh no longer
+			// returns: a deleted record must not stay reachable through a
+			// stale modal entry.
+			pruneHistoryTexts(safeRows.map((row) => row.id));
 			// The requested ``refreshLimit`` is only a REQUEST: the
 			// backend clamps every single history fetch to its IPC row
 			// cap, so a deep-browsed list (offset beyond the cap) gets

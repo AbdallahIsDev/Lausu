@@ -943,6 +943,14 @@ Rationale: The vendored picker panel and the sonner toast both painted `--radius
 Applies to: All agents, all modes, all sub-agents. Guarded by `date-range-picker-card-look.test.ts` and `sonner-toast-squircle.test.tsx`.
 ```
 
+
+```
+C-PLUGIN-3
+Rule: Do NOT use a cached page/readiness snapshot as proof that a browser target (tab, window, frame) still exists, and do NOT treat a missing target as a reason to launch a new browser process while the browser transport is connected. Resolve resources by their authoritative identity (URL/domain for tabs) and recreate only after a failed lookup.
+Rationale: The shared STT bridge answered status from a stale cached page after the user closed the Claude tab, so /start hit "the target tab is not open"; separately, every plugin switch re-launched Chrome with the platform URL into the shared profile and opened another tab (2026-11-23).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ## Category: Models Page UI
 
 ```

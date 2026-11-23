@@ -508,6 +508,50 @@
 	animation: fadeInUp 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Transcript version switch (History modal). Blur + scale + downward
+   drift, deliberately WITHOUT opacity: the outgoing view blurs and
+   shrinks out of place, the incoming one reverses it, so the swap reads
+   as depth instead of a cross-fade. Durations mirror VIEW_EXIT_MS /
+   VIEW_ENTER_MS in ActivityList.tsx. */
+@keyframes historyViewOut {
+	from {
+		filter: blur(0);
+		transform: scale(1) translateY(0);
+	}
+
+	to {
+		filter: blur(6px);
+		transform: scale(0.97) translateY(6px);
+	}
+}
+
+@keyframes historyViewIn {
+	from {
+		filter: blur(6px);
+		transform: scale(0.97) translateY(6px);
+	}
+
+	to {
+		filter: blur(0);
+		transform: scale(1) translateY(0);
+	}
+}
+
+.history-view-out {
+	animation: historyViewOut 160ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.history-view-in {
+	animation: historyViewIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Transcript content box: height is a measured, clamped px value set inline
+   by ActivityList; animating it keeps mode/text swaps from jumping. Only
+   height is transitioned - the blur/scale switch above is untouched. */
+.history-content-height {
+	transition: height 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Simple opacity fade for in-place content (no transform). */
 @keyframes fadeIn {
 	from {
@@ -648,6 +692,18 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+	/* The version switch degrades to an instant swap (no blur, no
+	   transform); ActivityList also skips its exit delay in this mode. */
+	.history-view-out,
+	.history-view-in {
+		animation: none;
+	}
+
+	/* Height follows content instantly - no animated resize. */
+	.history-content-height {
+		transition: none;
+	}
+
 	.bubble-shimmer-text {
 		opacity: 1;
 	}

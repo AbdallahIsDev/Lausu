@@ -1683,7 +1683,11 @@
 		"mediaBadge": "Medien",
 		"dictationBadge": "Diktat",
 		"viewTranscript": "Transkript ansehen",
-		"originalText": "Originaltext (vor der Übersetzung)"
+		"originalText": "Originaltext (vor der Übersetzung)",
+		"viewFinal": "Final",
+		"viewOriginal": "Original",
+		"viewCompare": "Vergleichen",
+		"viewModeAria": "Version des Transkripts"
 	},
 	"onboarding": {
 		"applyFailedTitle": "Einrichtung konnte nicht abgeschlossen werden",

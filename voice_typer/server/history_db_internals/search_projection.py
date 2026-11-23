@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 _LIST_COLUMNS_SQL = """id,
     SUBSTR(text, 1, ?) AS text,
     LENGTH(text) AS text_full_length,
+    (original_text IS NOT NULL AND original_text <> '') AS has_original,
     text_is_encrypted,
     timestamp,
     duration,
@@ -45,6 +46,7 @@ _LIST_COLUMNS_SQL = """id,
 _LIST_COLUMNS_T_SQL = """t.id,
     SUBSTR(t.text, 1, ?) AS text,
     LENGTH(t.text) AS text_full_length,
+    (t.original_text IS NOT NULL AND t.original_text <> '') AS has_original,
     t.text_is_encrypted,
     t.timestamp,
     t.duration,
@@ -81,6 +83,12 @@ def project_text_row(row: sqlite3.Row | tuple, *, preview_length: int | None = N
         truncated = full_length_int > preview_length
     d["text_truncated"] = truncated
     d["text_full_length"] = full_length_int
+    # ``has_original`` is computed in SQL (NULL/empty check on the stored
+    # value, so it works for encrypted rows too). SQLite returns 0/1; the
+    # renderer contract is a boolean. It lets the History modal offer the
+    # Original/Compare views WITHOUT fetching the row first, and lets the
+    # hover prefetch skip rows that have nothing extra to load.
+    d["has_original"] = bool(d.get("has_original"))
     d.pop("text_is_encrypted", None)
     # Reader-side default: any row written before this metadata existed is a
     # dictation, even if a partially-migrated DB left ``kind`` NULL.

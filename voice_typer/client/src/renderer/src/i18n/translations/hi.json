@@ -1683,7 +1683,11 @@
 		"mediaBadge": "मीडिया",
 		"dictationBadge": "डिक्टेशन",
 		"viewTranscript": "ट्रांसक्रिप्ट देखें",
-		"originalText": "मूल पाठ (अनुवाद से पहले)"
+		"originalText": "मूल पाठ (अनुवाद से पहले)",
+		"viewFinal": "अंतिम",
+		"viewOriginal": "मूल",
+		"viewCompare": "तुलना",
+		"viewModeAria": "ट्रांसक्रिप्ट संस्करण"
 	},
 	"onboarding": {
 		"applyFailedTitle": "सेटअप पूरा नहीं हो सका",

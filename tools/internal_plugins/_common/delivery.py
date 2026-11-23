@@ -45,6 +45,7 @@ def deliver_transcription(
                 config,
                 str(getattr(config, "translation_target_language", "") or ""),
                 str(getattr(config, "language", "") or ""),
+                app=app,
             )
             if translated != text:
                 original_text = text

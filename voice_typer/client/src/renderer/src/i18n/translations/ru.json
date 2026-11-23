@@ -1683,7 +1683,11 @@
 		"mediaBadge": "Медиа",
 		"dictationBadge": "Диктовка",
 		"viewTranscript": "Показать текст",
-		"originalText": "Исходный текст (до перевода)"
+		"originalText": "Исходный текст (до перевода)",
+		"viewFinal": "Итог",
+		"viewOriginal": "Оригинал",
+		"viewCompare": "Сравнить",
+		"viewModeAria": "Версия транскрипции"
 	},
 	"onboarding": {
 		"applyFailedTitle": "Не удалось завершить настройку",

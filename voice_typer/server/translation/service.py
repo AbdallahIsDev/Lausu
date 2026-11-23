@@ -17,6 +17,7 @@ import contextlib
 import json
 import logging
 import threading
+import weakref
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
@@ -47,20 +48,38 @@ class TranslationError(RuntimeError):
 # be noise. A later success clears the flag so a new failure is reported.
 _translation_failed_notified = False
 _translation_failed_lock = threading.Lock()
+# Weak handle to the app, set by translate_text so service-level failures can
+# reach the standalone tray without an app reference on the service itself.
+_app_ref: Any = None
 
 
-def _notify_translation_failure() -> None:
-    """Publish the existing generic ``notification`` event; never raise.
+def _bind_app(app: Any | None) -> None:
+    global _app_ref
+    if app is None:
+        return
+    try:
+        _app_ref = weakref.proxy(app)
+    except TypeError:
+        # Test doubles / non-weakrefable objects: the event still surfaces the
+        # failure; only the standalone tray fallback is unavailable.
+        _app_ref = app
 
-    Reusing the catalogue event means no new IPC command / event type, no
-    parity files and no renderer changes. The Tauri host already turns it into
-    a native toast, and the tray fallback drains the same event.
+
+def _notify_translation_failure(app: Any | None = None) -> None:
+    """Surface one user-facing notice per broken episode; never raise.
+
+    Reusing the catalogue ``notification`` event means no new IPC command /
+    event type, no parity files and no renderer changes. In the Tauri sidecar
+    the host turns it into a native toast. In standalone mode there is no
+    renderer consumer, so also call the app's tray directly — the same path
+    the LLM-polish failure uses.
     """
     global _translation_failed_notified
     with _translation_failed_lock:
         if _translation_failed_notified:
             return
         _translation_failed_notified = True
+    message = i18n.t("notify.dictation_pipeline.translation_failed")
     with contextlib.suppress(Exception):
         from voice_typer.server import event_bus
 
@@ -69,12 +88,18 @@ def _notify_translation_failure() -> None:
                 "type": "notification",
                 "data": {
                     "title": APP_NAME,
-                    "message": i18n.t("notify.dictation_pipeline.translation_failed"),
+                    "message": message,
                     "duration_ms": 0,
                     "critical": False,
                 },
             }
         )
+    if app is not None:
+        with contextlib.suppress(Exception):
+            from voice_typer.server.tray_types import is_tauri_sidecar
+
+            if not is_tauri_sidecar():
+                app.tray.notify(APP_NAME, message)
 
 
 def work_dir() -> Path:
@@ -129,7 +154,11 @@ class TranslationService:
         self.gpu_enabled = bool(getattr(config, "translation_gpu_enabled", True))
         self.glossary = str(getattr(config, "translation_glossary", "") or "")
         self._runtime: RuntimeServer | None = None
-        self._lock = threading.Lock()
+        # One model process with one request slot: serialize the HTTP calls and
+        # any stop() against them. Without this, a set_config mid-request could
+        # kill the runtime under urlopen, or stop() could miss a runtime that a
+        # concurrent thread had not yet assigned to self._runtime (process leak).
+        self._lock = threading.RLock()
 
     def _spec(self) -> RuntimeSpec:
         root = work_dir()
@@ -169,6 +198,13 @@ class TranslationService:
             return self._runtime
 
     def _complete(self, prompt: str) -> str:
+        # Hold the lock for the whole request, not just runtime start, so a
+        # concurrent stop() (config change / shutdown) cannot tear down the
+        # process while a POST is in flight.
+        with self._lock:
+            return self._complete_locked(prompt)
+
+    def _complete_locked(self, prompt: str) -> str:
         runtime = self._ensure_runtime()
         payload = {
             "model": _ALIAS,
@@ -227,22 +263,27 @@ class TranslationService:
             result = restore_spans(result, spans)
         except TranslationError as exc:
             log.warning("[TRANSLATE] %s; keeping original text", exc)
-            _notify_translation_failure()
+            _notify_translation_failure(_app_ref)
             return text
         except Exception:
             log.exception("[TRANSLATE] unexpected failure; keeping original text")
-            _notify_translation_failure()
+            _notify_translation_failure(_app_ref)
             return text
         with _translation_failed_lock:
             _translation_failed_notified = False
         return result
 
     def stop(self) -> None:
-        """Stop the owned runtime; safe to call more than once."""
-        runtime = self._runtime
-        if runtime is not None:
-            runtime.stop()
-            self._runtime = None
+        """Stop the owned runtime; safe to call more than once.
+
+        Waits for any in-flight request: terminating the process mid-POST would
+        turn a healthy translation into a spurious failure.
+        """
+        with self._lock:
+            runtime = self._runtime
+            if runtime is not None:
+                runtime.stop()
+                self._runtime = None
 
 
 _SERVICE: TranslationService | None = None
@@ -273,8 +314,19 @@ def get_service(config: Any) -> TranslationService:
         return _SERVICE
 
 
-def translate_text(text: str, config: Any, target_code: str, spoken_code: str = "") -> str:
-    """Entry point used by the dictation pipeline's TranslationStage."""
+def translate_text(
+    text: str,
+    config: Any,
+    target_code: str,
+    spoken_code: str = "",
+    app: Any | None = None,
+) -> str:
+    """Entry point used by the dictation pipeline's TranslationStage.
+
+    ``app`` is optional and only used to surface a standalone-mode failure
+    toast; the translation decision itself never depends on it.
+    """
+    _bind_app(app)
     target = normalize_language_code(target_code)
     spoken = normalize_language_code(spoken_code or str(getattr(config, "language", "") or ""))
     if not bool(getattr(config, "translation_enabled", False)):
@@ -285,11 +337,11 @@ def translate_text(text: str, config: Any, target_code: str, spoken_code: str = 
         return get_service(config).translate(text, target)
     except TranslationError as exc:
         log.warning("[TRANSLATE] %s; keeping original text", exc)
-        _notify_translation_failure()
+        _notify_translation_failure(app)
         return text
     except Exception:
         log.exception("[TRANSLATE] unexpected failure; keeping original text")
-        _notify_translation_failure()
+        _notify_translation_failure(app)
         return text
 
 

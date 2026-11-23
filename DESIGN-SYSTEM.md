@@ -283,10 +283,19 @@ shadow; dialogs and popovers use `shadow-md`/`lg`.
 | `bubbleShimmerSlide` | 2.2s | `linear`, infinite |
 | `bubbleDotBlink` | 1.2s | `ease-in-out`, infinite |
 | `glowPulse` | 2.5s | `ease-in-out`, infinite (`--primary` idle / `--destructive` recording) |
+| `historyViewOut` | 160ms | `cubic-bezier(0.4, 0, 1, 1)` — blur 0→6px, scale 1→0.97, translateY 0→6px (no opacity) |
+| `historyViewIn` | 220ms | `cubic-bezier(0.16, 1, 0.3, 1)` — the reverse: unblur, scale up, settle from 6px below |
 | control transitions | 150ms (colour) / 200ms (indicator slide) | `ease-out` |
 
 `prefers-reduced-motion: reduce` clamps animations to `0.01ms / 1 iteration` and
-kills the glow, pulse and blink loops.
+kills the glow, pulse and blink loops. The `history-view-*` utilities carry their
+own override (C-ANIM-3) and swap instantly.
+
+**Inset content surface** (transcript modal, and any scrollable read-only text
+block): `bg-foreground/8` — white at 8% in dark, black at 8% in light, so the
+same class reads correctly in both schemes — with `rounded-lg`, `p-4` (spacing
+token 4) and its OWN `overflow-y-auto`. The surrounding header/footer stay
+fixed; the dialog itself never scrolls.
 
 ## 12. Component metrics
 
