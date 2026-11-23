@@ -318,7 +318,7 @@ def test_module_paths_use_package_form():
     level_files = list((ROOT / "voice_typer/server/level_monitor").glob("*.py"))
     assert len(level_files) == 12, f"level_monitor/ must be a 12-file package (actual: {len(level_files)})."
     cts_files = list((ROOT / "voice_typer/server/clipboard_target_safety").glob("*.py"))
-    assert len(cts_files) == 6, f"clipboard_target_safety/ must be a 6-file package (actual: {len(cts_files)})."
+    assert len(cts_files) == 7, f"clipboard_target_safety/ must be a 7-file package (actual: {len(cts_files)})."
 
 
 def test_shutdown_controller_entry_points_match_code():
