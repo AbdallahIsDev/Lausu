@@ -588,3 +588,10 @@ CI run 44834921579 failed at `cargo test` because base `tauri.conf.json` declare
 - All six freeze scripts now use per-product + per-build-stamp extraction paths (Windows spec `{CACHE_DIR}/{PRODUCT}/{VERSION}/onefile-tmp`, product names LausuSidecar/LausuWorker, `BUILD_STAMP` from UTC date/time). `verify_windows_bundle.py` resolves the versioned cached dir by product root + newest `*/onefile-tmp`; tests updated. Frozen proof needs the rebuild in this round's run.
 - `selfcheck.py` and the gate are non-fail-fast: all five SELFCHECK markers and all gate sections (bundle, self-check, GPL tables, sizes) are produced even when one fails; final `FAILED CHECKS` line and exit 1. Removed the `shutil.which == resolved` rejection that misread the staged `ffmpeg.exe` as a PATH hit on Windows.
 - `generate_third_party_notices.py` strips trailing whitespace from every emitted line; regenerated notices pass `--check` and zero trailing-whitespace lines.
+
+## 2026-11-24 — Phase 1 GGUF ASR migration (cloud)
+
+- ADR-0031 Phase 1 implementation on branch `phase1/gguf-asr`: seven commits, no PR merge.
+- `ENFORCE_NO_GPL_DLLS` deliberately NOT flipped (owner refinement); gate extended to worker.
+- Six GGUF model SHA-256 placeholders + four size placeholders remain for the LOCAL agent.
+- UNVERIFIED: real runner output, frozen bundle, WER, installer, lock-file install.

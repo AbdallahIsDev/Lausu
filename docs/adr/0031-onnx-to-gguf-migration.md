@@ -7,6 +7,11 @@ longer "no decision yet". It is now the handoff brief: a CLOUD agent implements 
 repo only, a LOCAL agent then does the disk/model work on the owner's machine. All research from
 the earlier rounds is kept below as evidence. (VERIFIED — owner instructions for this round.)
 
+**Phase 1 code implementation landed on branch `phase1/gguf-asr` on 2026-11-24; see
+`## PHASE 1 RESULT` below.** The owner refined decision #1: `ENFORCE_NO_GPL_DLLS` is deliberately
+NOT flipped in this PR — the LOCAL agent flips it after a real frozen build. (VERIFIED — owner
+instruction 2026-11-24.)
+
 ---
 
 ## OWNER DECISIONS (locked — do not reopen)
@@ -1041,3 +1046,77 @@ Native log at load: `weights memory-mapped: 705.8 MiB in CPU_Mapped`, `promoted 
 one-to-one field mapping of transcribe.cpp segment output to our hallucination gate; Windows CUDA
 support in transcribe.cpp; legal opinion on PolyForm Strict + LGPL interaction; completeness of
 the GGUF ASR survey.
+
+
+---
+
+## PHASE 1 RESULT (cloud implementation, 2026-11-24)
+
+**Status: code complete for review; runtime behaviour UNVERIFIED.** Branch `phase1/gguf-asr`;
+ commits in ADR step order. No model, GPU, CUDA file or large artifact was downloaded. No
+ frozen Windows build was produced. Nothing was merged.
+
+### What was done
+
+1. `4070b25c6` — Runner abstraction behind the existing engine interface:
+   `voice_typer/worker/asr_runner/{contract,runner,engine}.py` plus a tests-only fake runner.
+   The CLI/JSON contract is pinned to upstream CLI source
+   (https://github.com/handy-computer/transcribe.cpp/blob/main/examples/cli/asr.cpp,
+   labelled "upstream documentation", not a guess). Frozen-path tests simulate a Nuitka onefile
+   where `sys.executable` is inside the extraction dir and a decoy runner is on PATH; the
+   resolver uses `__compiled__.containing_dir` and ignores PATH when frozen.
+2. `6c85cb252` — GGUF model catalogue with repos/files read from the Hugging Face API via
+   Firecrawl. Every hash is a loud placeholder; no hash or size was invented.
+3. `9fd6443ab` — Consent-gated verified download wiring; inference resolves local files only
+   (`local_files_only=True`). Placeholders refuse to download.
+4. `781a25c1b` — Runner manifest + fetch script with REAL upstream asset name, byte size and
+   SHA-256 from the v0.4.2 GitHub release API; three CI fetch steps; Windows-x64 `externalBin`
+   entries. The workflow is `workflow_call`/`workflow_dispatch` only — it does NOT run on PRs.
+5. `46819fede` — Whisper, Parakeet and Qwen3-ASR all route through the one GGUF runner. One
+   model is resident (ADR-0030). The Parakeet language gate still refuses an unsupported pinned
+   language (C-ASR-6). Segment confidence fields remain absent and the hallucination gate keeps
+   its existing fail-open path — no redesign.
+6. `36801fa56` — PyAV, faster-whisper and CTranslate2 removed from dependency declarations and
+   lock, from all freeze invocations (including the stale `--include-package=av`), from the
+   PyInstaller spec, and from notices; MIT runner + per-model weight licenses added.
+7. `09ac0e740` — GPL gate extended to scan the WORKER onefile extraction dir by DLL name as
+   well as the sidecar dir; `ENFORCE_NO_GPL_DLLS` default is still `0`.
+
+### Placeholders the LOCAL agent MUST fill (all in `voice_typer/server/gguf_model_registry.py`)
+
+All six `sha256` values are `FILL_ME_AFTER_DOWNLOADING_THE_REAL_GGUF`. Exact byte sizes are known
+only for `tiny` (45,981,128, from the on-disk inventory) and `parakeet` (740,363,168, measured in
+`gguf-spike`); the other four `size_bytes` are placeholders. `require_complete_spec()` raises
+before any download or build path if a placeholder is still present.
+
+### UNVERIFIED (local agent / real CI must decide)
+
+- Real transcribe.cpp CLI output on a real model, segment mapping, timestamps, latency, WER.
+- Runner executable presence in a signed installer; SmartScreen; `__compiled__.containing_dir`
+  behaviour in the ACTUAL frozen bundle.
+- The GPU/CPU/Vulkan choice, GPU memory, and whether any GPL DLL survives a real frozen bundle.
+- The lock file's `audiolab`/`pyrnnoise` chain after `av` removal was not validated by a real
+  install; no dependency was installed in this sandbox.
+- Legacy `voice_typer/worker/whisper/{engine,device,fallback}.py`, `parakeet_engine/` and
+  `qwen_engine.py` modules remain in the tree (tests still import them) but are no longer on the
+  runtime factory path. Deleting them requires migrating ~20 test modules; documented for the
+  local follow-up rather than hidden.
+- No config flag was added: the final state has a single runner, and adding an IPC key would
+  expand the SEC-002 allowlist for a value with no alternative. The ADR's intermediate flag
+  step is therefore collapsed into the final state.
+- Three ASR families landed as one commit because the shared runner made family-specific
+  diffs artificial; the ADR's "one commit per family" order is collapsed.
+
+### Gate flip instructions (for the owner, after a real CI build)
+
+1. Set the repository variable `ENFORCE_NO_GPL_DLLS=1`, or pass the environment variable
+   `ENFORCE_NO_GPL_DLLS=1` to the `verify_windows_bundle.py` step in
+   `.github/workflows/tauri-windows-build.yml` (the workflow reads
+   `"${{ vars.ENFORCE_NO_GPL_DLLS || '0' }}"`).
+2. The gate covers BOTH onefile extraction dirs: sidecar (`LausuSidecar`) and worker
+   (`LausuWorker`). Override with `LAUSU_ONEFILE_EXTRACT_DIR` and
+   `LAUSU_WORKER_ONEFILE_EXTRACT_DIR` / `--onefile-extract-dir` / `--worker-onefile-extract-dir`.
+3. Evidence the gate should pass after PyAV removal: the only GPL-named DLLs on disk came from
+   `av.libs`; PyAV is gone from deps, lock and every freeze invocation. Offline proof is
+   `python scripts/verify_windows_bundle.py --self-test` plus the worker-coverage tests. A real
+   bundle is still required before flipping (owner decision).
