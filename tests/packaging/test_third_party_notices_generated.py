@@ -78,6 +78,12 @@ def test_artifact_is_deterministic_and_handwritten_sections_survive() -> None:
         text.split(module.BEGIN, 1)[1].split(module.END, 1)[0]
         == rendered.split(module.BEGIN, 1)[1].split(module.END, 1)[0]
     ), "committed artifact is stale; rerun the generator"
-    for section in ("## PyAV", "## FFmpeg (LGPL-only executable, Windows x64)", "## Lausu (this project)"):
+    for section in (
+        "## transcribe.cpp (ASR runner)",
+        "## GGUF ASR model weights",
+        "## FFmpeg (LGPL-only executable, Windows x64)",
+        "## Lausu (this project)",
+    ):
         assert section in text, f"hand-written section must survive regeneration: {section}"
-    assert "av==17.1.0" in text, "PyAV version pin must remain intact"
+    assert "PyAV" not in text.split("## FFmpeg (LGPL", 1)[0], "PyAV section must be gone after removal"
+    assert "av==17.1.0" not in text, "PyAV version pin must be gone after removal"

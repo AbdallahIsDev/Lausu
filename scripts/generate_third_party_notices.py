@@ -1344,13 +1344,13 @@ COMPONENTS: tuple[Component, ...] = (
         detail="Compiled from voice_typer/server/native/windows-key-listener.c in this repository.",
     ),
     Component(
-        "av (PyAV)",
-        "17.1.0",
-        "BSD-3-Clause",
-        "Copyright retained by original committers.",
-        "BSD-3-Clause",
-        detail="Wheel cp311-abi3-win_amd64; bundled av.libs DLLs report verbatim 'LGPL version 3 or later'. "
-        "Full facts in the hand-written PyAV section.",
+        "transcribe.cpp",
+        "0.4.2",
+        "MIT",
+        "Copyright (c) 2026 transcribe.cpp contributors",
+        "MIT",
+        detail="Sibling ASR runner. Pinned in scripts/transcribe-cpp-win64.json; "
+        "upstream https://github.com/handy-computer/transcribe.cpp",
     ),
     Component(
         "certifi",
@@ -1645,12 +1645,13 @@ COMPONENTS: tuple[Component, ...] = (
         detail="See dedicated FFmpeg section; manifest scripts/ffmpeg-lgpl-win64.json. No legal conclusion.",
     ),
     Component(
-        "FFmpeg libraries in av.libs (25 DLLs)",
-        "8.1.1",
-        "LGPL version 3 or later",
-        "Copyright (C) 2000-2026 FFmpeg Project",
-        "LGPL-3.0-or-later",
-        detail="Verbatim *_license() output; see PyAV section.",
+        "GGUF ASR model weights",
+        "Q8_0",
+        "MIT / CC-BY-4.0 / Apache-2.0",
+        "Copyright retained by each model author.",
+        "MIT",
+        detail="Downloaded on first use; licences per model in "
+        "voice_typer/server/gguf_model_registry.py. No weights are bundled.",
     ),
     Component(
         "dpdfnet2.onnx",
@@ -1791,7 +1792,7 @@ def render(facts: dict, metadata: dict) -> str:
     lines += [
         "Regenerate with `python scripts/generate_third_party_notices.py` (`--check` verifies",
         "the committed artifact). Deterministic, offline, stdlib-only; no legal conclusions.",
-        "The hand-written Lausu / yt-dlp / PyAV / FFmpeg / RNNoise / pystray / Deno / DPDFNet2",
+        "The hand-written Lausu / yt-dlp / transcribe.cpp / GGUF weights / FFmpeg / RNNoise / pystray / Deno / DPDFNet2",
         "sections outside these markers are preserved verbatim by regeneration.",
         "",
         "### Evidence and scope",

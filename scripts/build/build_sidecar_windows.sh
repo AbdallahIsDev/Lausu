@@ -22,10 +22,7 @@
 # ADR-0020 §4.2 mandates:
 #   - python-build-standalone cpython-3.12.x
 #   - --standalone --onefile
-#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2
 #     (ADR-0025 C7: ASR lives in the pack worker; the slim sidecar must
-#     neither bundle nor require either library — the faster_whisper /
-#     ctranslate2 includes, DLL copies, and import sanity checks below
 #     were deleted in the same change; the WORKER build owns them now)
 #   - --include-package=voice_typer --include-package=websockets
 #   - --windows-disable-console
@@ -98,7 +95,6 @@ echo "[build_sidecar_windows] SITE=$SITE"
 # Nuitka optimizer crashes on av's Cython .py shims
 # (assert micro_passes == 0, upstream issue 3970); each has a
 # precompiled twin Python prefers, so the helper deletes only those.
-"$PY" "$PROJECT_ROOT/scripts/build/strip_av_cython_shims.py" \
     || { echo "ERROR: av shim strip failed" >&2; exit 1; }
 
 # ─── Prepare output dir ──────────────────────────────────────────────────────
@@ -159,8 +155,6 @@ NUITKA_ARGS=(
     --nofollow-import-to=psutil._psbsd
     --nofollow-import-to=psutil._pssunos
     --nofollow-import-to=psutil._psaix
-    --nofollow-import-to=faster_whisper
-    --nofollow-import-to=ctranslate2
     --nofollow-import-to=torch
     --include-package=voice_typer
     --include-package=websockets
@@ -171,7 +165,6 @@ NUITKA_ARGS=(
     # av wheels bundle FFmpeg DLLs.
     --include-package=yt_dlp
     --include-package=yt_dlp_ejs
-    --include-package=av
     --include-package-data=yt_dlp
     --include-package-data=voice_typer.server
     # Native RNNoise: loaded via ctypes from a path, never via pyrnnoise's

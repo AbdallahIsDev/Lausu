@@ -37,15 +37,17 @@ def _read(path: Path) -> str:
 
 
 class TestAsrExclusionsPresent:
-    def test_faster_whisper_excluded_everywhere(self):
+    def test_faster_whisper_absent_everywhere(self):
+        # ADR-0031 Phase 1 removes faster-whisper entirely: there is no
+        # exclusion flag because there is no library to exclude.
         for path in _ALL:
             text = _read(path)
-            assert "--nofollow-import-to=faster_whisper" in text, f"{path.name} must exclude faster_whisper"
+            assert "faster_whisper" not in text, f"{path.name} must not reference faster_whisper"
 
-    def test_ctranslate2_excluded_everywhere(self):
+    def test_ctranslate2_absent_everywhere(self):
         for path in _ALL:
             text = _read(path)
-            assert "--nofollow-import-to=ctranslate2" in text, f"{path.name} must exclude ctranslate2"
+            assert "ctranslate2" not in text and "CT2_" not in text, f"{path.name} must not reference ctranslate2"
 
     def test_torch_excluded_everywhere(self):
         # Top-level torch nofollow (our code never imports torch; only

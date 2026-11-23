@@ -10,11 +10,10 @@ LOCK = ROOT / "requirements-lock.txt"
 NOTICE = ROOT / "docs" / "THIRD_PARTY_NOTICES.md"
 
 
-def test_notice_names_the_locked_pyav_version() -> None:
-    match = re.search(r"(?m)^av==(\d+\.\d+\.\d+)\b", LOCK.read_text(encoding="utf-8"))
-    assert match, "no locked PyAV version found"
-    locked = match.group(1)
+def test_pyav_version_is_gone_from_lock_and_notice() -> None:
+    # ADR-0031 Phase 1: PyAV is removed from both surfaces together so the
+    # GPL DLLs it carried cannot come back through a stale pin.
+    assert not re.search(r"(?m)^av==", LOCK.read_text(encoding="utf-8")), "PyAV still in lock"
     text = NOTICE.read_text(encoding="utf-8")
-    named = set(re.findall(r"\bav==(\d+\.\d+\.\d+)", text))
-    named |= set(re.findall(r"\bPyAV (\d+\.\d+\.\d+)", text))
-    assert named == {locked}, f"notice names PyAV {sorted(named)}, lock pins {locked}"
+    assert not re.search(r"\bav==\d+\.\d+\.\d+", text), "PyAV version still in notice"
+    assert "## PyAV" not in text, "PyAV section still in notice"

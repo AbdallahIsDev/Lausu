@@ -69,12 +69,9 @@ classifiers = [
     "Topic :: Accessibility",
 ]
 dependencies = [
-    # faster-whisper is the primary ASR backend (transcription.py,
-    # parakeet_engine.py, qwen_engine.py). The <2.0 cap guards against the
-    # pre-1.0 → 1.0 API churn (the `BatchedInferencePipeline` redesign);
-    # 2.x is expected to introduce a similar breaking-change wave.
-    # The `>=1.0` floor matches the first stable release of the new API.
-    "faster-whisper>=1.0,<2.0",
+    # ADR-0031 Phase 1: ASR runs through the sibling transcribe.cpp GGUF
+    # runner. faster-whisper, CTranslate2 and PyAV are intentionally absent;
+    # ONNX Runtime stays for Silero VAD and the noise models.
     # CR-DEP-2: sounddevice is the cross-platform PortAudio binding used by
     # audio_processor.py + microphone_watcher.py. The <1.0 cap reflects
     # that 1.x has not been released yet (upstream is on 0.5.x); a 1.0
@@ -102,14 +99,8 @@ dependencies = [
     # The `>=1.10` floor matches the first release with the `sosfiltfilt`
     # `padtype='even'` fix we use in noise_suppressor.py.
     "scipy>=1.10,<2.0",
-    # ADR-0023: PyAV is imported directly by media_ingest/decoder.py (local
-    # + remote HTTPS decode to 16 kHz mono PCM). It was previously only a
-    # transitive dep of faster-whisper; the direct import must be declared.
-    # The <19 cap guards against PyAV's FFmpeg-major upgrade waves.
-    # <18: av 17/18 Cython .py shims trip Nuitka's optimizer
-    # (assert micro_passes == 0 on av.video.stream); the build scripts
-    # strip those shims pre-freeze (each has a .pyd/.so twin).
-    "av>=17,<18",
+    # ADR-0031 Phase 1: media decode uses the pinned LGPL ffmpeg sibling
+    # executable. PyAV is removed with faster-whisper; no Python decode dep.
     # ADR-0023: yt-dlp is the URL resolver/downloader for media ingest
     # (~1000 sites). The >=2026.8.19 floor is the current release at
     # adoption time; post-2025.11.12 YouTube support REQUIRES an external
