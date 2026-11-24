@@ -118,6 +118,22 @@ def test_inference_lookup_is_local_only(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert hub.calls == [{"repo_id": spec.repo_id, "filename": spec.filename, "local_files_only": True}]
 
 
+def test_expected_cache_misses_do_not_dump_tracebacks(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    spec, _ = _real_spec(tmp_path)
+    _use_spec(monkeypatch, spec)
+    hub = _FakeHub(tmp_path / "missing.gguf")
+    _install_hub(monkeypatch, hub)
+
+    with caplog.at_level("DEBUG", logger="voice_typer.server.gguf_download"):
+        assert gguf_download.resolve_gguf_model_path("parakeet") is None
+    records = [r for r in caplog.records if r.name == "voice_typer.server.gguf_download"]
+    assert len(records) == 1
+    assert "not in local cache" in records[0].getMessage()
+    assert records[0].exc_info is None, "an expected cache miss must not print a traceback"
+
+
 def test_install_from_file_lands_in_the_cache_the_downloader_reads(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

@@ -72,7 +72,9 @@ def resolve_gguf_model_path(model_key: str) -> Path | None:
             )
         )
     except Exception:
-        log.debug("[GGUF] model %s not in local cache", model_key, exc_info=True)
+        # A missing local file is the normal "not downloaded" verdict; a
+        # traceback here floods every cold start with five HF stack dumps.
+        log.debug("[GGUF] model %s not in local cache", model_key)
         return None
     return path if path.is_file() else None
 
@@ -121,7 +123,8 @@ def download_gguf_model(
             report("already cached")
             return (True, "")
     except Exception:
-        log.debug("[GGUF] cache probe missed; downloading", exc_info=True)
+        # Same expected local-only miss as resolve_gguf_model_path.
+        log.debug("[GGUF] cache probe missed; downloading")
 
     report(f"downloading {spec.filename}")
     try:
