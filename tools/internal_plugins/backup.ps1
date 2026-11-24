@@ -56,7 +56,7 @@ function Get-OriginUrl {
 
 function Assert-Clean {
     # Never let a backup swallow local secrets/artifacts.
-    $blocked = @("google-stt-profile", "debug/last", "config.json", "PLUGINS_ENABLED", "extension/generated", "STOP")
+    $blocked = @("dictation-profile", "google-stt-profile", "debug/last", "config.json", "PLUGINS_ENABLED", "extension/generated", "STOP")
     $raw = git status --porcelain
     foreach ($b in $blocked) {
         if ($raw -match [regex]::Escape($b)) {

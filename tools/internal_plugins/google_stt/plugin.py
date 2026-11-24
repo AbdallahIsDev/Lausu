@@ -18,7 +18,11 @@ from typing import Any
 
 from tools.internal_plugins._common import daemon as _daemon_common
 from tools.internal_plugins._common.bridge import daemon_client, session
-from tools.internal_plugins._common.bridge.chrome_profile import launch as _launch_chrome
+from tools.internal_plugins._common.bridge.chrome_profile import (
+    launch as _launch_chrome,
+    resolve_browser_pids as _browser_pids,
+)
+from tools.internal_plugins._common.bridge.install_paths import profile_dir as _profile_dir
 from tools.internal_plugins._common.bridge.keepalive import (
     _KEEPALIVE_INTERVAL_S,
     BridgeKeepalive as _BridgeKeepalive,
@@ -137,6 +141,7 @@ def ensure_daemon() -> bool:
         daemon_script=Path(_CLIENT.daemon_script),
         daemon_args=_CLIENT.daemon_args,
         cwd=Path(_CLIENT.daemon_cwd),
+        listening_fn=_CLIENT.listening,
     )
 
 
@@ -159,6 +164,16 @@ def launch_profile(profile_dir: str, url: str) -> bool:
     )
 
 
+def _profile_missing() -> bool:
+    """The user closed the profile, so reopen it without waiting out the cooldown."""
+    if sys.platform != "win32":
+        return False
+    try:
+        return not bool(_browser_pids(str(_profile_dir())))
+    except Exception:
+        return False
+
+
 def _launch_profile_if_due() -> bool:
     global _last_launch_ts
 
@@ -172,6 +187,7 @@ def _launch_profile_if_due() -> bool:
         launch_fn=launch_profile,
         clock=time,
         on_due=_record,
+        bypass_fn=_profile_missing,
     )
     _last_launch_ts = new_ts
     return launched

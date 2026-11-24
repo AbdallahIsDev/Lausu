@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import os
+import socket
+import urllib.parse
 import urllib.request
 
 from tools.internal_plugins._common import daemon as _daemon_common
@@ -40,17 +42,35 @@ class DaemonClient:
     def post(self, path: str, timeout: float = 60.0) -> dict:
         return _daemon_common.post(self.url, path, timeout, self.bridge_name)
 
-    def status(self) -> dict | None:
+    def status(self, timeout: float = 1.5) -> dict | None:
         """The daemon's bridge snapshot, or None when it is not answering."""
         try:
-            with urllib.request.urlopen(self.url + "/status", timeout=1.5) as r:
+            with urllib.request.urlopen(self.url + "/status", timeout=timeout) as r:
                 data = json.loads(r.read().decode("utf-8"))
                 return data if isinstance(data, dict) else None
         except Exception:
             return None
 
-    def alive(self) -> bool:
-        return self.status() is not None
+    def alive(self, timeout: float = 6.0) -> bool:
+        """A live daemon can be slow: /status waits on the browser tab.
+
+        The old 1.5 s probe called a busy daemon dead and spawned a second one
+        on the same port (EADDRINUSE), freezing the hotkey in ensure_daemon's
+        retry loop after an extension reload broke the tab's content-script port.
+        """
+        return self.status(timeout=timeout) is not None
+
+    def listening(self) -> bool:
+        """Transport-only liveness: something owns our loopback port."""
+        try:
+            parsed = urllib.parse.urlparse(self.url)
+            with socket.create_connection(
+                (parsed.hostname or "127.0.0.1", parsed.port or DEFAULT_PORT),
+                timeout=0.5,
+            ):
+                return True
+        except OSError:
+            return False
 
     def config(self) -> dict:
         """The daemon's browser knobs, or {} if unavailable."""

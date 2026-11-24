@@ -67,8 +67,10 @@ arguments: `--user-data-dir`, `--profile-directory=Default`, and the URL.
   generated config. Never log it.
 - **One port.** 17875 for both platforms; 17874 is retired. One plugin is
   active at a time, and deactivating it shuts the shared daemon down.
-- **One profile.** `.../google-stt-profile` — do not rename it; it holds the
-  owner's sign-ins and the extension registration.
+- **One profile.** `.../dictation-profile`, shared by every plugin. The former
+  `google-stt-profile` folder is moved once by `installPaths.migrateProfile()`
+  on daemon boot; the move is atomic and is skipped while Chrome holds the
+  profile, so sign-ins and the extension registration survive the rename.
 - **Per-platform targeting.** Every command carries `platform`; the service
   worker queries only that site's tab; the content script throws
   `wrong-platform` for a mismatched command and `selectors-missing` when its

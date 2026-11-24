@@ -84,6 +84,7 @@ class TestDaemonSpawn:
         with (
             patch.object(daemon_common.subprocess, "Popen", fake_popen),
             patch.object(module, "_daemon_alive", lambda: False),
+            patch.object(module._CLIENT, "listening", lambda: False),
             patch.object(daemon_common.time, "sleep", lambda *_: None),
         ):
             # First probe says dead, then the liveness loop sees it up.

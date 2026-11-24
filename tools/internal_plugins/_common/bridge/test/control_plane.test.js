@@ -14,7 +14,7 @@ function fakeRelay({ browser = 'connected', recording = false, responses = {} } 
       url: 'https://claude.ai/new',
       claudeUrl: 'https://claude.ai/new',
       geminiUrl: 'https://gemini.google.com/app',
-      profileDir: 'C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile',
+      profileDir: 'C:/Users/11/AppData/Local/voice-typer-internal-plugins/dictation-profile',
       pollMs: 200,
       stableMs: 800,
       stableWindows: 2,
@@ -128,6 +128,26 @@ test('POST /start with no extension is a 500 envelope with browser-not-open', as
     error: 'the extension is not connected',
     kind: 'browser-not-open',
   });
+});
+
+test('POST /stop retries a page that is still loading without losing the session', async () => {
+  const relay = fakeRelay({ recording: true });
+  const attempts = [];
+  relay.wait = async () => {};
+  relay.request = async (cmd) => {
+    attempts.push(cmd);
+    if (attempts.length === 1) {
+      throw new BridgeError('page-not-ready', 'the target tab is still loading');
+    }
+    return { text: 'dictated words', state: 'idle', state_after: 'idle' };
+  };
+
+  const result = await handle(relay, 'POST', '/stop');
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.text, 'dictated words');
+  assert.equal(attempts.length, 2);
+  assert.equal(relay.recording, false);
 });
 
 test('POST /stop without a recording is 409', async () => {

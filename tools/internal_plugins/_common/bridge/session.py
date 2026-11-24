@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from tools.internal_plugins._common import daemon as _daemon_common
+from tools.internal_plugins._common.bridge.install_paths import legacy_profile_dir, profile_dir
 from tools.internal_plugins._common.daemon import BridgeError
 from tools.internal_plugins._common.delivery import deliver_transcription
 from tools.internal_plugins._common.level_meter import LevelMeter
@@ -26,6 +27,9 @@ _WATCH_POLL_S = 1.0
 _BROWSER_START_TIMEOUT_S = 15.0
 _COLD_BROWSER_START_TIMEOUT_S = 30.0
 _LAUNCH_COOLDOWN_S = 30.0
+_START_ATTEMPTS = 2
+_START_RETRY_PAUSE_S = 0.4
+_START_RETRY_KINDS = frozenset({"browser-not-open", "browser-closed", "wrong-platform"})
 
 log = logging.getLogger("voice_typer.internal_plugin.bridge")
 
@@ -46,6 +50,7 @@ def launch_profile_if_due(
     clock: Any,
     on_due: Any = None,
     cooldown_s: float = _LAUNCH_COOLDOWN_S,
+    bypass_fn: Any | None = None,
 ) -> tuple[bool, float]:
     """Open the dictation profile at most once per cooldown window (C-START-3).
 
@@ -53,13 +58,21 @@ def launch_profile_if_due(
     launch is still bounded. Returns ``(launched, new_timestamp)``.
     """
     now = clock.monotonic()
-    if now - last_ts < cooldown_s:
+    # A profile the user actually closed is reopened immediately; the cooldown
+    # only bounds repeat launches against a browser that is still running.
+    if not (bypass_fn is not None and bypass_fn()) and now - last_ts < cooldown_s:
         return False, last_ts
     if on_due is not None:
         on_due(now)
     config = config_fn()
+    configured = str(config.get("profileDir") or "")
+    legacy = legacy_profile_dir()
+    # A daemon started before the profile rename keeps the OLD path in memory.
+    # Launching it makes Chrome create a brand-new empty profile and lose every
+    # sign-in, so the migrated path from install.json always wins here.
+    profile = str(profile_dir()) if legacy is not None and configured and Path(configured) == legacy else configured
     launched = launch_fn(
-        str(config.get("profileDir") or ""),
+        profile,
         str(config.get("url") or config.get("claudeUrl") or config.get("geminiUrl") or ""),
     )
     return launched, now
@@ -131,6 +144,8 @@ def _accepts_kwarg(fn: object, name: str) -> bool:
 
 class PluginSession:
     """Toggle state machine bound to the product hotkey + bubble + cues."""
+
+    _stale_extension_warned = False
 
     def __init__(
         self,
@@ -274,45 +289,79 @@ class PluginSession:
         self._log.info("[PLUGIN] start requested (cycle=#%d)", cycle)
         t_press = time.monotonic()
         daemon_ok = self._ensure_daemon()
-        self._log.info("[PLUGIN] bridge ready (cycle=#%d)%s", cycle, self._copy.duration(time.monotonic() - t_press))
         if not daemon_ok:
-            self._log.error("[PLUGIN] start failed (cycle=#%d): the bridge did not come up", cycle)
+            self._log.error(
+                "[PLUGIN] start failed (cycle=#%d): the bridge did not come up%s",
+                cycle,
+                self._copy.duration(time.monotonic() - t_press),
+            )
             self._notify(self._copy.BRIDGE_UNAVAILABLE)
             return
-        # Press-to-dictate: a closed profile is opened here and waited for, so
-        # the first press ends in a recording instead of a "window closed" toast.
-        t_browser = time.monotonic()
-        if not self._ensure_browser():
-            self._log.error(
-                "[PLUGIN] start failed (cycle=#%d): the dictation window is not answering%s",
+        self._log.info("[PLUGIN] bridge ready (cycle=#%d)%s", cycle, self._copy.duration(time.monotonic() - t_press))
+        for attempt in range(_START_ATTEMPTS):
+            # Press-to-dictate: a closed profile is opened here and waited for,
+            # so the press ends in a recording instead of a "window closed" toast.
+            t_browser = time.monotonic()
+            if not self._ensure_browser():
+                self._log.error(
+                    "[PLUGIN] start failed (cycle=#%d): the dictation window is not answering%s",
+                    cycle,
+                    self._copy.duration(time.monotonic() - t_browser),
+                )
+                self._notify(self._copy.START_HINTS["browser-not-open"])
+                return
+            self._log.debug(
+                "[PLUGIN] dictation window ready (cycle=#%d)%s",
                 cycle,
                 self._copy.duration(time.monotonic() - t_browser),
             )
-            self._notify(self._copy.START_HINTS["browser-not-open"])
-            return
-        self._log.debug(
-            "[PLUGIN] dictation window ready (cycle=#%d)%s",
-            cycle,
-            self._copy.duration(time.monotonic() - t_browser),
-        )
-        # Resolve the plugin's own tab BEFORE /start. Best effort here: the
-        # extension also resolves inside /start, so an older daemon that does
-        # not know this route still cannot start against a missing tab.
-        try:
-            self._post("/ensure-tab", timeout=20.0)
-        except Exception:
-            self._log.debug("[PLUGIN] target-tab pre-resolution failed", exc_info=True)
-        try:
-            self._post("/start", timeout=30.0)
-        except BridgeError as exc:
-            # One actionable line instead of a 20-line urllib traceback, which
-            # surfaced as a bare "HTTP Error 500" and told nobody anything.
-            self._report_start_failure(exc)
-            return
-        except Exception:
-            self._log.exception("[PLUGIN] start failed")
-            self._notify(self._copy.START_FAILURE_FALLBACK)
-            return
+            # Resolve the plugin's own tab BEFORE /start. Best effort here: the
+            # extension also resolves inside /start, so an older daemon that does
+            # not know this route still cannot start against a missing tab.
+            try:
+                self._post("/ensure-tab", timeout=20.0)
+            except BridgeError as exc:
+                if exc.kind == "bridge-error" and "unknown command ensure-tab" in str(exc):
+                    # The extension still runs the pre-resolution content script:
+                    # /start understands the old command and resolves its tab, so
+                    # this is a capability gap, not a failed start. No traceback.
+                    self._log.debug(
+                        "[PLUGIN] target-tab pre-resolution needs an extension reload; "
+                        "/start still resolves its tab"
+                    )
+                    if not type(self)._stale_extension_warned:
+                        type(self)._stale_extension_warned = True
+                        self._log.warning(
+                            "[PLUGIN] reload the extension at chrome://extensions to enable target-tab recovery"
+                        )
+                else:
+                    self._log.debug("[PLUGIN] target-tab pre-resolution failed: %s", exc)
+            except Exception:
+                self._log.debug("[PLUGIN] target-tab pre-resolution failed", exc_info=True)
+            try:
+                self._post("/start", timeout=30.0)
+                break
+            except BridgeError as exc:
+                # The user can close the profile in the middle of the handshake.
+                # The old audio never existed, so re-resolve the browser and try
+                # once more instead of treating it as a failed dictation.
+                transient = exc.kind in _START_RETRY_KINDS or "extension disconnected" in str(exc).lower()
+                if attempt + 1 < _START_ATTEMPTS and transient:
+                    self._log.warning(
+                        "[PLUGIN] the browser disconnected while starting (cycle=#%d); "
+                        "reopening and retrying once",
+                        cycle,
+                    )
+                    time.sleep(_START_RETRY_PAUSE_S)
+                    continue
+                # One actionable line instead of a 20-line urllib traceback, which
+                # surfaced as a bare "HTTP Error 500" and told nobody anything.
+                self._report_start_failure(exc)
+                return
+            except Exception:
+                self._log.exception("[PLUGIN] start failed")
+                self._notify(self._copy.START_FAILURE_FALLBACK)
+                return
         with self._lock:
             self._active = True
             self._t0 = time.monotonic()
@@ -496,6 +545,29 @@ class PluginSession:
             elif state in ("idle", "no-page", "unknown"):
                 idle_reads += 1
                 if idle_reads >= 2:
+                    captured = self._copy.duration(time.monotonic() - self._t0) if self._t0 else " 0.0s"
+                    browser = str((status or {}).get("browser") or "")
+                    if browser == "disconnected" or state == "no-page":
+                        # The browser is gone: /stop cannot answer and there is
+                        # no page left to scrape. Cancel cleanly; do NOT post a
+                        # command that can only return not-recording.
+                        with self._lock:
+                            self._active = False
+                        self._stop_meter()
+                        self._restore_volume()
+                        self._session_events(start=False)
+                        self._log.warning(
+                            "[PLUGIN] the dictation window closed mid-capture "
+                            "(cycle=#%d, state=%s, captured=%s); nothing was pasted",
+                            self._cycle,
+                            state,
+                            captured,
+                        )
+                        self._notify(
+                            "The dictation window closed before the transcription could be "
+                            "saved. Nothing was pasted. Press the hotkey again to record."
+                        )
+                        return
                     # Not "the platform stopped the dictation": what we KNOW is
                     # that the page left the recording state without the hotkey
                     # being pressed (the screenshot/focus-loss case), so the
@@ -504,7 +576,7 @@ class PluginSession:
                         "[PLUGIN] the page ended the capture without a stop press "
                         "(state=%s, captured=%s); delivering what it captured",
                         state,
-                        self._copy.duration(time.monotonic() - self._t0) if self._t0 else " 0.0s",
+                        captured,
                     )
                     self._stop_and_deliver(trigger="page")
                     return

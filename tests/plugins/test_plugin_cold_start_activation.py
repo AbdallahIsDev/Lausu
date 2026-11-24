@@ -173,6 +173,7 @@ class TestBrowserWaitBudget:
         monkeypatch.setattr(plugin, "_daemon_config", lambda: {"profileDir": "P", "claudeUrl": "U"})
         monkeypatch.setattr(plugin.time, "monotonic", lambda: 100.0)
         monkeypatch.setattr(plugin, "_last_launch_ts", 90.0)
+        monkeypatch.setattr(plugin, "_profile_missing", lambda: False)
 
         assert plugin._launch_profile_if_due() is False
         assert launches == []

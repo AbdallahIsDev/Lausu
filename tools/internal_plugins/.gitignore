@@ -1,4 +1,5 @@
 PLUGINS_ENABLED
+dictation-profile/
 google-stt-profile/
 google_stt/debug/
 google_stt/last_error.json

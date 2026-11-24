@@ -137,6 +137,7 @@ def ensure_daemon(
     daemon_script: Path | None = None,
     daemon_args: tuple[str, ...] = (),
     cwd: Path | None = None,
+    listening_fn: Callable[[], bool] | None = None,
 ) -> bool:
     """Spawn the shared Node control daemon if not already listening.
 
@@ -146,6 +147,15 @@ def ensure_daemon(
     """
     if alive_fn():
         return True
+    if listening_fn is not None and listening_fn():
+        # The port is already owned: a slow /status is a busy daemon, not a
+        # dead one. Never spawn a second process onto an occupied port.
+        for _ in range(3):
+            time.sleep(interval)
+            if alive_fn():
+                return True
+        log.error("[PLUGIN] the bridge is listening but not answering")
+        return False
     env = daemon_env()
     # The daemon is the only place a browser/selector failure can surface, so
     # its output must be inspectable instead of DEVNULL: a dead daemon

@@ -1,6 +1,6 @@
 {
   "hotkey": "ctrl+shift+space",
-  "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile",
+  "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/dictation-profile",
   "chromeChannel": "chrome",
   "locale": "en",
   "visible": true,

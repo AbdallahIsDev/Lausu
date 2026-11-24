@@ -9,6 +9,7 @@ Python only launches Chrome when the browser transport itself is gone.
 from __future__ import annotations
 
 import importlib.util
+import logging
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -125,3 +126,40 @@ class TestStartResolvesTheTargetTab:
         session.start()
 
         assert posts[:2] == ["/ensure-tab", "/start"], posts
+
+    def test_stale_extension_is_a_quiet_one_line_not_a_traceback(
+        self, plugin, monkeypatch, caplog
+    ):
+        """The old content script answers unknown commands; dictation still works."""
+
+        def _post(path, timeout=None):
+            if path == "/ensure-tab":
+                raise plugin.BridgeError("unknown command ensure-tab", "bridge-error")
+            return {}
+
+        monkeypatch.setattr(plugin, "_post", _post)
+        monkeypatch.setattr(plugin, "_daemon_status", lambda: {"browser": "connected", "page": "ok"})
+        monkeypatch.setattr(plugin, "ensure_daemon", lambda: True)
+
+        class FakeMeter:
+            def __init__(self, app):
+                pass
+
+            def start(self):
+                pass
+
+        monkeypatch.setattr(plugin, "LevelMeter", FakeMeter)
+        session = plugin.PluginSession(MagicMock())
+        monkeypatch.setattr(session, "_ensure_browser", lambda timeout=None: True)
+        monkeypatch.setattr(session, "_session_events", lambda *, start: None)
+        monkeypatch.setattr(session, "_duck", lambda: None)
+        monkeypatch.setattr(session, "_meter", None)
+        monkeypatch.setattr(session, "_publish_state", lambda state: None)
+        caplog.set_level(logging.DEBUG)
+
+        session.start()
+
+        text = caplog.text
+        assert "target-tab pre-resolution failed" not in text
+        assert "Traceback" not in text
+        assert "reload the extension" in text

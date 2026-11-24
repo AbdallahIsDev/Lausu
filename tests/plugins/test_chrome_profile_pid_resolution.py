@@ -30,7 +30,7 @@ class _FakeTime:
 
 
 def test_launch_records_pid_once_chrome_window_appears(tmp_path: Path, monkeypatch) -> None:
-    profile = "C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile"
+    profile = "C:/Users/11/AppData/Local/voice-typer-internal-plugins/dictation-profile"
     fake_time = _FakeTime()
     attempts: list[int] = []
 

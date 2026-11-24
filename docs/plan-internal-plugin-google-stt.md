@@ -92,11 +92,11 @@ embedded — every runtime artifact stays per-user.
    - the staged output carries source only (no state dirs, tests, `node_modules`)
    - `resolve_plugins_dir()` is inert while the surface is locked
    - `tauri.conf.json` externalBin/resources stay free of plugin entries
-   - gitignore covers `PLUGINS_ENABLED`, `google-stt-profile/`, `debug/`,
+   - gitignore covers `PLUGINS_ENABLED`, `dictation-profile/`, `debug/`,
      `last_error.json`
    - no root/client `package.json` script references `internal_plugins`
 6. Node/Playwright deps install to `%LOCALAPPDATA%/voice-typer-internal-plugins/node-deps` — **never** repo-root `node_modules`.
-7. Profile dir: `%LOCALAPPDATA%/voice-typer-internal-plugins/google-stt-profile` — never `~/.lausu`.
+7. Profile dir: `%LOCALAPPDATA%/voice-typer-internal-plugins/dictation-profile` — never `~/.lausu`.
 8. Network egress is **C-DATA-1**-justified: plugin-configured, plugin-initiated, gated to internal test builds/unlocked developer mode, browser navigation to Google only (not product code paths). Documented here so future agents do not “clean it up” as telemetry.
 
 ## 5. Architecture
@@ -235,7 +235,7 @@ Post-rename re-verification, end to end:
 - Gate: env `VOICE_TYPER_INTERNAL_PLUGINS=1` + `PLUGINS_ENABLED`. Boot smoke
   test reports `gate=True`, `installed=True`, entry point wrapped.
 - `check.js` headless: `SESSION-ALIVE` — the relocated profile
-  (`%LOCALAPPDATA%/voice-typer-internal-plugins/google-stt-profile`) still
+  (`%LOCALAPPDATA%/voice-typer-internal-plugins/dictation-profile`) still
   authenticates after the move.
 - `probe.js` (added — the doc referenced a probe that was never saved)
   re-verifies every pinned selector against the live UI: **7/7**, including
@@ -274,7 +274,7 @@ Open defects found in the same run:
 ```json
 {
   "hotkey": "ctrl+shift+space",
-  "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile",
+  "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/dictation-profile",
   "chromeChannel": "chrome",
   "locale": "en",
   "stableMs": 800,

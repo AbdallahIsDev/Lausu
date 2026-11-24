@@ -82,6 +82,9 @@ function normalize(dir, raw) {
   out.url = (raw && (raw.url || (platform === 'gemini' ? raw.geminiUrl : raw.claudeUrl))) || URLS[platform];
   if (platform === 'gemini') out.geminiUrl = out.url;
   else out.claudeUrl = out.url;
+  // The profile path belongs to install.json (and its one-time migration),
+  // never to a per-plugin config snapshot that can go stale after a rename.
+  out.profileDir = paths.profileDir().split(path.sep).join('/');
   out.port = Number(optionsPort(raw) || PORT);
   out.relayToken = raw && typeof raw.relayToken === 'string' ? raw.relayToken : '';
   out.selectorsRef =

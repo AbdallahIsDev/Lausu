@@ -1,6 +1,6 @@
 {
   "claudeUrl": "https://claude.ai/new",
-  "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile",
+  "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/dictation-profile",
   "pollMs": 150,
   "stableMs": 500,
   "stableWindows": 2,

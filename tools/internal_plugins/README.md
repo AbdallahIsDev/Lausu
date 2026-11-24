@@ -82,7 +82,7 @@ STT was selected — both plugins now use the same normal Chrome session.
   Claude tab: the daemon sends `platform` with every command, the service
   worker resolves only that platform's tab, and the content script refuses a
   command for the other platform with `wrong-platform`.
-- **One profile.** `C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile`.
+- **One profile.** `C:/Users/11/AppData/Local/voice-typer-internal-plugins/dictation-profile`.
   The name is deliberate — it is already registered and signed in.
 - **Install path is stable and outside the repo.** Chrome registers unpacked
   extensions by ABSOLUTE PATH: moving or deleting the registered directory

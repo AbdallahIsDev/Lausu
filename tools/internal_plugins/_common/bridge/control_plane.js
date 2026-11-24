@@ -13,6 +13,29 @@ function failure(err) {
   return { status: 500, body: { error: message, kind } };
 }
 
+// A stop can land while the tab is reloading after the start (a "New chat"
+// navigation re-injects the content script). That is transient, not a lost
+// capture: retry against the SAME recording before giving up.
+const STOP_RETRY_DELAYS_MS = [400, 1000];
+
+function wait(relay, ms) {
+  return relay.wait ? relay.wait(ms) : new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function stopRequest(relay, opts) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await relay.request('stop', opts);
+    } catch (err) {
+      if (err && err.kind === 'page-not-ready' && attempt < STOP_RETRY_DELAYS_MS.length) {
+        await wait(relay, STOP_RETRY_DELAYS_MS[attempt]);
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 function platformOf(relay) {
   return String((relay.config && relay.config.platform) || 'claude');
 }
@@ -165,7 +188,7 @@ async function handle(relay, method, pathname) {
   if (method === 'POST' && pathname === '/stop') {
     if (!relay.recording) return { status: 409, body: { error: 'not-recording' } };
     try {
-      const result = await relay.request('stop', scoped({
+      const result = await stopRequest(relay, scoped({
         pollMs: cfg.pollMs,
         stableMs: cfg.stableMs,
         stableWindows: cfg.stableWindows,

@@ -8,6 +8,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const installPaths = require('./install_paths');
 const { loadConfig, PORT } = require('./config_store');
 const { Relay } = require('./relay');
 const { handle } = require('./control_plane');
@@ -150,6 +151,11 @@ function createServer(options = {}) {
 }
 
 if (require.main === module) {
+  const migrated = installPaths.migrateProfile();
+  if (migrated.moved) console.log(`${LOG} migrated dictation profile to ${migrated.to}`);
+  else if (migrated.blocked) {
+    console.warn(`${LOG} dictation profile is still at the old path; close its Chrome window to finish the rename`);
+  }
   const dir = pluginDir();
   const config = loadConfig(dir).config;
   const port = Number(process.env.STT_BRIDGE_PORT || process.env.ANTHROPIC_STT_PORT || config.port || PORT);

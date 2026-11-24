@@ -42,7 +42,7 @@ if (-not $ProfileDir) {
     if ($config -and $config.profileDir) {
         $ProfileDir = [string]$config.profileDir
     } else {
-        $ProfileDir = Join-Path $env:LOCALAPPDATA "voice-typer-internal-plugins/google-stt-profile"
+        $ProfileDir = Join-Path $env:LOCALAPPDATA "voice-typer-internal-plugins/dictation-profile"
     }
 }
 

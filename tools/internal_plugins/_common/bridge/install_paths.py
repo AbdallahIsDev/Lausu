@@ -19,6 +19,7 @@ PORT = int(_CFG["relayPort"])
 PROFILE_DIRECTORY = str(_CFG["profileDirectory"])
 EXTENSION_RELATIVE_PATH = str(_CFG["extensionRelativePath"])
 PROFILE_RELATIVE_PATH = str(_CFG["profileRelativePath"])
+LEGACY_PROFILE_RELATIVE_PATH = str(_CFG.get("legacyProfileRelativePath") or "")
 
 
 def data_root() -> Path:
@@ -35,8 +36,38 @@ def stable_extension_dir() -> Path:
     return data_root() / Path(EXTENSION_RELATIVE_PATH)
 
 
+def legacy_profile_dir() -> Path | None:
+    return data_root() / Path(LEGACY_PROFILE_RELATIVE_PATH) if LEGACY_PROFILE_RELATIVE_PATH else None
+
+
 def profile_dir() -> Path:
-    return data_root() / Path(PROFILE_RELATIVE_PATH)
+    """The effective profile: the old folder until it has been moved.
+
+    Renaming a signed-in Chrome profile must not strand its session, so callers
+    keep using the legacy path until ``migrate_profile`` has moved it.
+    """
+    target = data_root() / Path(PROFILE_RELATIVE_PATH)
+    legacy = legacy_profile_dir()
+    if legacy is not None and legacy.exists() and not target.exists():
+        return legacy
+    return target
+
+
+def migrate_profile() -> bool:
+    """Move the shared profile once, without copying or deleting anything.
+
+    An atomic rename on the same volume fails cleanly while Chrome holds the
+    profile open; the next daemon boot retries. No process is killed.
+    """
+    target = data_root() / Path(PROFILE_RELATIVE_PATH)
+    legacy = legacy_profile_dir()
+    if legacy is None or not legacy.exists() or target.exists():
+        return False
+    try:
+        legacy.rename(target)
+    except OSError:
+        return False
+    return True
 
 
 def repo_root() -> Path:
@@ -122,6 +153,8 @@ __all__ = [
     "data_root",
     "stable_extension_dir",
     "profile_dir",
+    "legacy_profile_dir",
+    "migrate_profile",
     "points_into_repo",
     "read_registered_extension_path",
     "registered_extension_path",

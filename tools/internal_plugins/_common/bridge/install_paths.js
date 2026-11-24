@@ -21,8 +21,39 @@ function stableExtensionDir() {
   return path.join(dataRoot(), ...CFG.extensionRelativePath.split('/'));
 }
 
-function profileDir() {
+function targetProfileDir() {
   return path.join(dataRoot(), ...CFG.profileRelativePath.split('/'));
+}
+
+function legacyProfileDir() {
+  return CFG.legacyProfileRelativePath
+    ? path.join(dataRoot(), ...CFG.legacyProfileRelativePath.split('/'))
+    : null;
+}
+
+// The old folder is used until it has been moved, so a rename never strands
+// the owner's signed-in session or the extension registration.
+function profileDir() {
+  const target = targetProfileDir();
+  if (!fs.existsSync(target)) {
+    const legacy = legacyProfileDir();
+    if (legacy && fs.existsSync(legacy)) return legacy;
+  }
+  return target;
+}
+
+// Atomic same-volume move: never copies or deletes, and fails cleanly while
+// Chrome holds files open (the next daemon boot retries).
+function migrateProfile() {
+  const target = targetProfileDir();
+  const legacy = legacyProfileDir();
+  if (!legacy || !fs.existsSync(legacy) || fs.existsSync(target)) return { moved: false };
+  try {
+    fs.renameSync(legacy, target);
+    return { moved: true, to: target };
+  } catch (err) {
+    return { moved: false, blocked: true, error: String(err && err.message) };
+  }
 }
 
 // Chrome derives an unpacked id from the path SPELLING it was loaded with, so a
@@ -69,6 +100,9 @@ module.exports = {
   INSTALL_HINT,
   dataRoot,
   profileDir,
+  targetProfileDir,
+  legacyProfileDir,
+  migrateProfile,
   pointsIntoRepo,
   registeredPath,
   repoRoot,

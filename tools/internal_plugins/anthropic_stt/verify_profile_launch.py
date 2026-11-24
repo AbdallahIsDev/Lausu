@@ -40,7 +40,7 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 
 
 URL = "https://claude.ai/new"
-PROFILE = r"C:\Users\11\AppData\Local\voice-typer-internal-plugins\google-stt-profile"
+PROFILE = r"C:\Users\11\AppData\Local\voice-typer-internal-plugins\dictation-profile"
 EXE = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 ARGS = [f"--user-data-dir={PROFILE}", "--profile-directory=Default", URL]
 

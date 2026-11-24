@@ -65,7 +65,8 @@ class TestInstallAuthority:
         # shipped descriptor that must agree with the one profile authority.
         text = (module.HERE / "config.example.json").read_text(encoding="utf-8")
         assert_shared_profile(json.loads(text)["profileDir"])
-        for value in {line.split('"')[3] for line in text.splitlines() if "google-stt-profile" in line}:
+        profile_leaf = install_paths.PROFILE_RELATIVE_PATH.split("/")[-1]
+        for value in {line.split('"')[3] for line in text.splitlines() if profile_leaf in line}:
             assert_shared_profile(value)
 
     def test_one_extension_and_no_second_copy(self):
