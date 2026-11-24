@@ -10,6 +10,7 @@ from __future__ import annotations
 from voice_typer.server.gguf_model_registry import (
     DEFAULT_MODEL_SIZE,
     LEGACY_MODEL_ALIASES,
+    LEGACY_REPO_ID_KEYS,
     MODEL_REGISTRY,
     NO_MODEL_SIZE,
     ModelMetadata,
@@ -22,6 +23,7 @@ __all__ = [
     "MODEL_REGISTRY",
     "DEFAULT_MODEL_SIZE",
     "LEGACY_MODEL_ALIASES",
+    "LEGACY_REPO_ID_KEYS",
     "NO_MODEL_SIZE",
     "get_model_metadata",
     "get_all_models",

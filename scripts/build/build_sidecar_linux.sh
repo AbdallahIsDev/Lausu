@@ -28,8 +28,8 @@
 # ADR-0020 §4.4 mandates:
 #   - python-build-standalone cpython-3.12.x built against glibc 2.35 (Ubuntu 22.04)
 #     so the resulting binary runs on Ubuntu 22.04+ / Debian 12+ / Fedora 36+.
-#     lives in the pack worker; the CT2 data-dir copies below were deleted
-#     in the same change, the WORKER build owns them now) + websockets +
+#     lives in the pack worker; the ASR runtime data-dir copies below were
+#     deleted in the same change, the WORKER build owns them now) + websockets +
 #     voice_typer.
 #   - --onefile-tempdir-spec pinned to $XDG_CACHE_HOME/lausu/onefile-tmp
 #     so the onefile extraction is deterministic + cleanable.

@@ -44,7 +44,7 @@ SLIM_CORE_ROOTS = ("voice_typer/server",)
 #: Retired Python ASR runtimes (zero imports are allowed in the slim core).
 COUNTED_LIBRARIES = ("faster_whisper", "ctranslate2")
 
-#: Matches ``import faster_whisper`` / ``from faster_whisper import X``.
+#: Matches ``import <counted library>`` / ``from <counted library> import X``.
 #: The optional leading BOM keeps Windows-written files (PowerShell
 #: ``Set-Content -Encoding UTF8``) from hiding a real import.
 _IMPORT_RE = re.compile(

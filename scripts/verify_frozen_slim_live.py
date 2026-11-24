@@ -3,10 +3,9 @@
 
 ``scripts/verify_worker_handoff_live.py`` proved the worker hop, but it drove
 ``worker_relay`` / ``WorkerClient`` **in-process from source**. That cannot see
-the failure this gate exists for: with
-``--nofollow-import-to=faster_whisper,ctranslate2`` (ADR-0025 C7) the frozen
-sidecar has no ASR library on disk, so any surviving in-process import surfaces
-as ``ModuleNotFoundError`` at launch or mid-dictation, and VAD silently
+the failure this gate exists for: with the ASR libraries excluded from the
+frozen sidecar (ADR-0025 C7), any surviving in-process import surfaces as
+``ModuleNotFoundError`` at launch or mid-dictation, and VAD silently
 degrades. Unit tests cannot observe either because the source tree still has
 the libs installed.
 

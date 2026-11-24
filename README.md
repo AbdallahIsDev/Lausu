@@ -204,7 +204,7 @@ pip install .
 ```
 
 > **Note:** the install is ONNX-only (no `torch`). The default
-> `pip install .` pulls `onnxruntime` (CPU), `onnx-asr`, and
+> `pip install .` pulls `onnxruntime` (CPU), `GGUF runner`, and
 > the GGUF speech runner plus `tokenizers`. GPU users install
 > `onnxruntime-gpu` separately. The `pyproject.toml` `dependencies`
 > block lists the full set.
@@ -232,7 +232,7 @@ of truth for Python dependencies.)
 ### Optional: Qwen ASR backend (ONNX-only, no torch)
 
 Whisper ships by default. The experimental Qwen3-ASR backend runs on
-ONNX Runtime via the pre-exported `andrewleech/qwen3-asr-*-onnx` models
+ONNX Runtime via the pre-exported `handy-computer/Qwen3-ASR-*-gguf` models
 (see `docs/PLAN_ONNX_INTEGRATION.md` §4.3 C-2). No `torch` install is
 needed: `pip install .` already includes `onnxruntime` + `tokenizers`.
 
@@ -394,8 +394,8 @@ Available models (subject to Whisper upstream naming and sizes):
 | `tiny` | Fastest, lower accuracy |
 | `large-v3` | Highest accuracy, slow on CPU |
 | `large-v3-turbo` | Near large-v3 accuracy at 8x speed |
-| `qwen3-1.7b` | Qwen3-ASR 1.7B via ONNX Runtime (pre-exported `andrewleech/qwen3-asr-1.7b-onnx`, no torch needed; ~3.9 GB download) |
-| `qwen3-0.6b` | Qwen3-ASR 0.6B via ONNX Runtime (pre-exported `andrewleech/qwen3-asr-0.6b-onnx`, smaller and faster; ~1.9 GB download) |
+| `qwen3-1.7b` | Qwen3-ASR 1.7B via ONNX Runtime (pre-exported `handy-computer/Qwen3-ASR-1.7B-gguf`, no torch needed; ~3.9 GB download) |
+| `qwen3-0.6b` | Qwen3-ASR 0.6B via ONNX Runtime (pre-exported `handy-computer/Qwen3-ASR-0.6B-gguf`, smaller and faster; ~1.9 GB download) |
 | `parakeet` | Parakeet Ultra (NVIDIA Parakeet TDT 0.6b, post-trained by Moondream): 25 languages, ONNX int8, fast CPU/GPU. Weights are auto-downloaded from HuggingFace on first use. Set `asr_backend = "parakeet"` in config or pick "Parakeet Ultra" from the Models submenu. |
 
 ## Silence Detection and Auto-Stop

@@ -26,7 +26,7 @@
 #(HuggingFace cache): the HuggingFace cache lives at
 # ~/.cache/huggingface on macOS (HuggingFace's library follows XDG
 # conventions even on macOS). It stores downloaded ASR model weights
-# (faster-whisper, WhisperCPP, etc.) and can grow to multiple GB. We do
+# (WhisperCPP, GGUF models, etc.) and can grow to multiple GB. We do
 # NOT remove it by default, the user may want to reuse it for OTHER
 # HF-based apps (transformers, datasets, other voice tools). Pass
 # --purge to remove it.
