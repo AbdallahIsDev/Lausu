@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-24T14:12:06Z
+> Generated: 2026-11-24T14:17:35Z
 > Data branch commit: `2f91e2a`
 
 ## Currently failing
@@ -133,21 +133,6 @@
 - Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
 - Step: Ruff (F-rules hard-fail)
 - Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 10. CodeQL — failure
-
-- Run: [45399711542](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711542) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: Analyze (rust) · Leg: rust
-- Step: Cargo check (CodeQL build)
-- Category: CodeQL
 
 - Error excerpt:
 
@@ -1029,7 +1014,23 @@
 
 ## Resolved recently
 
-### 1. Build Linux — failure
+### 1. CodeQL — failure
+
+- Run: [45399711542](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711542) (attempt 1)
+- Event: push · Branch: main
+- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
+- Job: Analyze (rust) · Leg: rust
+- Step: Cargo check (CodeQL build)
+- Category: CodeQL
+- Fixed by: [45410434270](https://github.com/AbdallahIsDev/Lausu/actions/runs/45410434270) (success)
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 2. Build Linux — failure
 
 - Run: [45399711547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711547) (attempt 1)
 - Event: push · Branch: main
@@ -1045,7 +1046,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 2. CI error collector — failure
+### 3. CI error collector — failure
 
 - Run: [45307909855](https://github.com/AbdallahIsDev/Lausu/actions/runs/45307909855) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1061,7 +1062,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 3. Build installer — failure
+### 4. Build installer — failure
 
 - Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
 - Event: push · Branch: main
@@ -1077,7 +1078,7 @@
 (no job log available)
 ```
 
-### 4. CI error collector — failure
+### 5. CI error collector — failure
 
 - Run: [45234245830](https://github.com/AbdallahIsDev/Lausu/actions/runs/45234245830) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1093,7 +1094,7 @@
 (no job log available)
 ```
 
-### 5. CI error collector — failure
+### 6. CI error collector — failure
 
 - Run: [45222873082](https://github.com/AbdallahIsDev/Lausu/actions/runs/45222873082) (attempt 1)
 - Event: workflow_run · Branch: main
