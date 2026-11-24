@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-24T14:02:10Z
+> Generated: 2026-11-24T14:02:47Z
 > Data branch commit: `ea6621b`
 
 ## Currently failing
@@ -140,22 +140,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 10. Build Linux — failure
-
-- Run: [45399711547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711547) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: smoke-cargo-check · Leg: ubuntu-22.04
-- Step: cargo check (Tauri Rust host)
-- Category: cargo test/clippy/audit
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 11. CodeQL — failure
+### 10. CodeQL — failure
 
 - Run: [45399711542](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711542) (attempt 1)
 - Event: push · Branch: main
@@ -1012,24 +997,25 @@
 (no job log available)
 ```
 
-### 57. CI error collector — failure
+## Resolved recently
 
-- Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
-- Event: workflow_run · Branch: main
-- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
+### 1. Build Linux — failure
+
+- Run: [45399711547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711547) (attempt 1)
+- Event: push · Branch: main
+- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
+- Job: smoke-cargo-check · Leg: ubuntu-22.04
+- Step: cargo check (Tauri Rust host)
+- Category: cargo test/clippy/audit
+- Fixed by: [45409359001](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359001) (success)
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
-## Resolved recently
-
-### 1. CI error collector — failure
+### 2. CI error collector — failure
 
 - Run: [45307909855](https://github.com/AbdallahIsDev/Lausu/actions/runs/45307909855) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1045,7 +1031,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 2. Build installer — failure
+### 3. Build installer — failure
 
 - Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
 - Event: push · Branch: main
@@ -1061,7 +1047,7 @@
 (no job log available)
 ```
 
-### 3. CI error collector — failure
+### 4. CI error collector — failure
 
 - Run: [45234245830](https://github.com/AbdallahIsDev/Lausu/actions/runs/45234245830) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1077,7 +1063,7 @@
 (no job log available)
 ```
 
-### 4. CI error collector — failure
+### 5. CI error collector — failure
 
 - Run: [45222873082](https://github.com/AbdallahIsDev/Lausu/actions/runs/45222873082) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1086,22 +1072,6 @@
 - Step: 
 - Category: other
 - Fixed by: [45223585271](https://github.com/AbdallahIsDev/Lausu/actions/runs/45223585271) (success)
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 5. CI error collector — failure
-
-- Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
-- Event: workflow_run · Branch: main
-- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-- Fixed by: [45086665963](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086665963) (success)
 
 - Error excerpt:
 
