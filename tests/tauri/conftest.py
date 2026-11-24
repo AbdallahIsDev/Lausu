@@ -66,6 +66,7 @@ def _canonical_stub_paths() -> list[str]:
         paths.append(os.path.join(root, "src-tauri", "bin", f"lausu-worker-{triple}{ext}"))
     for name in _STUB_NATIVE:
         paths.append(os.path.join(root, "src-tauri", "resources", "native", name))
+    paths.append(os.path.join(root, "src-tauri", "resources", "transcribe-cpp", "STUB.txt"))
     for triple in _STUB_LOCAL_DEV_TRIPLES:
         paths.append(os.path.join(root, "src-tauri", "bin", f"python-sidecar-{triple}.exe"))
         paths.append(os.path.join(root, "src-tauri", "bin", f"lausu-worker-{triple}.exe"))

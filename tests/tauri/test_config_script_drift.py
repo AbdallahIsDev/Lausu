@@ -79,7 +79,8 @@ class TestBundleBinariesVsStubRegistry:
             for triple in stub.SIDECAR_TRIPLES
         }
         binaries = {r for r in bundle.get("resources", []) if r.startswith("resources/native/")}
-        declared = sidecars | binaries
+        runtime_stubs = {f"{r}/STUB.txt" for r in bundle.get("resources", []) if r == "resources/transcribe-cpp"}
+        declared = sidecars | binaries | runtime_stubs
         dev_only = {p.relative_to(SRC_TAURI).as_posix() for p in stub._local_dev_stub_paths()}
         overlap = set(stub.LOCAL_DEV_TRIPLES) & set(stub.SIDECAR_TRIPLES)
         assert not overlap, (

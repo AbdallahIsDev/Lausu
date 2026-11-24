@@ -34,6 +34,9 @@ WHAT IS GENERATED
      ``linux-key-listener``. Same stub-content strategy as sidecars.
 3. **Prewarm resources** under ``src-tauri/resources/``:
    - ``prewarm-<triple>[.exe]`` for the same 6 triples.
+4. **Native speech runtime directory** ``src-tauri/resources/transcribe-cpp/``:
+   - ``STUB.txt`` marker so ``tauri-build`` finds the directory resource on a
+     clean checkout. A real DLL bundle at that path is never overwritten.
 
 Binary stubs are written ONLY when the path is absent or already a stub
 (``_is_stub_file`` heuristic). A real Nuitka / compiled artifact that a
@@ -229,6 +232,14 @@ NATIVE_RESOURCES: list[tuple[str, str]] = [
     ("resources/native/macos-key-listener", "darwin"),
     ("resources/native/linux-key-listener", "linux"),
 ]
+
+# The transcribe.cpp native bundle is a DIRECTORY resource. A clean checkout
+# has no DLLs there, so tauri-build fails with "resource path
+# `resources/transcribe-cpp` doesn't exist" before any Rust compiles. The
+# generator owns a marker file inside it, exactly like the native listener
+# stubs; a real DLL bundle (>512-byte transcribe.dll) is never clobbered.
+TRANSCRIBE_CPP_STUB = SRC_TAURI / "resources" / "transcribe-cpp" / "STUB.txt"
+TRANSCRIBE_CPP_STUB_MARKER = "STUB: not the transcribe.cpp runtime"
 
 # NOTE: prewarm resources DELETED 2026-08-13, prewarm became a startup phase
 # of the worker exe (plan-runtime-pack-split §6.2 Option P-1). The separate
@@ -513,6 +524,11 @@ def _stub_content(platform: str, kind: str) -> bytes:
     in the stderr message so the failure is self-describing.
     """
     msg = f"{STUB_MARKER} ({kind})"
+    if kind == "runtime":
+        return (
+            f"{TRANSCRIBE_CPP_STUB_MARKER}\n"
+            "Replace this directory with the pinned v0.4.2 native bundle before release.\n"
+        ).encode("ascii")
     if platform == "windows":
         # Batch-file content written with .exe extension. Windows
         # CreateProcess rejects non-PE files with ERROR_BAD_EXE_FORMAT
@@ -526,6 +542,7 @@ def _stub_content(platform: str, kind: str) -> bytes:
 
 def _write_stub_file(path: Path, platform: str, kind: str) -> None:
     """Write a stub binary file at ``path`` with the right content + perms."""
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(_stub_content(platform, kind))
     if platform != "windows":
         # POSIX stubs need the executable bit so a real spawn runs them.
@@ -549,7 +566,8 @@ def _is_stub_file(path: Path) -> bool:
             head = fh.read(8192)  # 8 KB is plenty for any stub
     except OSError:
         return False
-    return STUB_MARKER.encode("ascii") in head
+    text = head.decode("ascii", "ignore")
+    return STUB_MARKER in text or TRANSCRIBE_CPP_STUB_MARKER in text
 
 
 def _stub_problems(path: Path, platform: str, kind: str) -> list[str]:
@@ -699,6 +717,7 @@ def _slim_stub_specs() -> list[tuple[Path, str, str]]:
     )
     for rel, platform in NATIVE_RESOURCES:
         specs.append((SRC_TAURI / rel, platform, "native"))
+    specs.append((TRANSCRIBE_CPP_STUB, "unix", "runtime"))
     return specs
 
 
@@ -709,11 +728,7 @@ def _worker_stub_specs() -> list[tuple[Path, str, str]]:
         ext = ".exe" if triple in WINDOWS_TRIPLES else ""
         platform = "windows" if triple in WINDOWS_TRIPLES else "unix"
         specs.append((SRC_TAURI / "bin" / f"{WORKER_BASENAME}-{triple}{ext}", platform, "worker"))
-    specs.extend(
-        (path, platform, kind)
-        for path, platform, kind in _local_dev_stub_specs()
-        if kind == "worker"
-    )
+    specs.extend((path, platform, kind) for path, platform, kind in _local_dev_stub_specs() if kind == "worker")
     return specs
 
 
@@ -800,6 +815,10 @@ def generate(slim: bool = False) -> list[Path]:
         path = SRC_TAURI / rel
         _write_stub_file_if_needed(path, platform, "native")
         created.append(path)
+
+    # 3. transcribe.cpp directory resource marker (never clobbers real DLLs).
+    _write_stub_file_if_needed(TRANSCRIBE_CPP_STUB, "unix", "runtime")
+    created.append(TRANSCRIBE_CPP_STUB)
 
     return created
 
@@ -969,6 +988,7 @@ def clean(slim: bool = False) -> int:
     for d in (
         SRC_TAURI / "bin",
         SRC_TAURI / "resources" / "native",
+        SRC_TAURI / "resources" / "transcribe-cpp",
         SRC_TAURI / "resources",
     ):
         if d.exists() and d.is_dir():
@@ -1045,10 +1065,7 @@ def main() -> int:
     parser.add_argument(
         "--slim",
         action="store_true",
-        help=(
-            "limit generate/--check/--clean to the slim-core set "
-            "(sidecar + native, no worker stubs)"
-        ),
+        help=("limit generate/--check/--clean to the slim-core set (sidecar + native, no worker stubs)"),
     )
     args = parser.parse_args()
 

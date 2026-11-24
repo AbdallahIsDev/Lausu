@@ -87,6 +87,7 @@ def _stub_paths() -> list[Path]:
         # GNU-toolchain mirrors (C-TDEV-1), always Windows + .exe.
         paths.append(SRC_TAURI / "bin" / f"python-sidecar-{triple}.exe")
         paths.append(SRC_TAURI / "bin" / f"lausu-worker-{triple}.exe")
+    paths.append(SRC_TAURI / "resources" / "transcribe-cpp" / "STUB.txt")
     return paths
 
 
@@ -1215,13 +1216,50 @@ def test_sessionfinish_restores_only_on_controller(tmp_path, monkeypatch, capsys
     assert len(calls) == 3
 
 
+def test_transcribe_cpp_resource_has_a_generator_owned_stub() -> None:
+    """The new bundle resource must exist on a clean checkout (root cause)."""
+    conf = json.loads((SRC_TAURI / "tauri.conf.json").read_text(encoding="utf-8"))
+    assert "resources/transcribe-cpp" in conf["bundle"]["resources"]
+    stub = _script_module()
+    assert stub.TRANSCRIBE_CPP_STUB.relative_to(SRC_TAURI).as_posix() == ("resources/transcribe-cpp/STUB.txt")
+    assert _run().returncode == 0
+    assert stub.TRANSCRIBE_CPP_STUB.is_file()
+    assert stub.TRANSCRIBE_CPP_STUB_MARKER in stub.TRANSCRIBE_CPP_STUB.read_text(encoding="utf-8")
+
+
+def test_check_fails_without_the_transcribe_cpp_resource_and_recovers() -> None:
+    marker = SRC_TAURI / "resources" / "transcribe-cpp" / "STUB.txt"
+    _run()  # start from a generated state
+    marker.unlink(missing_ok=True)
+    result = _run("--check")
+    assert result.returncode != 0
+    assert "transcribe-cpp" in result.stderr and "STUB.txt" in result.stderr
+    assert _run().returncode == 0
+    assert _run("--check").returncode == 0
+
+
+def test_clean_preserves_a_real_transcribe_cpp_bundle() -> None:
+    directory = SRC_TAURI / "resources" / "transcribe-cpp"
+    real_dll = directory / "transcribe.dll"
+    directory.mkdir(parents=True, exist_ok=True)
+    payload = b"REAL NATIVE BINARY" * 64
+    real_dll.write_bytes(payload)
+    try:
+        assert _run().returncode == 0
+        assert _run("--check").returncode == 0
+        assert _run("--clean").returncode == 0
+        assert real_dll.read_bytes() == payload, "--clean deleted the real DLL bundle"
+        assert not (directory / "STUB.txt").exists()
+    finally:
+        real_dll.unlink(missing_ok=True)
+        _run()  # restore the stub for subsequent tests
+
+
 def test_tauri_conftest_stub_guard_covers_the_generator_registry() -> None:
     """The session restore guard must cover every stub ``--clean`` deletes."""
     mod = _load_tauri_conftest()
     stub = _script_module()
-    guard = {
-        Path(p).resolve().relative_to(SRC_TAURI.resolve()).as_posix() for p in mod._canonical_stub_paths()
-    }
+    guard = {Path(p).resolve().relative_to(SRC_TAURI.resolve()).as_posix() for p in mod._canonical_stub_paths()}
     registry = {p.resolve().relative_to(SRC_TAURI.resolve()).as_posix() for p in stub._all_stub_paths()}
     assert guard == registry, (
         "tests/tauri/conftest.py::_canonical_stub_paths() drifted from "
