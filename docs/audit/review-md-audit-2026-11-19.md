@@ -349,10 +349,10 @@ premise / not worth it / would break).
 - **Rules:** E7 (one protocol shape), E15 (fallback retained intentionally).
 - **Risk:** Low — only the review entry is stale.
 - **Verdict:** **KEEP** — close as already-fixed; the residual "verify frozen worker
-  ships faster_whisper" is a release-time check, not a code task.
+  ships the GGUF runner" is a release-time check, not a code task.
 - **Score:** 90 — high impact, already delivered and pinned.
 - **Action plan:** mark closed in `review.md`; at packaging time confirm the frozen worker
-  bundle contains `faster_whisper`/`ctranslate2` (WL-1 Round C's only open evidence).
+  bundle contains the GGUF runner/the GGUF runner (WL-1 Round C's only open evidence).
 
 ### RH-20 — Worker model-load tasks escape the shutdown drain
 

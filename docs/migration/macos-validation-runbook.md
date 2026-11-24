@@ -10,7 +10,7 @@
 - Rust toolchain (`rustup init` → `stable` + `aarch64-apple-darwin` + `x86_64-apple-darwin` targets: both required for `cargo tauri build --target universal-apple-darwin`)
 - Node.js 20+ (for the React renderer build)
 - Git
-- `uv` (Python package installer: faster + more reliable than `pip` for the qwen-asr / ctranslate2 wheels)
+- `uv` (Python package installer: faster + more reliable than `pip` for the qwen-asr / Python 3.12 wheels)
 - Rosetta 2 (only required if you build the x86_64 binary on an Apple Silicon host)
 - Apple Developer ID Application certificate (for distribution signing, see §7)
 - Apple notarization credentials: `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (for `xcrun notarytool`)
@@ -126,13 +126,13 @@ kill $SIDECAR_PID
 # exits cleanly on SIGTERM.
 ```
 
-**Pass criteria**: Both binaries exist with the correct `file` output (arm64 vs x86_64). The smoke test produces a `server_started` log line within 3 seconds. `otool -L` on each binary shows `libctranslate2.dylib` + `libiomp5.dylib` resolved to onefile-extracted paths.
+**Pass criteria**: Both binaries exist with the correct `file` output (arm64 vs x86_64). The smoke test produces a `server_started` log line within 3 seconds. `otool -L` on each binary shows `the external runner binary` + `libiomp5.dylib` resolved to onefile-extracted paths.
 
 **Common failures**:
 - `error: Rosetta 2 is not installed` (Apple Silicon building x86_64) → install with `softwareupdate --install-rosetta --agree-to-license`.
 - `error: cannot build aarch64 on an Intel host via Nuitka directly` → Intel hosts cannot build for Apple Silicon. Use a separate Apple Silicon host (macos-15 CI runner) and merge with `lipo` if you need a universal binary.
 - `ImportError: No module named 'pyobjc'` → add `--include-package=pyobjc` (already in the script). If sub-framework bridges fail, run the sidecar once in dev mode and watch for the missing pyobjc-framework-* package, then add `--include-package=pyobjc-framework-Cocoa` etc.
-- `dyld: Library not loaded: @rpath/libctranslate2.dylib` → the `--include-data-dir` glob for `ctranslate2/lib` failed. Verify `$SITE/ctranslate2/lib/` exists in the python-build-standalone install and contains `libctranslate2.dylib` + `libiomp5.dylib`.
+- `dyld: Library not loaded: @rpath/the external runner binary` → the `--include-data-dir` glob for `the runner install` failed. Verify `$SITE/the runner install/` exists in the python-build-standalone install and contains `the external runner binary` + `libiomp5.dylib`.
 - `codesign failed: no identity` → set `MAC_SIGNING_IDENTITY="Developer ID Application: <name>"` env var, or accept ad-hoc signing for local dev.
 
 ---
@@ -185,7 +185,7 @@ file src-tauri/resources/prewarm-x86_64-apple-darwin
 
 # Smoke-test the prewarm binary (it should write a [PREWARM] log line
 # to stdout and exit 0 within ~30s, long enough to warm onnxruntime +
-# ctranslate2 + numpy/scipy weights. The post-2026-08-13 ONNX-migration
+# the GGUF runner + numpy/scipy weights. The post-2026-08-13 ONNX-migration
 # warm list, replacing the earlier torch + transformers list per
 # ADR-0011 Superseded and ADR-0005).
 VOICE_TYPER_PREWARM_SMOKE=1 \
@@ -199,7 +199,6 @@ VOICE_TYPER_PREWARM_SMOKE=1 \
 
 **Common failures**:
 - `error: Rosetta 2 is not installed` (Apple Silicon building x86_64) → same fix as Step 1.
-- `prewarm binary segfaults on launch` → likely a missing ctranslate2 dylib. The script includes `--include-data-dir=$SITE/ctranslate2/lib` Verify the path exists in the build env.
 - `ImportError: No module named 'voice_typer.server.prewarm'` → run from the project root (the script cds there), or set `PYTHONPATH=$PWD` before invoking Nuitka.
 
 ---
@@ -414,7 +413,7 @@ asyncio.run(t())
 
 ---
 
-### Step 6.2, `faster-whisper` transcribes inside the Nuitka bundle (gate point 3, BOTH arches)
+### Step 6.2, `GGUF Whisper` transcribes inside the Nuitka bundle (gate point 3, BOTH arches)
 
 **VALIDATE ON MACOS HOST**
 
@@ -434,9 +433,8 @@ asyncio.run(t())
 **Pass criteria**: The transcription text appears in TextEdit within 5 seconds of releasing the hotkey. The History page shows the new entry with the correct model name + device name. The Tauri log shows `[ASR] loaded model tiny in 2.3s` and `[TRANSCRIBE] 0.8s for 3.2s audio`.
 
 **Common failures**:
-- `dyld: Library not loaded: libctranslate2.dylib` → the `--include-data-dir=$SITE/ctranslate2/lib=...` flag was missing or the path was wrong. Verify with `otool -L <sidecar-binary>` that `@rpath/libctranslate2.dylib` resolves.
-- `libiomp5.dylib not found` → OpenMP runtime missing from the bundle. The script includes `$SITE/ctranslate2/libs` for this; verify the python-build-standalone install actually contains `libiomp5.dylib` under `$SITE/ctranslate2/lib/`.
-- `WhisperModel("tiny") segfault on aarch64` → CTranslate2 aarch64 wheel ABI mismatch. Verify the wheel matches the python-build-standalone cpython-3.12.x+aarch64-apple-darwin build.
+- `libiomp5.dylib not found` → OpenMP runtime missing from the bundle. The script includes `$SITE/the runner installs` for this; verify the python-build-standalone install actually contains `libiomp5.dylib` under `$SITE/the runner install/`.
+- `the GGUF runner loading the tiny model segfault on aarch64` → GGUF runner aarch64 wheel ABI mismatch. Verify the wheel matches the python-build-standalone cpython-3.12.x+aarch64-apple-darwin build.
 - Apple Silicon-only: `Operation not permitted` → the `.app` needs the `NSMicrophoneUsageDescription` entitlement in `Info.plist` and the user must grant microphone permission in System Settings → Privacy & Security → Microphone.
 
 ---
@@ -615,11 +613,11 @@ launchctl list | grep Lausu
 cat "$HOME/Library/Application Support/lausu/logs/prewarm.log" | tail -10
 # Expected (post-2026-08-13 ONNX migration: torch + transformers
 #           warm-imports are retired; the worker now warms
-#           onnxruntime + ctranslate2 + numpy/scipy only):
+#           onnxruntime + the GGUF runner + numpy/scipy only):
 #   [PREWARM] starting (trigger=RunAtLoad)
 #   [PREWARM] free RAM: 12.3 GB (budget: 6 GB), OK
 #   [PREWARM] warming onnxruntime (CPU EP) ... done in Ns
-#   [PREWARM] warming ctranslate2 ... done in Ns
+#   [PREWARM] warming the GGUF runner ... done in Ns
 #   [PREWARM] warming Parakeet weights (2.4 GB) ... done in 4.5s
 #   [PREWARM] complete in Ns
 # (Historical: pre-ONNX-migration logs referenced "warming torch"
@@ -967,7 +965,7 @@ The `.app`'s `Info.plist` must declare:
 - `NSUserNotificationsUsageDescription`: required for `tauri-plugin-notification` on macOS 11+
 
 The hardened runtime entitlements (`com.apple.security.cs.*`) are required for notarization:
-- `com.apple.security.cs.allow-jit`: required if CTranslate2 uses JIT (verify with `otool -L` for libctranslate2)
+- `com.apple.security.cs.allow-jit`: required if GGUF runner uses JIT (verify with `otool -L` for libthe GGUF runner)
 - `com.apple.security.cs.disable-library-validation`: required if Nuitka's `--onefile` extracts unsigned dylibs at runtime (verify by running the sidecar binary and watching `log show --predicate 'process == "python-sidecar"'` for `library validation` errors)
 
 The Tauri `bundle.macOS.entitlements` config in `tauri.conf.json` should point at an `entitlements.plist` file declaring these keys. (This is a Tauri host concern, see the Tauri host runbook for the entitlements file template.)
@@ -1095,7 +1093,7 @@ echo "Wrote $REPORT"
 | §4 | Tauri `.app` + `.dmg` build (`--target universal-apple-darwin`) | `cargo tauri build` produces both `.app` + `.dmg` with both prewarm arches + native listener in `Contents/Resources/` |
 | §5 | Install + smoke test (gate point 1: sidecar spawn) | `pgrep -lf python-sidecar` finds the host-arch sidecar within 5s of launch |
 | §6.1 | WS + bearer-token handshake (gate point 2) | `[SIDECAR] server_started port=N` in log; wrong token rejected |
-| §6.2 | `faster-whisper` transcribes (gate point 3) | Transcription appears in TextEdit within 5s; `libctranslate2.dylib` + `libiomp5.dylib` resolve |
+| §6.2 | `GGUF Whisper` transcribes (gate point 3) | Transcription appears in TextEdit within 5s; `the external runner binary` + `libiomp5.dylib` resolve |
 | §6.3 | `enigo` paste (gate point 4) | Short text via `enigo.text()`; long text via clipboard + `Cmd+V`; Accessibility permission granted |
 | §6.4 | `tauri-plugin-notification` (gate point 5) | macOS notification banner appears; `Info.plist` has `NSUserNotificationsUsageDescription` + `NSMicrophoneUsageDescription` |
 | §6.5 | Cooperative shutdown (gate point 6) | Sidecar exits within 2s of window close; `kill_children` backstop verified on hung sidecar |
@@ -1125,7 +1123,7 @@ echo "Wrote $REPORT"
   ```
   Note: `build_native_listener_macos.sh --universal` does this in one step (no manual lipo needed).
 - **`cargo tauri build --target universal-apple-darwin`** builds a universal `.app` bundle that runs natively on both arches. The Rust host is universal, but the Python sidecar binary inside is selected per-arch by Tauri at runtime from the `bundle.externalBin` list (Tauri appends the host triple to the base name `bin/python-sidecar`).
-- **CTranslate2 aarch64 wheels are CPU-only** (no CUDA on macOS). Verify with `otool -L $SITE/ctranslate2/lib/libctranslate2.dylib` that every `@rpath` dependency resolves. Apple Silicon wheels ship `libctranslate2.dylib` + `libiomp5.dylib` (OpenMP): no CUDA, no cuBLAS.
+- **GGUF runner aarch64 wheels are CPU-only** (no CUDA on macOS). Verify with `otool -L $SITE/the runner install/the external runner binary` that every `@rpath` dependency resolves. Apple Silicon wheels ship `the external runner binary` + `libiomp5.dylib` (OpenMP): no CUDA, no cuBLAS.
 - **`pyobjc` framework bridges**: Nuitka's `--include-package=pyobjc` does not always pick up the framework sub-packages (`pyobjc-framework-Cocoa`, `pyobjc-framework-CoreAudio`, etc.). If the sidecar crashes on launch with `ImportError: pyobjc-...`, add explicit `--include-package=pyobjc-framework-Cocoa` flags to the Nuitka command in `build_sidecar_macos.sh`. The build scripts already include `pyobjc-framework-Cocoa` + `pyobjc-framework-CoreAudio` defensively.
 - **Accessibility permission (TCC)**: `enigo` + the native `macos-key-listener` both require Accessibility permission. The app should prompt on first launch via `AXIsProcessTrustedWithOptions`; if it doesn't, manually add `/Applications/Lausu.app` in System Settings → Privacy & Security → Accessibility. ADR-0008 Gap 2 covers the onboarding flow for this. **Important: in dev mode (`cargo tauri dev`), the terminal that spawned the binary (Terminal.app / iTerm / VS Code) ALSO needs Accessibility permission. The permission does NOT transfer to the binary alone.**
 - **Microphone permission (TCC)**: `sounddevice` requires microphone permission. The `Info.plist` must declare `NSMicrophoneUsageDescription`; on first mic open the system prompts the user. Denied mic → sidecar logs `[AUDIO] microphone permission denied` and the WS connection stays open (no crash), but dictation silently fails.

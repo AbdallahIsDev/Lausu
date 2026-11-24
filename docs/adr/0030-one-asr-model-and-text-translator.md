@@ -148,7 +148,7 @@ command and the model download reuses `download_model`, so the command-count
 allowlists are unchanged.
 
 Still open: the shared pronoun-direction flaw (both models fail
-`اللي بعتهولي`), the exact CTranslate2-CUDA vs GGUF-Vulkan ASR speed A/B,
+`اللي بعتهولي`), the exact GGUF runner-CUDA vs GGUF-Vulkan ASR speed A/B,
 and a larger real-dictation validation set. EN→AR remains weak.
 
 ## 7. Sources

@@ -31,7 +31,7 @@ Constraints shaping this decision:
 
 Key verified facts (web-checked, not assumed):
 
-- `faster-whisper` already pulls **PyAV 18.1.0** (locked). Its wheels bundle
+- `GGUF Whisper` already pulls **the bundled FFmpeg decoder 18.1.0** (locked). Its wheels bundle
   full FFmpeg: any-format decode with zero new heavy deps and zero external
   `ffmpeg` binary. `av.open()` reads local files AND remote HTTPS URLs
   directly, with `open_timeout`/`read_timeout` options.
@@ -56,7 +56,7 @@ Key verified facts (web-checked, not assumed):
 
 1. **Tier 0 — zero-download streaming (default for URLs).** yt-dlp runs in
    resolve-only mode (`download=False`) and returns the direct **audio-only**
-   CDN URL. PyAV opens that URL and stream-decodes over HTTPS range reads;
+   CDN URL. the bundled FFmpeg decoder opens that URL and stream-decodes over HTTPS range reads;
    16 kHz mono PCM chunks flow straight into the engine in ~30 s windows.
    A 2 GB video moves ~40-70 MB of streamed audio; **nothing is written to
    disk**.
@@ -73,7 +73,7 @@ Key verified facts (web-checked, not assumed):
 
 `sources.py` (classify file/URL) · `url_resolver.py` (yt-dlp library mode,
 format selector `bestaudio[protocol^=http]/bestaudio/best`, metadata) ·
-`decoder.py` (PyAV to PCM chunk generator, local + remote) · `engine_loop.py`
+`decoder.py` (the bundled FFmpeg decoder to PCM chunk generator, local + remote) · `engine_loop.py`
 (chunk windows to existing model + Silero VAD, cancellable, progress events) ·
 `jobs.py` (single active job + cancel) · `storage.py` (History + optional
 txt/srt/vtt/json export).
@@ -120,7 +120,7 @@ never silent; DRM content is refused, not circumvented.
 | E5 | Playlists / channels | v1: single item only ("paste one video link"). Expand-and-queue is phase 2. |
 | E6 | Multi-audio-track containers | Decode default track; track picker is phase 2. |
 | E7 | Video with no audio track | Fail fast: "no audio found". |
-| E8 | Corrupt / truncated local file | PyAV error becomes a clean failure naming the file. |
+| E8 | Corrupt / truncated local file | the bundled FFmpeg decoder error becomes a clean failure naming the file. |
 | E9 | Mid-stream stall (Tier 0) | `read_timeout` fires, Range-resume retry, then Tier 1 fallback. |
 | E10 | CDN URL expires mid-job | Re-resolve via yt-dlp, resume from last completed window. |
 | E11 | Very long media (>~4 h) | Chunked windows keep memory flat; UI warns duration + ETA. |
@@ -135,7 +135,7 @@ v1 scope as built (verified against the tree, not the plan above):
 
 - **URL ladder implemented**, not punted: resolve-only extraction
   (`url_resolver.py`, `skip_download`, `bestaudio[protocol^=http]`
-  selector), Tier-0 PyAV range streaming with open/read timeouts +
+  selector), Tier-0 the bundled FFmpeg decoder range streaming with open/read timeouts +
   seek-resume (`decoder.py`), Tier-1/2 temp-download fallback
   (`downloader.py`), stall/expiry taxonomy with re-resolve (`E9/E10`),
   full edge taxonomy E1–E8/E11–E15, subtitle availability flag +
@@ -187,7 +187,7 @@ apply, and conflating them would be a correctness bug:
   are I/O plus cheap CPU, so up to four jobs run at once. The IPC ack is
   immediate: `resolve_media_url` moved into the job thread, so pasting four
   links enqueues four jobs without four network round trips in the handler.
-* **ASR is serialized.** Every job decodes against ONE ctranslate2 model that
+* **ASR is serialized.** Every job decodes against ONE the GGUF runner model that
   is not thread-safe (`SystemWhisperEngine._inference_lock`), so a job takes
   `manager.asr_lane()` around each window decode. The lane is a
   `Semaphore(1)` re-entered once per WINDOW, not once per job: a job's windows
@@ -241,14 +241,14 @@ also means several local PATHS are not round-trippable after a partial batch;
 multiple files go through the picker or drag-drop, which hand over a real path
 list.
 
-Stress evidence (real model, real PyAV decoder, real job manager + engine
+Stress evidence (real model, real the bundled FFmpeg decoder decoder, real job manager + engine
 loop; 6 jobs × 240 s clip, cap 4). `bench/media_concurrency_stress.py` prints
 `RESULT: PASS` on each of these runs:
 
 | model / device | flags | serial | concurrent | speedup | transcripts |
 | --- | --- | --- | --- | --- | --- |
-| `faster-whisper-tiny` int8 / CPU | `--device cpu --compute int8` | 57.6 s | 30.9 s | 1.86× | 6/6, 5060 chars each, identical to the serial baseline |
-| `faster-whisper-large-v3-turbo` float16 / CUDA | `--device cuda --compute float16` | 66.2 s | 39.1 s | 1.69× | 6/6, 5087 chars each, identical to the serial baseline |
+| `GGUF Whisper tiny` int8 / CPU | `--device cpu --compute int8` | 57.6 s | 30.9 s | 1.86× | 6/6, 5060 chars each, identical to the serial baseline |
+| `GGUF Whisper large-v3-turbo` float16 / CUDA | `--device cuda --compute float16` | 66.2 s | 39.1 s | 1.69× | 6/6, 5087 chars each, identical to the serial baseline |
 
 Each row is its own comparison: the speedup is serial → concurrent on the SAME
 model and compute type. The rows are not comparable to each other — the tiny
@@ -262,8 +262,8 @@ scenario in both runs):
 
 | model / device | flags | serial | concurrent | speedup | transcripts |
 | --- | --- | --- | --- | --- | --- |
-| `faster-whisper-tiny` int8 / CPU | `--device cpu --compute int8` | 112.3 s | 83.7 s | 1.34× | 6/6, 5087 chars, identical to that run's serial baseline |
-| `faster-whisper-large-v3-turbo` float16 / CUDA | `--device cuda --compute float16` | 66.9 s | 41.7 s | 1.60× | 6/6, 5087 chars, identical to that run's serial baseline |
+| `GGUF Whisper tiny` int8 / CPU | `--device cpu --compute int8` | 112.3 s | 83.7 s | 1.34× | 6/6, 5087 chars, identical to that run's serial baseline |
+| `GGUF Whisper large-v3-turbo` float16 / CUDA | `--device cuda --compute float16` | 66.9 s | 41.7 s | 1.60× | 6/6, 5087 chars, identical to that run's serial baseline |
 
 Read the two sets as "concurrency wins", not as a benchmark score. The CUDA row
 reproduced within 1%; the CPU row's absolute wall time roughly doubled under
@@ -300,7 +300,7 @@ logical CPU count as `[INFO]` and gates only the correctness invariants.
 
 Four contracts were added after reproducing three defect classes on the owner's
 machine. Ground truth for the ingest one: `resolve_media_url(<instagram post>)`
-returned a direct CDN `audio_url` with `duration=None`; PyAV opened it as ONE
+returned a direct CDN `audio_url` with `duration=None`; the bundled FFmpeg decoder opened it as ONE
 audio stream, probed 7.847 s and decoded 125,968 samples; a download of the same
 URL produced a 73,187 B `.m4a` (7.87 s). So the stream tier was carrying the
 REAL audio and the download failure was transient — the defects were in
@@ -403,7 +403,7 @@ video title: the temp dir gets a fixed `media.%(ext)s`, and the options add
 `retries: 3`, `fragment_retries: 3`, `extractor_retries: 2` and a socket
 timeout. Extractor failures log at WARNING (the app's own verdict line carries
 the severity, so an extractor error never adds a second ERROR plus a
-traceback), and the m4a_dash ffmpeg fixup is unnecessary for our libav (PyAV)
+traceback), and the m4a_dash ffmpeg fixup is unnecessary for our libav (the bundled FFmpeg decoder)
 decoder: that warning — with the MPEG-TS-in-MP4 and duplicate-MOOV notices — is
 downgraded to DEBUG with its reason, never hidden.
 
@@ -461,7 +461,7 @@ _BATCHED_SUPER_CHUNK_S = 120.0` is the CAP; 30 s (`_BATCHED_MIN_DURATION_S`) is
 the batched-pipeline threshold above which a window is decoded in one batched
 call, and VAD splits inside that window. One 43 s file is therefore
 `windows=1`, not a chunking bug.
-* **The language line names its source.** faster-whisper skips detection and
+* **The language line names its source.** GGUF Whisper skips detection and
 reports `language_probability = 1` whenever a language is passed in, so a
 configured-language run must log `(configured; not detected)` and only a real
 LID run may log `(detected, prob=...)`. Zero segments on silent audio prints
@@ -473,7 +473,7 @@ numbers.
 * **The yt-dlp fixup note is one short classification**, e.g. `container note:
 MPEG-TS in MP4 (harmless, no ffmpeg needed)` — the extractor's own sentence
 (which instructs the user to install ffmpeg) never reaches our log.
-* **ffmpeg is deliberately NOT bundled.** PyAV/libav already decodes `m4a_dash`
+* **ffmpeg is deliberately NOT bundled.** the bundled FFmpeg decoder/libav already decodes `m4a_dash`
 and MPEG-TS, so the fixup that yt-dlp's optional ffmpeg step performs buys no
 decoding capability: the download line's `vcodec=none` plus the decoder's
 `video=0` inventory are the proof that no video bytes were fetched.

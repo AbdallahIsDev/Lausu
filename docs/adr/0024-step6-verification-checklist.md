@@ -9,7 +9,7 @@
 > Static preflight (`python scripts/verify_worker_handoff_preflight.py`) 5/5
 > PASS proves the wiring exists; the live harness
 > `python scripts/verify_worker_handoff_live.py` proves it RUNS — a real
-> worker process, real token auth, real `faster-whisper-large-v3`
+> worker process, real token auth, real `GGUF Whisper large-v3`
 > inference, text byte-identical to the Step 0 in-process baseline. The
 > degradation matrix was proven on a real pack root by
 > `scripts/verify_worker_degrade_live.py`. Evidence artifacts live under

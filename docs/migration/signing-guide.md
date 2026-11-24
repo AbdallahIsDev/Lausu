@@ -204,7 +204,7 @@ Per ADR-0020 §13.2:
 
 | Entitlement | Why |
 |-------------|-----|
-| `com.apple.security.cs.allow-jit` | CTranslate2 may use JIT. |
+| `com.apple.security.cs.allow-jit` | GGUF runner may use JIT. |
 | `com.apple.security.cs.disable-library-validation` | Nuitka `--onefile` extracts unsigned dylibs at runtime. Coordinate with Apple's notarization docs. |
 | `com.apple.security.device.audio-input` | Mic access. |
 

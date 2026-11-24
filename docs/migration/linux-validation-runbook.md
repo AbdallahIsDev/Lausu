@@ -11,7 +11,7 @@
 ## Prerequisites
 
 - **OS**: Ubuntu 22.04+ (glibc 2.35+) or Fedora 38+ (glibc 2.38+). The Nuitka sidecar binary is built against the glibc 2.35 baseline (per ADR-0020 §4.4) so it runs on Ubuntu 22.04+ / Debian 12+ / Fedora 36+. Ubuntu 20.04 (glibc 2.31) is the absolute floor. The binary will load but is unsupported.
-- **Python**: 3.12.x (for Nuitka + the dev sidecar). The python-build-standalone release used by the build scripts pins to 3.12.x, do NOT use 3.13+ yet (CTranslate2 / faster-whisper wheel tags don't all match).
+- **Python**: 3.12.x (for Nuitka + the dev sidecar). The python-build-standalone release used by the build scripts pins to 3.12.x, do NOT use 3.13+ yet (GGUF runner / GGUF Whisper wheel tags don't all match).
 - **Nuitka**: installed in the build interpreter env (`pip install nuitka zstandard`).
 - **python-build-standalone**: extract `cpython-3.12.x+<triple>.tar.gz` from https://github.com/indygreg/python-build-standalone/releases into `.python-build-standalone/`. The build scripts auto-discover this; without it they fall back to system Python 3.12 for NATIVE builds only (CROSS builds require pybs).
 - **Rust toolchain**: `rustup init` → `stable` + `x86_64-unknown-linux-gnu` (or `aarch64-unknown-linux-gnu` on arm64 hosts).
@@ -43,7 +43,7 @@
 | §10 Capturing results | "Capture results" section | "Capture results" |
 
 Bonus operational steps not in the spec §0–§10 list (but referenced by the spec's "Validation steps for new Rust commands" requirement):
-- Step 7, `faster-whisper` transcribes inside the Nuitka bundle (gate point 3).
+- Step 7, `GGUF Whisper` transcribes inside the Nuitka bundle (gate point 3).
 - Step 8: Paste keystroke works on X11 AND Wayland (gate point 4).
 - Step 9: libnotify toast appears on X11 AND Wayland (gate point 5).
 - Step 10: Cooperative shutdown + `kill_children` backstop (gate point 6).
@@ -134,11 +134,10 @@ bash scripts/build/build_sidecar_linux.sh aarch64
 **Pass criteria**:
 1. The binary `src-tauri/bin/python-sidecar-<triple>` exists and is executable.
 2. `ldd src-tauri/bin/python-sidecar-<triple>` (or `objdump -p` for cross) shows `GLIBC_2.35` or lower as the max version requirement.
-3. `./src-tauri/bin/python-sidecar-<triple> --help` prints the IPC server help text without errors. (This proves the Python interpreter + faster_whisper + ctranslate2 + websockets all loaded successfully inside the Nuitka bundle.)
+3. `./src-tauri/bin/python-sidecar-<triple> --help` prints the IPC server help text without errors. (This proves the Python interpreter + the GGUF runner + websockets all loaded successfully inside the Nuitka bundle.)
 
 **Common failures**:
 - `error: gcc: command not found` → `sudo apt-get install build-essential`.
-- `ModuleNotFoundError: faster_whisper` → Add `--include-package=faster_whisper` (already in the script). Verify the build env has `faster_whisper` + `ctranslate2` installed in the python-build-standalone site-packages.
 - `error: cannot find 'libpython3.12.so'` → Ensure python-build-standalone is extracted to `.python-build-standalone/cpython-3.12.x+<triple>/`.
 - `GLIBC_2.36 required` → The build env's glibc is newer than the baseline. Rebuild on ubuntu-22.04 (the CI runner pin per PLATFORM_STATUS.md), or use a python-build-standalone release explicitly built against glibc 2.35.
 - `qemu-aarch64-static: command not found` (cross build) → `sudo apt-get install qemu-user-static binfmt-support` then `sudo update-binfmts --enable qemu-aarch64`.
@@ -162,7 +161,7 @@ bash scripts/build/build_prewarm_linux.sh x86_64
 bash scripts/build/build_prewarm_linux.sh aarch64
 ```
 
-**Expected output**: Nuitka compiles for ~5-10 minutes (smaller include set, no `faster_whisper`/`ctranslate2`/`websockets`; prewarm only reads files to warm the OS file cache). Produces `src-tauri/resources/prewarm-<triple>`. Same glibc verification as Step 1.
+**Expected output**: Nuitka compiles for ~5-10 minutes (smaller include set, no the GGUF runner/the GGUF runner/`websockets`; prewarm only reads files to warm the OS file cache). Produces `src-tauri/resources/prewarm-<triple>`. Same glibc verification as Step 1.
 
 **Pass criteria**:
 1. `src-tauri/resources/prewarm-<triple>` exists and is executable.
@@ -287,7 +286,7 @@ lausu
 
 ---
 
-## Step 7, `faster-whisper` transcribes inside the Nuitka bundle
+## Step 7, `GGUF Whisper` transcribes inside the Nuitka bundle
 
 **VALIDATE ON LINUX DISPLAY HOST (X11 or Wayland).**
 
@@ -305,12 +304,10 @@ lausu
 tail -f ~/.local/share/lausu/logs/sidecar.log | grep -E "model_loaded|whisper"
 ```
 
-**Pass criteria**: The transcription text appears in the focused text field within 5 seconds of releasing the hotkey. The History page shows the new entry with the correct model name + device name. The log shows `model_loaded` and `whisper` (or `faster_whisper`) entries.
+**Pass criteria**: The transcription text appears in the focused text field within 5 seconds of releasing the hotkey. The History page shows the new entry with the correct model name + device name. The log shows `model_loaded` and `whisper` (or the GGUF runner) entries.
 
 **Common failures**:
-- `CUDA error: no kernel image` → The Nuitka bundle didn't include the CUDA runtime. Most Linux installs are CPU-only; if CUDA is required for ctranslate2, add `--include-package=ctranslate2` + the CUDA libs to `scripts/build/build_sidecar_linux.sh`. (Historical note: pre-2026-08-13 the sidecar imported `torch` for Silero VAD + Parakeet and the build script carried `--include-package=torch`; torch is no longer a sidecar dep post-ONNX-migration, VAD uses `onnxruntime` (ADR-0005) and Parakeet uses `onnx-asr` (`PLAN_ONNX_INTEGRATION.md` §3). The runtime pack worker exe is the only place that may still carry GPU-related libs.)
 - `Model not found` → The model download path resolves to the wrong directory. Check `~/.local/share/lausu/models/` (per ADR-0020 §8, `$XDG_DATA_HOME/lausu/models/`).
-- `ctranslate2 ImportError` → The build env was missing `libiomp5.so` / `libgomp.so`. The build script's `--include-data-dir=$SITE/ctranslate2/lib=...` should pick these up; verify with `ldd src-tauri/bin/python-sidecar-<triple> | grep -E 'libiomp|libgomp'`.
 
 ---
 
@@ -736,7 +733,7 @@ The 9 mandatory checks (per ADR-0020 §"Phase 0 validation gate", Phase 0-L). **
 |---|---|---|---|
 | 1 | `externalBin` sidecar spawns via Tauri on X11 + Wayland | Step 5 / Step 6 | Tauri app launches; `~/.local/share/lausu/logs/sidecar.log` contains `[SIDECAR] server_started port=N`; `ps aux \| grep python-sidecar` shows one process |
 | 2 | WS + bearer-token handshake works on X11 + Wayland | Step 5 (criterion 4) | Log shows `WS connected` + `auth ok`; wrong-token rejection logged as `auth rejected` |
-| 3 | `faster-whisper` transcribes inside the Nuitka exe | Step 7 | Transcription appears in focused text field within 5s of releasing hotkey; log shows `model_loaded` |
+| 3 | `GGUF Whisper` transcribes inside the Nuitka exe | Step 7 | Transcription appears in focused text field within 5s of releasing hotkey; log shows `model_loaded` |
 | 4 | `enigo` types on X11; clipboard + Ctrl+V fallback (via `wl-copy` + Ctrl+V) works on Wayland | Step 8 | Text appears in editor on BOTH session types; Wayland uses `_linux_copy` → `wl-copy` path in `clipboard.py` (ADR-0020 §6.6) |
 | 5 | `tauri-plugin-notification` posts via libnotify on X11 + Wayland | Step 9 | Notification appears in DE notification list on BOTH session types |
 | 6 | Cooperative `{"type":"shutdown"}` exits; `kill_children` cleans | Step 10 | `ps aux \| grep python-sidecar` returns nothing within 2s of window close; log shows `[SHUTDOWN] sidecar exited cleanly` or `kill_children` |
@@ -754,7 +751,7 @@ The 9 mandatory checks (per ADR-0020 §"Phase 0 validation gate", Phase 0-L). **
 
 ### Cross-arch validation (x86_64 + aarch64)
 
-ADR-0020 §4.1 mandates both `x86_64-unknown-linux-gnu` AND `aarch64-unknown-linux-gnu` target triples. The two arches are validated INDEPENDENTLY. An x86_64 success does NOT imply an aarch64 success (CTranslate2 wheel tags, glibc baseline, native listener C compile, and qemu-binfmt all differ).
+ADR-0020 §4.1 mandates both `x86_64-unknown-linux-gnu` AND `aarch64-unknown-linux-gnu` target triples. The two arches are validated INDEPENDENTLY. An x86_64 success does NOT imply an aarch64 success (GGUF runner wheel tags, glibc baseline, native listener C compile, and qemu-binfmt all differ).
 
 **x86_64 validation** (default):
 1. Run Steps 0–15 on an x86_64 Linux host with both X11 and Wayland sessions.
@@ -766,7 +763,7 @@ ADR-0020 §4.1 mandates both `x86_64-unknown-linux-gnu` AND `aarch64-unknown-lin
 - **qemu-user-static for cross-build + native aarch64 smoke**: build the sidecar on an x86_64 host using `bash scripts/build/build_sidecar_linux.sh aarch64` (qemu executes the aarch64 python-build-standalone interpreter during Nuitka compilation). Copy the resulting `python-sidecar-aarch64-unknown-linux-gnu` to an aarch64 host and run Steps 5–15 there (the prewarm binary formerly copied alongside is retired — Step 2 HISTORICAL). The native `linux-key-listener` must be built on the aarch64 host (qemu-user-static cannot run gcc to produce a working aarch64 binary that links against the aarch64 glibc).
 
 **aarch64-specific gotchas**:
-- CTranslate2 wheels for `aarch64-unknown-linux-gnu` are CPU-only (no CUDA). Verify `ldd $SITE/ctranslate2/lib/libctranslate2.so` resolves all `NEEDED` deps in the aarch64 python-build-standalone env.
+- GGUF runner wheels for `aarch64-unknown-linux-gnu` are CPU-only (no CUDA). Verify `ldd $SITE/the runner install/the external runner binary` resolves all `NEEDED` deps in the aarch64 python-build-standalone env.
 - `numpy` aarch64 wheels may require an explicit `pip install numpy==1.26.x` (newer numpy versions sometimes lag aarch64 wheel publication).
 - The native `linux-key-listener.c` compiles cleanly on aarch64 with `gcc -O2 -std=c99` (no arch-specific code), but verify the binary is `ELF 64-bit LSB executable, ARM aarch64` with `file voice_typer/server/native/linux-key-listener`.
 - Some aarch64 SBCs (Raspberry Pi 3, older Pinebook) have kernel-level input device permission quirks, verify `/dev/input/event*` is readable by the `input` group after the postinst runs.

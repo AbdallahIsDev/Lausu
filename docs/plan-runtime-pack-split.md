@@ -22,7 +22,7 @@ This rewrite corrects them:
 |---|---|---|---|
 | 1 | "Qwen (LLM) converts to `onnxruntime-genai`. Real work: chat-template + sampling loop." | Qwen is an **ASR engine** (`qwen_asr.Qwen3ASRModel.transcribe(audio, sr)`). `onnxruntime-genai` has no Qwen3-ASR builder. | Defer Qwen to a separate phase. See `PLAN_ONNX_INTEGRATION.md` §4. |
 | 2 | "Prewarm moves INTO the pack." | Prewarm is a **separate Nuitka-frozen binary** with 3 OS-level schedulers (Windows LogonTrigger, macOS LaunchAgent, Linux systemd). Moving it obsoletes 1,532 LOC of process tracking + 24 OS-scheduler tests + 3 build scripts. | §6 below: prewarm becomes a startup phase of the worker exe, not a separate binary. The OS schedulers are deleted. |
-| 3 | "onnxruntime already sits in your venv unused." | It's a **transitive dep of `faster-whisper`**. After the split, faster-whisper moves to the pack, so the slim core loses it unless declared explicitly. | §5.3: declare `onnxruntime` explicitly in the slim core's deps for VAD. |
+| 3 | "onnxruntime already sits in your venv unused." | It's a **transitive dep of `GGUF Whisper`**. After the split, GGUF Whisper moves to the pack, so the slim core loses it unless declared explicitly. | §5.3: declare `onnxruntime` explicitly in the slim core's deps for VAD. |
 | 4 | "GPU variants source DLLs from the onnxruntime-gpu package." | `onnxruntime-gpu` does **not** bundle NVIDIA DLLs: it expects system CUDA. | `PLAN_ONNX_INTEGRATION.md` §6.1. Keep `nvidia_dll_paths.py` with `nvidia/*` paths. |
 | 5 | "It already probes the network for update checks, same mechanism." | `docs/auto-update-feature.md` is explicitly **"NOT IMPLEMENTED (design only)"**. No GitHub Releases publishing step exists in CI. | §10: build the auto-update mechanism from scratch. |
 | 6 | "The exact same websocket bridge." | Today's sidecar IS the WS server; Tauri is the client. Adding a worker means the slim core talks to TWO processes, a NEW second hop. | §7: define the worker IPC architecture explicitly. |
@@ -47,10 +47,10 @@ real dev environment:
 
 | Component | What it is | Installed | In installer | Verdict |
 |---|---|---|---|---|
-| ctranslate2 | Lean whisper engine. Does NOT depend on torch. | 59.8 MB | 11.4 MB | **KEEP (in pack worker)** |
-| faster-whisper | Whisper library talking to ctranslate2. | 1.3 MB | 1.0 MB | **KEEP (in pack worker)** |
+| the GGUF runner | Lean whisper engine. Does NOT depend on torch. | 59.8 MB | 11.4 MB | **KEEP (in pack worker)** |
+| GGUF Whisper | Whisper library talking to the GGUF runner. | 1.3 MB | 1.0 MB | **KEEP (in pack worker)** |
 | scipy + libs | Audio math: filters, resampling. Sidecar-side (audio pipeline, resampling) AND worker-bundled. | 115.5 MB | 31.7 MB | keep (sidecar-side + pack) |
-| av + libs (PyAV) | Audio/video file reading. | 65.9 MB | 21.1 MB | keep (pack) |
+| av + libs (the bundled FFmpeg decoder) | Audio/video file reading. | 65.9 MB | 21.1 MB | keep (pack) |
 | pyrnnoise | RNNoise background-noise removal. | 14.2 MB | 12.7 MB | keep (pack) |
 | numpy + libs | Basic math. Sidecar-side (VAD state, audio, Parakeet/Qwen engines) AND worker-bundled. | 43.0 MB | 9.7 MB | keep (sidecar-side + pack) |
 | onnxruntime | VAD inference + Parakeet/Qwen ONNX execution. Sidecar-side (`vad.py`, Parakeet/Qwen engines) AND worker-bundled. | — | — | keep (sidecar-side + pack) |
@@ -97,7 +97,7 @@ Today the installer is one big box. We split into two:
 - **Box A: slim core.** Everything except offline-transcription machinery:
   window, settings, tray, hotkeys, mic test, cloud engines, config.
 - **Box B: runtime pack (worker exe).** A frozen Nuitka onefile containing:
-  onnxruntime, ctranslate2 + faster-whisper, numpy/scipy, av, pyrnnoise,
+  onnxruntime, the GGUF runner + GGUF Whisper, numpy/scipy, av, pyrnnoise,
   Silero VAD ONNX, Parakeet tokenizer, the prewarm logic (absorbed as a
   startup phase: see §6).
 
@@ -141,8 +141,6 @@ for the worker. This rewrite specifies them. The `--nofollow-import-to=torch`
   nuitka --standalone --onefile \
     --include-data-files=voice_typer/server/silero_vad.onnx=voice_typer/server/silero_vad.onnx \
     --include-package=onnxruntime \
-    --include-package=ctranslate2 \
-    --include-package=faster_whisper \
     --include-package=numpy \
     --include-package=scipy \
     --include-package=av \
@@ -229,7 +227,7 @@ The worker exe path is resolved per-platform via a new
 | User action | Pack present | Pack missing |
 |---|---|---|
 | Mic test page | full levels + VAD sensitivity | RMS meter works; the Silero VAD detector stays sidecar-side (`vad.py` + onnxruntime), so levels + VAD sensitivity keep working without the pack |
-| Cloud transcription (Groq/OpenAI/Deepgram) | works | **works: cloud never needs the pack** (verified: `cloud_engines.py` + `llm_polish.py` have zero torch/ctranslate2/onnxruntime imports) |
+| Cloud transcription (Groq/OpenAI/Deepgram) | works | **works: cloud never needs the pack** (verified: `cloud_engines.py` + `llm_polish.py` have zero torch/the GGUF runner/onnxruntime imports) |
 | Local whisper / Parakeet | instant | silent download starts, "Preparing…" line, then works |
 | Check for updates | downloads slim core only | same |
 
@@ -262,7 +260,7 @@ must not over-promise VAD features in mic test, nor place VAD in the pack.
   `windows-worker-exe`; the old 180-200 MB guess was pessimistic).
 - Slim core installed: ~250-320 MB (app + Python runtime + onnxruntime +
   numpy/scipy + glue libs).
-- Pack installed (unpacked): ~450 MB (onnxruntime + ctranslate2 + scipy + av
+- Pack installed (unpacked): ~450 MB (onnxruntime + the GGUF runner + scipy + av
   + pyrnnoise + numpy + engines + **second Python runtime ~50 MB**).
 - **Total installed: ~700-770 MB.** Exact figures to confirm at build time;
   treat these as direction, not quote.
@@ -342,7 +340,7 @@ rejected — the verifier deliberately re-hashes bytes). This eliminates:
 
 The prewarm logic itself (`cache_probe.py:_warm_imports`) moves into the
 worker's startup sequence. The `_warm_imports` package list becomes
-worker-internal (onnxruntime + ctranslate2 + numpy/scipy).
+worker-internal (onnxruntime + the GGUF runner + numpy/scipy).
 
 **Trade-off:** the worker warms imports after its listener is up, so the first
 transcription request can arrive slightly ahead of the warm pass. That is the
@@ -712,7 +710,7 @@ them and corrected the claims:
 | Single-instance mutex | `LausuSingleInstance` | Pattern for the worker's own lock file. | ✅ pattern |
 | Auto-update mechanism | `docs/auto-update-feature.md` | **BUILT 2026-08-13** (was "NOT IMPLEMENTED (design only)" in the 2026-08-12 draft). See §10. | ✅ built |
 | Code-signing pipeline | `tauri-windows-build.yml` (4 steps) | Extend to sign the worker exe (5th binary). | ✅ exists, needs extension |
-| Cloud engines | `cloud_engines.py`, `llm_polish.py` | Core works without the pack (verified: zero torch/ctranslate2/onnxruntime imports). | ✅ verified |
+| Cloud engines | `cloud_engines.py`, `llm_polish.py` | Core works without the pack (verified: zero torch/the GGUF runner/onnxruntime imports). | ✅ verified |
 | Mic test service | `service/microphone_test.py` | Degraded mode when pack is absent (RMS only, no VAD). | ✅ verified |
 | NSIS installer config | `tauri.windows-x86_64.conf.json` + `scripts/windows/installer-hooks.nsh` | "Include offline engine pack" checkbox via custom `Page custom` + nsDialogs (Tauri has no Components page; a Section would expose Tauri's Install section). Wired as `NSIS_HOOK_POSTINSTALL` → `installer-state.json`. | ✅ done 2026-09-30 |
 
@@ -991,8 +989,8 @@ Update `tauri-build.yml` download steps in lockstep.
    - Update `docs/adr/0005-silero-vad.md`.
    - **Gate:** VAD tests pass with ORT; `bench/bench_vad.py` latency ≤ torch baseline.
 2. **Phase 1b: Parakeet → ONNX.** See `PLAN_ONNX_INTEGRATION.md` §3.
-   - Rewrite `parakeet_engine.py` (use `onnx-asr` Option B-1).
-   - Add `voice_typer/stubs/onnx_asr.pyi`.
+   - Rewrite `parakeet_engine.py` (use `GGUF runner` Option B-1).
+   - Add `voice_typer/stubs/GGUF runner.pyi`.
    - Repopulate `model_hashes.json` via `scripts/populate_model_hashes.py`.
    - Update `MODEL_REGISTRY["parakeet"]` (repo_id, download_size_mb,
      network_behavior → consent-gated, fixes G4-H-04).
@@ -1051,7 +1049,7 @@ Update `tauri-build.yml` download steps in lockstep.
    - Background checksum check.
    - Degradation matrix live in mic test + cloud paths.
 8. **Phase 1d: Qwen → ONNX — DONE 2026-08-15 (Option C-2).** See `PLAN_ONNX_INTEGRATION.md` §4.
-   - Decided Option C-2 (pre-exported `andrewleech/qwen3-asr-*-onnx` via
+   - Decided Option C-2 (pre-exported `handy-computer/Qwen3-ASR-*-gguf` via
      `qwen_onnx_model.py`); torch `qwen-asr` path removed.
    - Final torch sweep on `qwen_engine.py` complete + `transformers` dep dropped.
 
@@ -1059,7 +1057,7 @@ Update `tauri-build.yml` download steps in lockstep.
 
 ## 12. Out of scope (not part of this plan)
 
-- Converting whisper to ONNX (decided: no, ctranslate2 already torch-free).
+- Converting whisper to ONNX (decided: no, the GGUF runner already torch-free).
 - Removing av / pyrnnoise / PIL (open decision 3 in the 2026-08-12 version —
   optional later pass).
 - **GPU runtime pack** (open follow-up: CPU pack is the default; a GPU pack
@@ -1075,7 +1073,7 @@ Update `tauri-build.yml` download steps in lockstep.
 ## 13. Open decisions (revised; items 1–2 DECIDED, rest open)
 
 1. **Qwen migration option.** DECIDED 2026-08-15: C-2 (pre-exported
-   `andrewleech/qwen3-asr-*-onnx` via `qwen_onnx_model.py`, Phase 1d DONE;
+   `handy-computer/Qwen3-ASR-*-gguf` via `qwen_onnx_model.py`, Phase 1d DONE;
    torch `qwen-asr` path removed). See `PLAN_ONNX_INTEGRATION.md` §4.3.
 2. **Prewarm architecture.** DECIDED: P-1 (worker startup phase). See §6.2.
    The standalone `prewarm-<triple>[.exe]` binary is RETIRED (build scripts

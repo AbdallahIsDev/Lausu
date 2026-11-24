@@ -31,7 +31,7 @@ in-process baseline on both the original and the replacement worker).
 What the hop does NOT yet do is carry the live dictation path. Four
 slim-core call sites still obtain the in-process `TranscriptionEngine`
 through `app.models.active_transcriber()` and therefore still import
-`faster_whisper` / `ctranslate2` in the sidecar process:
+the GGUF runner / the GGUF runner in the sidecar process:
 
 | # | Site | What it needs from the engine |
 |---|------|--------------------------------|
@@ -70,7 +70,7 @@ in-process path; only LOCAL backends (whisper / parakeet / qwen) move.
 
 All four move, but NOT together. Site 3 is the long pole and the only
 one that blocks the slimming, because `transcribe_words` is what pins
-`faster_whisper` into the sidecar. Order (each step gated on the
+the GGUF runner into the sidecar. Order (each step gated on the
 previous being green and evidenced):
 
 - **C1 - id correlation (additive, no behaviour change).** Worker echoes
@@ -158,9 +158,9 @@ Measured on a desktop CPU (this lane, stdlib only, no model):
 | Assembler commit of one window's words | <1 ms |
 | `transcription_partial` frame (loopback WS, ~100 B) | sub-ms |
 
-Estimated (published faster-whisper benchmarks, not measured here):
+Estimated (published GGUF Whisper benchmarks, not measured here):
 small int8 on desktop CPU runs at ~0.4x real-time factor with beam 5
-(faster-whisper README bench on i7-12700K; independent tables agree
+(GGUF Whisper README bench on i7-12700K; independent tables agree
 at ~0.4x for small on Intel i7 CPU). This app decodes with beam 1 /
 greedy (`beam_size=1, best_of=1`), which is several times faster than
 beam 5, so a 12 s window is expected at ~1-2.5 s including the
@@ -179,7 +179,7 @@ cadence on supported hardware, C6 stays on the in-process fallback
 
 ## Consequences
 
-Positive: the sidecar stops importing `faster_whisper`/`ctranslate2`,
+Positive: the sidecar stops importing the GGUF runner/the GGUF runner,
 which is the precondition for ITEM 3's `--nofollow-import-to` and the
 185 MB size gate; dictation latency stops paying in-process model load.
 

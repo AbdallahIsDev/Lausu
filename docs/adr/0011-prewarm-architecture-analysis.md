@@ -10,7 +10,7 @@ Linux systemd user timer), and the PID-file + sentinel + completion-event
 machinery have been deleted. The cache-probe logic (`_warm_imports`,
 `_warm_package_files`) was retained as a **startup phase of the worker
 exe** (`voice_typer/worker/__main__.py`) and the warm-import list was
-updated to `onnxruntime + ctranslate2 + numpy/scipy` (torch +
+updated to `onnxruntime + the GGUF runner + numpy/scipy` (torch +
 transformers are no longer warmed: they are not imported by the
 runtime pack after the ONNX migration, see `PLAN_ONNX_INTEGRATION.md`
 §2 and §3).
@@ -73,7 +73,7 @@ The prewarm module (`voice_typer/server/prewarm/` package, entry point `python -
 |-----------|------|----------------|-----------------|
 | torch + transformers DLLs/PYDs | ~4.5 GB | ~45s (first import) | ~1s (cache hit) |
 | Parakeet `model.safetensors` | 2.4 GB | ~5s (sequential read) | <1s (cache hit) |
-| faster_whisper (ctranslate2) | ~200 MB | ~3s | <0.5s |
+| the GGUF runner | ~200 MB | ~3s | <0.5s |
 | **Total** | **~7 GB** | **~50s** | **~2s** |
 
 ### Scheduling Layer

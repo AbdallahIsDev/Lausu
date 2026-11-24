@@ -72,7 +72,7 @@ explanation in the cited section.
 # ─── §6 Execute the 9-point gate (record each result in §9) ─────────────
 17. §6.1 Sidecar spawn via externalBin       , log shows server_started
 18. §6.2 WS + bearer-token handshake          , auth accepted in log
-19. §6.3 faster-whisper transcribe           : text appears in UI + History
+19. §6.3 GGUF Whisper transcribe           : text appears in UI + History
 20. §6.4 enigo paste (short + long)          , text in Notepad
 21. §6.5 Toast notification                  : Windows toast appears
 22. §6.6 Cooperative shutdown                : sidecar exits ≤ 2 s
@@ -204,7 +204,7 @@ WebView2 as the system WebView on Windows.
 
 **VALIDATE ON WINDOWS HOST** Nuitka freezes Python against a specific
 base interpreter. ADR-0020 §4.2 mandates **python-build-standalone
-cpython-3.12.x** (NOT 3.13+, `faster-whisper`/`ctranslate2` wheels are
+cpython-3.12.x** (NOT 3.13+, the Python 3.12 wheel tags are
 built against 3.12) for the `x86_64-pc-windows-msvc` target.
 
 Pinned values (match `.github/workflows/tauri-windows-build.yml`):
@@ -251,8 +251,8 @@ Nuitka will actually freeze):
 **VALIDATE ON WINDOWS HOST** C:\tools\pybs\python\python.exe -m pip install --upgrade pip
 **VALIDATE ON WINDOWS HOST** C:\tools\pybs\python\python.exe -m pip install nuitka==2.8.10 zstandard ordered-set
 **VALIDATE ON WINDOWS HOST** C:\tools\pybs\python\python.exe -m pip install -e ".[dev,test]"
-**VALIDATE ON WINDOWS HOST** C:\tools\pybs\python\python.exe -c "import faster_whisper, ctranslate2; print('ctranslate2', ctranslate2.__version__)"
-# Expected: ctranslate2 <version>  (proves faster-whisper + ctranslate2 wheels installed)
+**VALIDATE ON WINDOWS HOST** # The ASR runner is an external GGUF binary fetched by manifest (ADR-0031).
+# Expected: the runner manifest resolves to a verified binary.
 ```
 
 ### §0.8 Nuitka + supporting deps
@@ -306,19 +306,16 @@ The flags below are the **authoritative** Nuitka command from ADR-0020
   not a folder).
 - `--windows-disable-console` The sidecar runs headless; no console
   window pops up on launch.
-- `--include-package=faster_whisper` + `--include-package=ctranslate2`
- Required for CTranslate2 + Whisper ASR.
+ Required for GGUF runner + Whisper ASR.
 - `--include-package=voice_typer` The project package.
 - `--include-package=websockets` Required; the sidecar is a WS
   *server* (ADR-0020 §14) and the stdlib has no WS implementation.
 - `--enable-plugin=numpy` Pulls numpy's hidden imports.
-- `--include-data-dir=$SITE\ctranslate2\lib=...` Copies the CTranslate2
-  native runtime DLLs (`ctranslate2.dll` + `libiomp5md.dll` + MKL
+  native runtime DLLs (`the external runner binary` + `libiomp5md.dll` + MKL
   redistributables) into the bundle. **Without `libiomp5md.dll` the
   frozen exe builds fine but crashes instantly on
-  `import ctranslate2`**: see §11 Known Issues.
-- `--include-dll=$SITE\ctranslate2\lib\ctranslate2.dll` Explicit
-  include of the main CTranslate2 DLL (Nuitka does NOT expand `*.dll`
+  the runner binary**: see §11 Known Issues.
+  include of the main GGUF runner DLL (Nuitka does NOT expand `*.dll`
   globs).
 - `--onefile-tempdir-spec=%LOCALAPPDATA%\lausu\onefile-tmp` —
   pins a deterministic extract dir to prevent tempdir bloat (ADR-0020
@@ -335,22 +332,18 @@ The flags below are the **authoritative** Nuitka command from ADR-0020
 **VALIDATE ON WINDOWS HOST** $SITE = & $PYBS\python.exe -c "import site; print(site.getsitepackages()[0])"
 **VALIDATE ON WINDOWS HOST** Write-Host "PYBS=$PYBS  SITE=$SITE"
 
-# Sanity-check the ctranslate2/lib directory exists and lists the
+# Sanity-check the the runner install directory exists and lists the
 # expected DLL set (libiomp5md.dll MUST be present):
-**VALIDATE ON WINDOWS HOST** Get-ChildItem "$SITE\ctranslate2\lib\*.dll" | Select-Object Name
-# Expected: ctranslate2.dll, libiomp5md.dll, possibly mkl_*.dll / libgomp*.dll
+**VALIDATE ON WINDOWS HOST** Get-ChildItem "$SITE\the runner install\*.dll" | Select-Object Name
+# Expected: the external runner binary, libiomp5md.dll, possibly mkl_*.dll / libgomp*.dll
 
 # Build the sidecar (≈ 10–15 min):
 **VALIDATE ON WINDOWS HOST** & $PYBS\python.exe -m nuitka `
     --standalone --onefile `
     --assume-yes-for-downloads `
     --enable-plugin=numpy `
-    --include-package=faster_whisper `
-    --include-package=ctranslate2 `
     --include-package=voice_typer `
     --include-package=websockets `
-    --include-data-dir="$SITE\ctranslate2\lib=$SITE\ctranslate2\lib" `
-    --include-dll="$SITE\ctranslate2\lib\ctranslate2.dll" `
     --windows-disable-console `
     --onefile-tempdir-spec="%LOCALAPPDATA%\lausu\onefile-tmp" `
     --output-filename=python-sidecar-x86_64-pc-windows-msvc.exe `
@@ -369,14 +362,14 @@ The flags below are the **authoritative** Nuitka command from ADR-0020
 
 **VALIDATE ON WINDOWS HOST** Per ADR-0020 §4.5 ("Verify step (Phase 0
 gate per platform)"): run the sidecar binary standalone with a one-shot
-command that loads `faster_whisper`, transcribes a 3-second WAV, prints
-the text, exits 0. This proves CTranslate2 + DLLs + model load all work
+command that loads the GGUF runner, transcribes a 3-second WAV, prints
+the text, exits 0. This proves GGUF runner + DLLs + model load all work
 inside Nuitka: a Windows success does NOT imply macOS success (or vice
 versa).
 
 The bundled sidecar expects `--ws` from Tauri; for the standalone
 smoke test we override the entrypoint. Easiest path: create a tiny
-`scripts/build/smoke_sidecar.py` that imports `faster_whisper` +
+`scripts/build/smoke_sidecar.py` that imports the GGUF runner +
 transcribes a WAV, then run it via the frozen interpreter. If you don't
 have a WAV handy, you can synthesize one with `soundfile`:
 
@@ -385,27 +378,25 @@ have a WAV handy, you can synthesize one with `soundfile`:
 # proves the import chain + Whisper model load + transcribe call shape).
 **VALIDATE ON WINDOWS HOST** $smoke = @"
 import numpy as np, soundfile as sf, tempfile, os
-from faster_whisper import WhisperModel
+from the GGUF runner import GGUF model loader
 sr = 16000
 t = np.linspace(0, 3, sr*3, endpoint=False)
 tone = (0.3 * np.sin(2*np.pi*440*t)).astype(np.float32)
 wav = os.path.join(tempfile.gettempdir(), 'vt_smoke.wav')
 sf.write(wav, tone, sr)
-m = WhisperModel('tiny', device='cpu', compute_type='int8')
+m = GGUF model loader('tiny', device='cpu', compute_type='int8')
 segs, _ = m.transcribe(wav)
 print('SEGMENTS:', [s.text for s in segs])
 print('SMOKE-OK')
 "@
 **VALIDATE ON WINDOWS HOST** $smoke | Out-File -Encoding utf8 scripts\build\smoke_sidecar.py
 **VALIDATE ON WINDOWS HOST** & $PYBS\python.exe -m nuitka --standalone --onefile `
-    --include-package=faster_whisper --include-package=ctranslate2 `
     --include-package=numpy --include-package=soundfile `
-    --include-data-dir="$SITE\ctranslate2\lib=$SITE\ctranslate2\lib" `
     --output-filename=smoke_sidecar.exe --output-dir=scripts\build `
     scripts\build\smoke_sidecar.py
 **VALIDATE ON WINDOWS HOST** .\scripts\build\smoke_sidecar.exe
 # Expected: prints "SEGMENTS: [...]" then "SMOKE-OK", exit 0.
-# A crash here means CTranslate2 DLLs (libiomp5md.dll / MKL) are
+# A crash here means GGUF runner DLLs (libiomp5md.dll / MKL) are
 # missing from the bundle: re-check the --include-data-dir flag.
 ```
 
@@ -418,10 +409,9 @@ print('SMOKE-OK')
 - `error: Microsoft Visual C++ 14.0 is required` → §0.3 not satisfied;
   reinstall VS Build Tools C++ workload, open a fresh Developer
   PowerShell.
-- `ModuleNotFoundError: faster_whisper` → `--include-package` flag
+- `ModuleNotFoundError: the GGUF runner` → `--include-package` flag
   missing or typo'd.
 - `ImportError: libiomp5md.dll not found` (at smoke-test runtime) →
-  the `--include-data-dir=$SITE\ctranslate2\lib=...` flag did not
   capture `libiomp5md.dll`; enumerate the lib dir and add an explicit
   `--include-dll` for each missing DLL.
 - `error: cannot find 'python3.12.dll'` → the PYBS path is wrong; rerun
@@ -461,12 +451,8 @@ resolves it via `resolve_prewarm_exe()` (see ADR-0020 §5).
     --standalone --onefile `
     --assume-yes-for-downloads `
     --enable-plugin=numpy `
-    --include-package=faster_whisper `
-    --include-package=ctranslate2 `
     --include-package=voice_typer `
     --include-package=websockets `
-    --include-data-dir="$SITE\ctranslate2\lib=$SITE\ctranslate2\lib" `
-    --include-dll="$SITE\ctranslate2\lib\ctranslate2.dll" `
     --windows-disable-console `
     --onefile-tempdir-spec="%LOCALAPPDATA%\lausu\prewarm-onefile-tmp" `
     --output-filename=prewarm-x86_64-pc-windows-msvc.exe `
@@ -480,7 +466,7 @@ resolves it via `resolve_prewarm_exe()` (see ADR-0020 §5).
 **Pass criteria for §2** — HISTORICAL (section retired; kept for reference):
 - ~~`src-tauri\resources\prewarm-x86_64-pc-windows-msvc.exe` exists.~~
 - ~~Size is 60–100 MB (smaller than the sidecar because it doesn't
-  include the WS server stack, though it does include CTranslate2 for
+  include the WS server stack, though it does include GGUF runner for
   cache warming).~~
 
 ---
@@ -687,7 +673,7 @@ where `<N>` is an ephemeral port (e.g., 51234).
 - `failed to resolve sidecar binary` → §1 not complete, or the binary
   filename does not end with `-x86_64-pc-windows-msvc.exe`.
 - `sidecar did not emit server_started within 30000ms` → sidecar
-  crashed on import (CTranslate2 DLL missing, see §11) or stdout was
+  crashed on import (GGUF runner DLL missing, see §11) or stdout was
   block-buffered (should not happen, `sidecar_ws._force_line_buffered_stdout`
   forces line buffering; verify the `--ws` arg was passed).
 - `sidecar terminated before server_started (code=Some(N))` → check
@@ -746,11 +732,11 @@ differs.)
   within 5 s of connecting (see `_AUTH_TIMEOUT_SECONDS` in
   `sidecar_ws.py`). Inspect the Rust-side WS connect logic.
 
-### §6.3 `faster-whisper` transcribe inside the Nuitka bundle
+### §6.3 `GGUF Whisper` transcribe inside the Nuitka bundle
 
 **VALIDATE ON WINDOWS HOST**
 
-**Tests**: ADR-0020 Phase 0-W gate item 4, proves CTranslate2 + DLLs +
+**Tests**: ADR-0020 Phase 0-W gate item 4, proves GGUF runner + DLLs +
 model load + transcribe all work inside the frozen sidecar exe.
 
 **Command** (in the running app):
@@ -774,13 +760,13 @@ model load + transcribe all work inside the frozen sidecar exe.
 
 ```powershell
 **VALIDATE ON WINDOWS HOST** Get-Content "$env:APPDATA\lausu\logs\sidecar.log" -Tail 200 |
-    Select-String "transcrib|whisper|model_load|ctranslate2"
+    Select-String "transcrib|whisper|model_load|the GGUF runner"
 ```
 
 **Pass criteria**:
 - The transcription text appears in the focused text field within 5 s.
 - The History page shows the new entry with the correct model name.
-- No `CUDA error` / `model not found` / `ctranslate2` errors in
+- No `CUDA error` / `model not found` / the GGUF runner errors in
   `sidecar.log`.
 
 **Fail scenarios**:
@@ -1053,7 +1039,7 @@ above is retained for traceability against the pre-migration build.
 Post-migration, the worker exe (`voice_typer/worker/__main__.py`)
 runs the warm-imports phase internally before accepting its first
 transcription request, and the warm list is `onnxruntime +
-ctranslate2 + numpy/scipy` (no torch/transformers: see ADR-0011
+the GGUF runner + numpy/scipy` (no torch/transformers: see ADR-0011
 Superseded and ADR-0005 ONNX migration).
 
 The prewarm exe path is resolved by `resolve_prewarm_exe()` (in
@@ -1413,7 +1399,7 @@ tracking issue.
 |---|---|---|---|---|
 | §6.1 | Sidecar spawn via externalBin | ☐ Pass ☐ Fail | server_started port=____ | `[SIDECAR] server_started port=...` |
 | §6.2 | WS + bearer-token handshake | ☐ Pass ☐ Fail | auth accepted at T+__s | `[SIDECAR-WS] auth accepted` |
-| §6.3 | faster-whisper transcribe | ☐ Pass ☐ Fail | transcribed "____" in __s | model + device name from History |
+| §6.3 | GGUF Whisper transcribe | ☐ Pass ☐ Fail | transcribed "____" in __s | model + device name from History |
 | §6.4 | enigo paste (short + long) | ☐ Pass ☐ Fail | short=__ long=__ | `[PASTE] injected N chars via enigo` |
 | §6.5 | Toast notification | ☐ Pass ☐ Fail | toast appeared at T+__s | screenshot of Action Center |
 | §6.6 | Cooperative shutdown | ☐ Pass ☐ Fail | sidecar exited in __ms | `[SHUTDOWN] sidecar exited gracefully (code=..., signal=...)` OR `[SHUTDOWN] sidecar kill completed (graceful=...)` |
@@ -1695,24 +1681,23 @@ PowerShell before continuing:
 
 Verify: `where cl.exe` should resolve to the MSVC `cl.exe`.
 
-### §11.2 `libiomp5md.dll` missing (CTranslate2 / OpenMP runtime)
+### §11.2 `libiomp5md.dll` missing (GGUF runner / OpenMP runtime)
 
 **Symptom**: §1 Nuitka build succeeds, but the smoke test (§1.1) or
 the running sidecar (§6.3) crashes instantly with
 `ImportError: libiomp5md.dll not found` or a silent crash on
-`import ctranslate2`.
+resolving the external runner.
 
-**Cause**: CTranslate2 links Intel MKL / OpenMP for fast x86 CPU
+**Cause**: GGUF runner links Intel MKL / OpenMP for fast x86 CPU
 inference. The `libiomp5md.dll` (OpenMP) + MKL redistributables are
-shipped under `<site-packages>\ctranslate2\lib\` but Nuitka does NOT
+shipped under `<site-packages>\the runner install\` but Nuitka does NOT
 auto-collect them: they must be explicitly included via
-`--include-data-dir=$SITE\ctranslate2\lib=...` (which IS in the §1
-command). If you altered the command or the CTranslate2 version
+command). If you altered the command or the GGUF runner version
 changed, the DLL may now be at a different path.
 
 **Fix**:
-1. Enumerate the lib dir: `Get-ChildItem "$SITE\ctranslate2\lib\*.dll"`.
-2. Confirm `libiomp5md.dll` + `ctranslate2.dll` are present.
+1. Enumerate the lib dir: `Get-ChildItem "$SITE\the runner install\*.dll"`.
+2. Confirm `libiomp5md.dll` + `the external runner binary` are present.
 3. If `libiomp5md.dll` is at a different path (e.g.,
    `$SITE\..\ intel\...`), add an explicit
    `--include-dll=<full-path-to-libiomp5md.dll>` to the §1 command.
@@ -1721,7 +1706,7 @@ changed, the DLL may now be at a different path.
 ADR-0020 §4.2 note: "CPU inference runtimes (easy to miss, instant
 crash if absent), if `libiomp5md.dll` (OpenMP) or the MKL
 redistributables are missing, the frozen exe builds fine but crashes
-instantly on `import ctranslate2` at launch."
+instantly on resolving the external runner at launch."
 
 ### §11.3 `--onefile` tempdir bloat
 
@@ -1994,7 +1979,7 @@ binaries; the human validator runs §6 against them.
 | §5 Install + smoke | §Phase 0-W | (installer) |
 | §6.1 Sidecar spawn | §1 | `src-tauri/src/main.rs:169` (`spawn_sidecar_and_get_port`) |
 | §6.2 WS + bearer-token | §3 | `voice_typer/server/sidecar_ws.py` |
-| §6.3 faster-whisper | §4.5 (verify step) | `voice_typer/server/asr_setup.py` |
+| §6.3 GGUF Whisper | §4.5 (verify step) | `voice_typer/server/asr_setup.py` |
 | §6.4 enigo paste | §6.2 + §6.3 | `src-tauri/src/main.rs:660` (`paste_text`) |
 | §6.5 Toast | §6.1 | `tauri-plugin-notification` |
 | §6.6 Cooperative shutdown | §10 | `src-tauri/src/main.rs:705` (`shutdown_sidecar`) |

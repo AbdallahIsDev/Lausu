@@ -19,7 +19,7 @@ opt-in upgrade, TTS budget ≤ 1 GB, auto-act when confident
 
 Current stack (verified):
 
-- STT: faster-whisper (ctranslate2) + Qwen3-ASR ONNX + Parakeet ONNX + cloud
+- STT: GGUF Whisper (the GGUF runner) + Qwen3-ASR ONNX + Parakeet ONNX + cloud
   (OpenAI/Groq/Deepgram) via `voice_typer/server/cloud_engines.py`.
 - LLM text path: `voice_typer/server/llm_polish.py` exists (cloud,
   consent-gated, ADR-0017) but is OUT OF SCOPE for this feature —

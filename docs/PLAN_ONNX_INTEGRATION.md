@@ -93,7 +93,7 @@ GPU/DLL handling reality.
 ### What "in-place conversion" means
 
 The three existing backends keep their names: `"whisper"`, `"qwen"`,
-`"parakeet"`. The `"whisper"` backend already uses ctranslate2 (no torch) and
+`"parakeet"`. The `"whisper"` backend already uses the GGUF runner (no torch) and
 is untouched. The `"parakeet"` and `"qwen"` backends keep their names but
 their engine modules swap from `transformers + torch` to `onnxruntime` (or a
 library built on it). The `"parakeet"` backend's registered class stays
@@ -117,8 +117,8 @@ The `MODEL_REGISTRY` entry for `"parakeet"` needs its `repo_id`, `download_size_
 and `description` updated to reflect the ONNX model source. The
 `model_hashes.json` entry for `"parakeet"` needs to be repopulated for the new
 file set (via `scripts/populate_model_hashes.py`). The stub
-`voice_typer/stubs/qwen_asr.pyi` stays; a new `voice_typer/stubs/onnx_asr.pyi`
-is added if Parakeet uses `onnx-asr` (see Part B).
+`voice_typer/stubs/qwen_asr.pyi` stays; a new `voice_typer/stubs/GGUF runner.pyi`
+is added if Parakeet uses `GGUF runner` (see Part B).
 
 ---
 
@@ -300,9 +300,9 @@ protects the bundle while torch is still shipped.
   ONNX migration: it makes Parakeet actually shippable.
 - **Model:** NVIDIA Parakeet TDT 0.6B (Token-and-Duration Transducer).
 - **HF repo (final, verified 2026-08-20):** the engine loads
-  `onnx_asr.load_model("nemo-conformer-tdt", path=<verified snapshot>, ...)`
- Onnx-asr 0.12.0 exports ONLY `load_model`/`load_vad` (there is NO
-  `onnx_asr.Model` class in any release). The weights come from the
+  `GGUF runner.load_model("nemo-conformer-tdt", path=<verified snapshot>, ...)`
+ The GGUF ASR API exports ONLY `load_model`/`load_vad` (there is NO
+  `GGUF runner.Model` class in any release). The weights come from the
   **fp16 ONNX export `grikdotnet/parakeet-tdt-0.6b-fp16`**
   (USER-selected 2026-08-20; converted from istupakov's fp32 export —
   identical WER at ~1.28 GB vs 2.5 GB; created 2025-10-27 for the
@@ -314,7 +314,7 @@ protects the bundle while torch is still shipped.
   synthesized one; SHA-256 pinned in `model_hashes.json`), so the
   post-download synthesis hack was removed and `verify_model_integrity`
   passes on upstream files. The engine still loads by TYPE name + local
-  path so onnx-asr consumes the integrity-verified snapshot.
+  path so GGUF runner consumes the integrity-verified snapshot.
   `_PARAKERT_QUANTIZATION = "fp16"` (globs `encoder-model.fp16.onnx`).
 - **torch imports:** `parakeet_engine.py:316`, `:373` (plus `transformers`).
 - **Chunking:** 25 s chunks, 3 s overlap. `asr_utils.split_audio()` already
@@ -344,9 +344,9 @@ download path, HF repo, revision, and SHA pinning explicitly.
 Parakeet TDT (Token-and-Duration Transducer) decoding is non-trivial. There
 are two viable approaches; the plan must pick one:
 
-#### Option B-1 (recommended): use `onnx-asr` end-to-end
+#### Option B-1 (recommended): use `GGUF runner` end-to-end
 
-The `onnx-asr` library (`pip install onnx-asr`) wraps the ONNX Parakeet model
+The `GGUF runner` library (`pip install GGUF runner`) wraps the ONNX Parakeet model
 and exposes a `load_model(name, path=..., quantization=..., providers=...)`
 function returning an adapter with a `recognize(audio, sample_rate)` API.
 This is the lowest-effort path: the decoding loop is the library's problem.
@@ -354,7 +354,7 @@ This is the lowest-effort path: the decoding loop is the library's problem.
 ```python
 # voice_typer/server/parakeet_engine.py (current implementation)
 
-import onnx_asr  # type: ignore[import-untyped]
+import GGUF runner  # type: ignore[import-untyped]
 
 
 class ParakeetEngine:
@@ -362,18 +362,18 @@ class ParakeetEngine:
         self.device = device
         self.language = language
         self.config = config
-        self._model: Any | None = None  # onnx-asr adapter instance
+        self._model: Any | None = None  # GGUF runner adapter instance
         self._lock = threading.RLock()
         self._cpu_fallback_notified = False
 
     def load(self, progress_callback=None) -> bool:
-        # onnx-asr 0.12.0 exports ONLY load_model/load_vad, there is NO
-        # onnx_asr.Model class in any release. Load by TYPE name
+        # GGUF runner 0.12.0 exports ONLY load_model/load_vad, there is NO
+        # GGUF runner.Model class in any release. Load by TYPE name
         # ("nemo-conformer-tdt") + the verified local snapshot dir so
-        # onnx-asr consumes the integrity-verified files instead of
+        # GGUF runner consumes the integrity-verified files instead of
         # re-resolving the repo BY NAME.
         providers = self._select_providers(self.device)
-        self._model = self._onnx_asr.load_model(
+        self._model = self._GGUF runner.load_model(
             "nemo-conformer-tdt",
             path=verified_snapshot,
             quantization=None,  # fp16 weights ARE the base files
@@ -395,16 +395,16 @@ class ParakeetEngine:
         return text
 ```
 
-**Verified 2026-08-15:** the `onnx_asr` API is `load_model(...)`/`load_vad(...)`
-ONLY: verified against the pinned `onnx-asr==0.12.0` wheel's `__init__.py`
+**Verified 2026-08-15:** the `GGUF runner` API is `load_model(...)`/`load_vad(...)`
+ONLY: verified against the pinned `GGUF runner==0.12.0` wheel's `__init__.py`
 AND `main`. An earlier plan revision wrongly claimed a class-based
-`Model(...)` API existed; it does not, and `onnx_asr.Model(...)` raises
-AttributeError at runtime. The stub lives at `voice_typer/stubs/onnx_asr.pyi`
+`Model(...)` API existed; it does not, and `GGUF runner.Model(...)` raises
+AttributeError at runtime. The stub lives at `voice_typer/stubs/GGUF runner.pyi`
 for pyrefly/mypy.
 
 #### Option B-2 (not recommended): custom decoder via raw `onnxruntime`
 
-If `onnx-asr` is unsuitable (e.g., API mismatch, missing features), the
+If `GGUF runner` is unsuitable (e.g., API mismatch, missing features), the
 alternative is to load the encoder + decoder ONNX files directly via
 `onnxruntime.InferenceSession` and write the TDT decoding loop (greedy or
 beam search) in Python. This is ~100-200 lines of non-trivial code and
@@ -540,7 +540,7 @@ Update `voice_typer/server/diagnostics_export.py` to report:
 - The SHA-256 of `silero_vad.onnx` and the Parakeet ONNX files.
 
 Also update `scripts/diagnostics.py:175-199` (the CLI producer) in lockstep —
-it has its own torch + ctranslate2 block.
+it has its own torch + the GGUF runner block.
 
 ---
 
@@ -550,7 +550,7 @@ it has its own torch + ctranslate2 block.
 > implemented (2026-08-14) and the torch path was REMOVED (2026-08-15):
 > `qwen_engine.py` is now ONNX-only via
 > `voice_typer/server/qwen_onnx_model.py` (pre-exported
-> `andrewleech/qwen3-asr-1.7b-onnx` / `qwen3-asr-0.6b-onnx`). The
+> `handy-computer/Qwen3-ASR-1.7B-gguf` / `qwen3-asr-0.6b-onnx`). The
 > `torch>=2.0`, `transformers`, and `qwen-asr` dependencies were dropped
 > from `pyproject.toml` and the lockfile: the installer is now
 > torch-free. The ONNX pipeline constants were verified 2026-08-15
@@ -642,10 +642,10 @@ This is significant work:
 > **IMPLEMENTED 2026-08-14 (chose C-2, but the export already exists
 > upstream: no manual `torch.onnx.export` needed):** pre-exported ONNX
 > models are published by a third party for BOTH model sizes:
-> `andrewleech/qwen3-asr-1.7b-onnx` and `andrewleech/qwen3-asr-0.6b-onnx`
+> `handy-computer/Qwen3-ASR-1.7B-gguf` and `handy-computer/Qwen3-ASR-0.6B-gguf`
 > (HuggingFace; int4 RTN-quantized variants included, CPU-fast per the
 > author's writeup). The export tool + reference inference pipeline is
-> `andrewleech/qwen3-asr-onnx` (`src/inference.py`, `src/mel.py`,
+> `handy-computer/Qwen3-ASR-gguf` (`src/inference.py`, `src/mel.py`,
 > `src/prompt.py`, `src/encoder_wrapper.py`, `src/decoder_wrapper.py`).
 > The project now ships a real ONNX Runtime engine that loads those
 > exports with NO torch / transformers / `qwen_asr`:
@@ -653,7 +653,7 @@ This is significant work:
 > - `voice_typer/server/qwen_onnx_model.py` `QwenOnnxModel`, a drop-in
 >   replacement for `qwen_asr.Qwen3ASRModel` at the `from_pretrained` +
 >   `transcribe((audio, sr), language=...)` surface: Whisper-compatible
->   log-mel (128 bins via `faster_whisper`'s pure-numpy feature
+>   log-mel (128 bins via the GGUF runner's pure-numpy feature
 >   extractor: verified torch-free), `encoder.onnx` → prompt
 >   (``<|audio_pad|>`` count via the same
 >   `_get_feat_extract_output_lengths` formula) → `decoder_init.onnx`
@@ -691,7 +691,7 @@ Given the misidentification, the safest path is to **defer Qwen's ONNX
 migration** to a separate phase after VAD + Parakeet are done. This means:
 
 - Phase 1a: VAD → ONNX (silero).
-- Phase 1b: Parakeet → ONNX (`onnx-asr`).
+- Phase 1b: Parakeet → ONNX (`GGUF runner`).
 - Phase 1c (revised): torch removal is **NOT total** until Qwen is migrated.
   The sweep covers VAD + Parakeet + the 7 supporting modules
   (`asr_utils`, `resource_probe`, `diagnostics_export`, `nvidia_dll_paths`,
@@ -881,9 +881,9 @@ After torch removal:
   removed). The companion plan's claim that it "dies with CPU-only" is wrong
  It dies only if `nvidia-*-cu12` wheels are also removed, which they
   should not be (they're the CUDA-DLL source for GPU onnxruntime-gpu).
-- ctranslate2's GPU path also depends on these DLLs (it does NOT depend on
-  torch: verified via lockfile: `ctranslate2==4.8.1` pulls
-  `onnxruntime==1.28.0` CPU). Removing torch preserves ctranslate2's CPU path
+- the GGUF runner's GPU path also depends on these DLLs (it does NOT depend on
+  torch: verified via lockfile: `the GGUF runner` pulls
+  `onnxruntime==1.28.0` CPU). Removing torch preserves the GGUF runner's CPU path
   but breaks Windows GPU unless the `nvidia-*-cu12` wheels remain.
 
 ### 6.4 `resource_probe.py` Mostly already backend-agnostic
@@ -902,7 +902,7 @@ Only the 13-line GPU-memory block (L200-234) is torch-specific, wrapped in
 
 `voice_typer/server/transcription.py` has exactly one torch dependency:
 `isinstance(exc, torch.cuda.OutOfMemoryError)` at L1338. The GPU availability
-check at `_resolve_device:227-263` already uses ctranslate2 + ctypes (no
+check at `_resolve_device:227-263` already uses the GGUF runner + ctypes (no
 torch). After migration:
 
 - Replace the `isinstance` check with `is_oom_error(exc)` (see §5.1).
@@ -927,9 +927,9 @@ address macOS GPU. The ONNX migration should:
 
 ### 7.1 Stubs
 
-Add `voice_typer/stubs/onnx_asr.pyi` if Option B-1 (`onnx-asr` library) is
+Add `voice_typer/stubs/GGUF runner.pyi` if Option B-1 (`GGUF runner` library) is
 chosen for Parakeet. Without this stub, pyrefly/mypy will fail on
-`import onnx_asr  # type: ignore[import-untyped]` The `# type: ignore` is a
+`import GGUF runner  # type: ignore[import-untyped]` The `# type: ignore` is a
 temporary measure; the stub is the proper fix.
 
 ### 7.2 Ratchet baselines
@@ -1018,8 +1018,8 @@ added (mirroring `tests/test_ipc_command_registry_sync.py`).
 - `tests/test_parakeet_onnx_*.py` (5 new test files) pass.
 - Parakeet transcribes a known WAV fixture within an edit-distance threshold
   of the torch baseline (parity).
-- `onnx_asr` pinned in `pyproject.toml`.
-- `voice_typer/stubs/onnx_asr.pyi` added.
+- `GGUF runner` pinned in `pyproject.toml`.
+- `voice_typer/stubs/GGUF runner.pyi` added.
 - `model_hashes.json` repopulated via `scripts/populate_model_hashes.py`.
 - `MODEL_REGISTRY["parakeet"]` updated (repo_id, download_size_mb,
   network_behavior).
@@ -1032,7 +1032,7 @@ added (mirroring `tests/test_ipc_command_registry_sync.py`).
 
 > **Status: COMPLETED 2026-08-15.** VAD (`vad.py` via
 > `onnxruntime.InferenceSession` against the bundled `silero_vad.onnx`)
-> and Parakeet (via `onnx-asr`) no longer import torch; the AST scan of
+> and Parakeet (via `GGUF runner`) no longer import torch; the AST scan of
 > `voice_typer/**/*.py` returns zero `import torch` hits. Historical gate
 > below preserved for traceability.
 
@@ -1051,7 +1051,7 @@ If Option C-3 (defer Qwen) is chosen, the gate is:
 ### 8.4 Phase 1d (Qwen → ONNX) gate, new
 
 > **Status: COMPLETED 2026-08-15.** Option C-2 shipped via the
-> pre-exported `andrewleech/qwen3-asr-*-onnx` models
+> pre-exported `handy-computer/Qwen3-ASR-*-gguf` models
 > (`voice_typer/server/qwen_onnx_model.py`); the torch `qwen-asr` path
 > was removed and `torch` / `transformers` / `qwen-asr` dropped from
 > `pyproject.toml`. Total torch removal holds (AST scan of
@@ -1078,7 +1078,7 @@ claim is honestly scoped to "total except Qwen."
 | **MODIFY** | `voice_typer/server/nvidia_dll_paths.py` (drop `torch/lib` branch, keep `nvidia/*`) | 1c |
 | **MODIFY** | `voice_typer/server/prewarm/cache_probe.py` (update package list) | 1c |
 | **MODIFY** | `scripts/diagnostics.py:175-199` (CLI producer) | 1c |
-| **MODIFY** | `pyproject.toml` (add `onnx-asr`, drop `torch>=2.0,<3.0` Except Qwen if deferred) | 1c |
+| **MODIFY** | `pyproject.toml` (add `GGUF runner`, drop `torch>=2.0,<3.0` Except Qwen if deferred) | 1c |
 | **REGENERATE** | `requirements-lock.txt` | 1c |
 | **REGENERATE** | `coverage-baseline.json`, `mypy-baseline.json`, `pyrefly-baseline.json`, `ruff-baseline.json` | 1c |
 | **MODIFY** | `MANIFEST.in` (add `silero_vad.onnx`) | 1a |
@@ -1086,7 +1086,7 @@ claim is honestly scoped to "total except Qwen."
 | **MODIFY** | `scripts/build/build_sidecar_*.sh` (Nuitka data-file inclusion; retire `--module-parameter=torch-disable-jit=no` at 1c) | 1a/1c |
 | **MODIFY** | `voice_typer/server/security/model_integrity.py:553-587` (add `ALLOW_PATTERNS_PARAKEET_ONNX`) | 1b |
 | **REGENERATE** | `model_hashes.json` (via `scripts/populate_model_hashes.py`) | 1b |
-| **NEW** | `voice_typer/stubs/onnx_asr.pyi` | 1b |
+| **NEW** | `voice_typer/stubs/GGUF runner.pyi` | 1b |
 | **REWRITE** | `tests/test_vad.py`, delete `tests/test_vad_dtype_optimization.py` | 1a |
 | **NEW** | `tests/test_parakeet_onnx_*.py` (5 files) | 1b |
 | **MODIFY** | `tests/conftest.py` (strip VAD torch mocks; keep for Qwen) | 1a/1c |
@@ -1100,11 +1100,11 @@ claim is honestly scoped to "total except Qwen."
 1. **Qwen migration option (§4.3).** Pick C-1, C-2, or C-3. Recommendation:
    C-3 (defer) until the `qwen_asr` maintainer confirms ONNX support.
    **DECIDED 2026-08-14: C-2, implemented** (see the IMPLEMENTED block in
-   §4.3). The pre-exported `andrewleech/qwen3-asr-*-onnx` models + the new
+   §4.3). The pre-exported `handy-computer/Qwen3-ASR-*-gguf` models + the new
    `voice_typer/server/qwen_onnx_model.py` engine deliver the ONNX path with
    no torch in the runtime. Remaining work is a host-side real-inference
    parity pass, then optionally making ONNX the default/only Qwen backend.
-2. **Parakeet decoding approach (§3.3).** Pick B-1 (`onnx-asr` end-to-end)
+2. **Parakeet decoding approach (§3.3).** Pick B-1 (`GGUF runner` end-to-end)
    or B-2 (custom decoder). Recommendation: B-1.
 3. **`required_vram_mb` for Parakeet ONNX (§3.5.1).** Measure with real
    `nvidia-smi` before pinning.

@@ -26,7 +26,7 @@ risky change for diminishing user-visible returns: users do not distinguish
    size gates (`tauri-windows-build.yml`, `tauri-macos-build.yml`,
    `tauri-linux-build.yml`) assert ≤ 80 MB.
 2. The sidecar diet moves ONLY libraries with no live-mic role:
-   - **PyAV + FFmpeg** (~21 MB): sole user is `media_ingest/decoder.py`
+   - **the bundled FFmpeg decoder + FFmpeg** (~21 MB): sole user is `media_ingest/decoder.py`
      (transcribe-audio-file). Live dictation never touches it.
    - **yt_dlp + media/subtitle download helpers**: download/subtitle
      features only, nothing on the recording hot path.

@@ -31,7 +31,7 @@ Supporting surface (also complete):
 - C7 move: engine at `voice_typer/worker/whisper/`; slim registry maps
   `"whisper"` → `WorkerBackedAsr` (`asr_registry.py`); worker registry
   repoints the spec at the real engine (`worker/_transcribe.py`).
-- Nuitka: `--nofollow-import-to` for `faster_whisper`/`ctranslate2` in the
+- Nuitka: `--nofollow-import-to` for the GGUF runner/the GGUF runner in the
   sidecar invocations; `slim-core-ml-baseline.json` total=0.
 
 ## Unit coverage (what the green suite proves)
@@ -55,14 +55,14 @@ python -m pytest tests/test_worker_streaming_session.py \
 | Site 3 worker session preferred; WorkerBackedAsr skips in-process on worker failure; WorkerBackedAsr uses worker session when gate open | `test_worker_streaming_session.py::TestCoordinatorSwitch` |
 | C6 open/push/finalize/cancel + assembler parity vs slim | `test_worker_streaming_session.py` (15) |
 | WorkerBackedAsr load/transcribe/abort/`transcribe` alias | `test_worker_backed_asr.py` (11) |
-| Slim import closure has no FW/CT2 | `test_slim_no_asr_imports.py` |
+| Slim import closure has no in-process ASR libs | `test_slim_no_asr_imports.py` |
 | Nuitka exclusion pins | `test_nuitka_asr_exclusions.py` (8) |
 | Engine-split wiring | `test_transcription_split_wiring.py` (9) |
 | Media windows via worker | `test_media_worker_backend.py` (11) |
 | Mic-test degradation + worker-backed `transcribe` | `test_mic_test_degradation.py` (5) |
 
 Ratchet: `python scripts/slim_core_ml_ratchet_check.py` →
-`ok (total=0 <= 0, {'faster_whisper': 0, 'ctranslate2': 0})`.
+`ok (total=0 <= 0, {'the GGUF runner': 0, 'the GGUF runner': 0})`.
 
 ## Remaining host gates (NOT verified here)
 
@@ -70,10 +70,9 @@ These need a real Windows host / CI; this lane cannot freeze Nuitka.
 
 1. **Local frozen slim boot.** Build the sidecar with the ASR exclusions
    and launch it; confirm no `ModuleNotFoundError` for
-   `faster_whisper`/`ctranslate2` at import time.
+   the GGUF runner/the GGUF runner at import time.
    How: run the existing sidecar freeze script used by
    `.github/workflows/tauri-windows-build.yml` (the Nuitka invocation that
-   carries `--nofollow-import-to=faster_whisper,ctranslate2`), then start
    the frozen exe and watch `lausu.log` for a clean `[STARTUP]` banner.
 2. **VAD + transcription flow in the frozen exe.** VAD/GTCRN stay in the
    slim core (`onnxruntime` is a slim dep by ownership decision). Record a

@@ -72,7 +72,7 @@ teardown continues around the still-live thread.
     conditional restore) then drop the orphan worker's late result — no
     new guard machinery. Finish-first was rejected: the 3s join sits
     inside the 20s shutdown budget and a hung engine (deadlocked
-    ctranslate2) would stall quit indefinitely. Tests:
+    the GGUF runner) would stall quit indefinitely. Tests:
     `tests/test_shutdown_dictation_guards.py` (mark-before-phase
     ordering, orphan store+paste refusal via `CancellationGuard`, direct
     `_store_result` refusal).

@@ -26,13 +26,13 @@ the PortAudio callback must not call them, but `audio_pipeline.py:343` runs
 `compute_vad_prob` on the processing thread). Streaming them to the worker
 would put a network round-trip on the audio path. **Decision: they stay
 in-process; `onnxruntime` remains a declared slim-core dependency** (plan
-5.3). Only the ASR libraries (`faster_whisper`, `ctranslate2`) are the
+5.3). Only the ASR libraries (the GGUF runner, the GGUF runner) are the
 worker's and are counted by the ratchet.
 
 ## Grep gate - implemented as a ratchet
 
 `scripts/slim_core_ml_ratchet_check.py` scans the slim-core closure
-(`voice_typer/server`, worker excluded) for `faster_whisper` / `ctranslate2`
+(`voice_typer/server`, worker excluded) for the GGUF runner / the GGUF runner
 imports and refuses to let the count grow, mirroring the existing
 `ruff`/`mypy` ratchet idiom. Baseline committed at
 `slim-core-ml-baseline.json` (current total=4). The ratchet runs as an
@@ -51,8 +51,6 @@ are plan 11.4; the original "insert these steps" instruction is obsolete.
 1. Cut the dictation engine off in-process `TranscriptionEngine`
    (`dictation_pipeline/transcribe_step.py:98` -> `active_transcriber()`)
    onto the worker hop.
-2. Only then add `--nofollow-import-to=faster_whisper` and
-   `--nofollow-import-to=ctranslate2` to the **sidecar** Nuitka invocation
    (`scripts/build/build_sidecar_*.sh` + the inline step in
    `tauri-windows-build.yml`). Keep `nuitka==2.8.10` (C-CI-6), the torch
    exclusions and `torch-disable-jit=no` (C-CI-8), and

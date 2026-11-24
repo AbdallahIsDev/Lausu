@@ -113,10 +113,10 @@ def check_model_sizes() -> dict[str, int]:
 
     cache_dir = _config_dir() / "huggingface" / "hub"
     models = {
-        "tiny.en": "Systran/faster-whisper-tiny.en",
-        "small.en": "Systran/faster-whisper-small.en",
-        "medium.en": "Systran/faster-whisper-medium.en",
-        "parakeet": "Masterx/parakeet-tdt-0.6b-ultra-onnx",
+        "tiny.en": "the tiny.en Whisper export",
+        "small.en": "the small.en Whisper export",
+        "medium.en": "the medium.en Whisper export",
+        "parakeet": "handy-computer/parakeet-ultra-gguf",
     }
 
     sizes: dict[str, int] = {}

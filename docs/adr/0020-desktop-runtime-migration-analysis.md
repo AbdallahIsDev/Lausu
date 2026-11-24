@@ -17,8 +17,7 @@ contract as written; the predecessor path is no longer in-tree.
 >   startup phase of `voice_typer/worker/__main__.py`. `resolve_prewarm_exe`
 >   / `VOICE_TYPER_PREWARM_EXE` / scheduler prewarm-exe wiring in this ADR
 >   is retired with the binary.
-> - *Nuitka ML-bundling §§4.2–4.4* (`--include-package=faster_whisper /
->   ctranslate2` + DLL/Data-dir lines): SUPERSEDED by ADR-0024 Step 7 /
+>   ASR package bundling + DLL/data-dir lines): SUPERSEDED by ADR-0024 Step 7 /
 >   C7 + ADR-0025. C7 moved the engine to `voice_typer/worker/whisper/`
 >   behind `WorkerBackedAsr`; the sidecar freeze now EXCLUDES the ASR libs
 >   (`--nofollow-import-to`, all four sidecar invocations + pin test) while
@@ -60,7 +59,7 @@ Lausu today is **predecessor (React UI) + a separate Python backend + a separate
 
 1. **predecessor main process** (hosts the React UI). Source: `voice_typer/client/src/main/index.ts` (209 lines: wiring-only; logic in `./state/`, `./python/`, `./ipc/`, `./windows/`, `./bootstrap`). Entry: `package.json` `main: ./out/main/index.js`. Build: a Vite renderer bundle → NSIS on Windows, DMG on macOS x64+arm64, AppImage+deb+rpm on Linux.
 2. **Python backend**, `python -m voice_typer.server.ipc_server --port 9876` (see the file directly for the current size, earlier drafts of this ADR disagreed on the line count, and the module has continued to grow since). Spawned by the legacy host launcher (the inverse path: Python-as-parent, also exists) and reached over a local TCP socket on `127.0.0.1:9876`. Audio capture + ASR inference + tray + hotkeys + volume ducking + clipboard all live here. The IPC dispatch layer is `_COMMAND_REGISTRY` (locate by the `_COMMAND_REGISTRY = {` assignment near the top of `ipc_server.py`; 63 commands: see §2 IPC-1 reconciliation) → `_handle_<cmd>` mixins in `voice_typer/server/handlers/*`. Server-initiated events flow through `event_bus.publish(...)` (`event_bus.py`, the modern successor to `ipc_server._push_event_now`).
-3. **prewarm helper**, `prewarm/` package (entry point `prewarm/__main__.py`, dispatched to `prewarm/pipeline.py::run`). A standalone boot-time process that warms the OS file cache (~7 GB of onnxruntime + ctranslate2 + model weights; historical torch + transformers path retired 2026-08-15) before the app's cold imports contend for disk. Kept intentionally separate per ADR-0011. Scheduling is platform-specific:
+3. **prewarm helper**, `prewarm/` package (entry point `prewarm/__main__.py`, dispatched to `prewarm/pipeline.py::run`). A standalone boot-time process that warms the OS file cache (~7 GB of onnxruntime + the GGUF runner + model weights; historical torch + transformers path retired 2026-08-15) before the app's cold imports contend for disk. Kept intentionally separate per ADR-0011. Scheduling is platform-specific:
    - **Windows**: `task_scheduler.py` (708 lines) registers a `LogonTrigger` Scheduled Task (`schtasks`) with an HKCU `Run` registry-key fallback.
    - **macOS**: `prewarm_scheduler_posix.py` registers a LaunchAgent at `~/Library/LaunchAgents/com.Lausu.prewarm.plist` with `RunAtLoad=true`.
    - **Linux**: `prewarm_scheduler_posix.py` registers a systemd user timer at `~/.config/systemd/user/lausu-prewarm.{service,timer}` with `OnBootSec=10s`.
@@ -120,7 +119,7 @@ One Tauri app per platform (ONE icon / install, one app to launch; multiple OS p
 
   UI → Tauri invoke('dispatch', {cmd,data}) → Rust → localhost WebSocket → Python sidecar _COMMAND_REGISTRY
   Sidecar → event_bus.publish(event) → Rust subscriber → app.emit(name, payload) → React UI
-  (sidecar runs faster-whisper / CTranslate2 / Qwen3-ASR / Parakeet, same Python backend as today)
+  (sidecar runs GGUF Whisper / GGUF runner / Qwen3-ASR / Parakeet, same Python backend as today)
 ```
 
 The sidecar is a **normal Python program** (your existing `ipc_server` / `handlers/*` logic), compiled/bundled and launched by Tauri, no Python embedded in the Rust binary. The `externalBin` mechanism requires one binary per Rust target triple; Tauri selects the right one at runtime by matching `std::env::consts::ARCH` + `OS`.
@@ -182,7 +181,7 @@ The plan runs **Windows → macOS → Linux** in sequence. Each platform has its
 **Phase 0-W (Windows):**
 - Freeze a working Python backend with **Nuitka** against a `python-build-standalone` interpreter, producing a single `python-sidecar-x86_64-pc-windows-msvc.exe`, and bundle it as a Tauri `externalBin`.
 - Confirm on a Windows 10 + Windows 11 test machine: sidecar spawns on app launch, **localhost WebSocket** comms work over an **ephemeral `127.0.0.1:0` port** + **bearer-token auth** (historically referred to as "HMAC token", see §3 ZR-56 reconciliation), sidecar auto-stops with the app, `kill_children` cleans the tree.
-- Confirm `faster-whisper` / `CTranslate2` loads and transcribes inside the sidecar.
+- Confirm `GGUF Whisper` / `GGUF runner` loads and transcribes inside the sidecar.
 - Confirm `enigo` injects transcribed text into a foreground window (Notepad).
 - Confirm `tauri-plugin-notification` shows a toast.
 - **Gate:** do not start Phase 1-W until this passes.
@@ -190,7 +189,7 @@ The plan runs **Windows → macOS → Linux** in sequence. Each platform has its
 **Phase 0-M (macOS):**
 - Freeze the same backend with Nuitka against `python-build-standalone` `cpython-3.12.x+aarch64-apple-darwin` (Apple Silicon) and `cpython-3.12.x+x86_64-apple-darwin` (Intel). Produce two sidecar binaries.
 - Confirm on macOS 13 (Intel) + macOS 14 (Apple Silicon): sidecar spawns, WS comms work, sidecar auto-stops.
-- Confirm `faster-whisper` / `CTranslate2` loads inside the sidecar on both archs.
+- Confirm `GGUF Whisper` / `GGUF runner` loads inside the sidecar on both archs.
 - Confirm `enigo` types text into TextEdit on both archs.
 - Confirm `tauri-plugin-notification` posts a notification (requires `NSUserNotifications` entitlement: see §13).
 - **Confirm the existing native hotkey binary (`macos-key-listener`, Swift, CGEvent tap) still works** when spawned from the Tauri host (the binary requires Accessibility permission, see §6.4 for the permission flow).
@@ -199,7 +198,7 @@ The plan runs **Windows → macOS → Linux** in sequence. Each platform has its
 **Phase 0-L (Linux):**
 - Freeze the same backend with Nuitka against `python-build-standalone` `cpython-3.12.x+x86_64-unknown-linux-gnu` (built against glibc 2.35: Ubuntu 22.04 baseline) and `cpython-3.12.x+aarch64-unknown-linux-gnu` (ARM64). Produce two sidecar binaries.
 - Confirm on Ubuntu 22.04 (X11) + Ubuntu 22.04 (Wayland) + Fedora 40 (Wayland): sidecar spawns, WS comms work, sidecar auto-stops.
-- Confirm `faster-whisper` / `CTranslate2` loads inside the sidecar.
+- Confirm `GGUF Whisper` / `GGUF runner` loads inside the sidecar.
 - Confirm `enigo` types text into `gnome-text-editor` on X11. **On Wayland, `enigo` is expected to fail**: confirm the clipboard + `Ctrl+V` fallback works (see §6.6).
 - Confirm the existing `linux-key-listener` (evdev) still works when spawned from the Tauri host (requires `input` group membership: already set up by the existing `scripts/linux/postinst`).
 - **Gate:** do not start Phase 1-L until this passes on X11 + Wayland + both archs.
@@ -458,29 +457,25 @@ The prewarm binary follows the same pattern (`prewarm-<triple>[.exe]`). If you a
 
 #### 4.2 Windows Nuitka command
 
-Base interpreter: `python-build-standalone` `cpython-3.12.x+x86_64-pc-windows-msvc` (matches `faster-whisper`/CTranslate2 wheels). The previous ADR's command is correct in spirit but had broken glob `*.dll` lines: Nuitka does not expand globs.
+Base interpreter: `python-build-standalone` `cpython-3.12.x+x86_64-pc-windows-msvc` (matches the Python 3.12 wheel tags). The previous ADR's command is correct in spirit but had broken glob `*.dll` lines: Nuitka does not expand globs.
 
 ```bat
 :: Pin the build interpreter to python-build-standalone cpython-3.12.x
-:: (matches faster-whisper / ctranslate2 wheel tags, do NOT use 3.13+ yet).
+:: (matches the Python 3.12 wheel tags, do NOT use 3.13+ yet).
 set PYBS=C:\path\to\python-build-standalone\cpython-3.12.x+x86_64-pc-windows-msvc
 set SITE=%PYBS%\Lib\site-packages
 python -m nuitka --standalone --onefile ^
   --assume-yes-for-downloads ^
   --enable-plugin=numpy ^
-  --include-package=faster_whisper --include-package=ctranslate2 ^
   --include-package=voice_typer --include-package=websockets ^
-  --include-data-dir=%SITE%\ctranslate2\lib=%SITE%\ctranslate2\lib ^
-  --include-dll=%SITE%\ctranslate2\lib\ctranslate2.dll ^
   --windows-disable-console ^
   --output-filename=python-sidecar-x86_64-pc-windows-msvc.exe ^
   voice_typer/server/ipc_server.py
 ```
 
-- **Nuitka does NOT expand globs** like `*.dll` in `--include-dll` Those `*.dll` lines above will NOT work as written; use explicit paths or `--include-data-dir` (which copies a whole folder verbatim). The reliable pattern is `--include-data-dir=%SITE%\ctranslate2\lib=%SITE%\ctranslate2\lib` plus an explicit `--include-dll` for `ctranslate2.dll` itself. `ctranslate2/lib` holds `ctranslate2.dll` + optional CUDA DLLs (`cublas64_*`, `cudnn64_*`, `cuda_runtime64_*`): include the CUDA ones only if the frozen env has CUDA enabled; otherwise CTranslate2 runs CPU-only and those files are absent.
 - `--include-package=websockets` is **required** (added to `requirements-lock.txt` See §14); the sidecar is a WS *server* and the stdlib has no WS implementation. `--enable-plugin=numpy` pulls numpy's hidden imports; if Nuitka warns about missing `numpy.*` submodules, add `--include-package=numpy`.
-- **Discover the exact DLL set at build time**, do not guess: `dir "%SITE%\ctranslate2\lib\*.dll"` and list every file; re-run after any `faster-whisper`/`ctranslate2` version bump.
-- **CPU inference runtimes (easy to miss, instant crash if absent):** `ctranslate2` links Intel MKL / OpenMP for fast x86 CPU inference even with no GPU. If `libiomp5md.dll` (OpenMP) or the MKL redistributables are missing, the frozen exe **builds fine but crashes instantly on `import ctranslate2`** at launch. Verify with `python -c "import ctranslate2"` in the build env, then enumerate loaded companion DLLs (`listdlls`, Sysinternals Process Explorer, or `tasklist /m`) and copy every runtime next to `ctranslate2.dll` via `--include-data-dir` (or an explicit `--include-dll`). At minimum include `libiomp5md.dll`; add any `libiomp*.dll` / `mkl*.dll` / `libgomp*.dll` present. Nuitka does **not** auto-collect these.
+- **Discover the exact DLL set at build time**, do not guess: the runner's dependency listing and list every file; re-run after any a runner version bump.
+- **CPU inference runtimes (easy to miss, instant crash if absent):** the frozen sidecar still needs its OpenMP runtime for the audio filters. If `libiomp5md.dll` (OpenMP) or the MKL redistributables are missing, the frozen exe **builds fine but crashes instantly on start** at launch. Verify the runner manifest in the build env, then enumerate loaded companion DLLs (`listdlls`, Sysinternals Process Explorer, or `tasklist /m`) and ship the external runner binary beside the sidecar. At minimum include `libiomp5md.dll`; add any `libiomp*.dll` / `mkl*.dll` / `libgomp*.dll` present. Nuitka does **not** auto-collect these.
 - **Do NOT** bundle model weights, models live in `%APPDATA%/lausu/models` (see §8), loaded at runtime. Include only code + native DLLs.
 - **`--onefile` temp-dir bloat:** Nuitka `--onefile` extracts to `%TEMP%\onefile_*` on every launch; frequent launches/crashes accumulate gigabytes. Pin a deterministic extract dir with `--onefile-tempdir-spec=%LOCALAPPDATA%\lausu\onefile-tmp` and have the installer/uninstaller purge that dir (match by the Lausu binary signature) so stale extracts are cleaned.
 
@@ -494,10 +489,7 @@ SITE=$PYBS/lib/python3.12/site-packages
 python -m nuitka --standalone --onefile \
   --assume-yes-for-downloads \
   --enable-plugin=numpy \
-  --include-package=faster_whisper --include-package=ctranslate2 \
   --include-package=voice_typer --include-package=websockets \
-  --include-data-dir=$SITE/ctranslate2/lib=$SITE/ctranslate2/lib \
-  --include-data-dir=$SITE/ctranslate2/libs=$SITE/ctranslate2/libs \
   --macos-create-app-bundle \
   --macos-app-name=LausuSidecar \
   --macos-signed-app-name=com.Lausu.sidecar \
@@ -508,7 +500,7 @@ python -m nuitka --standalone --onefile \
 
 - `--macos-app-mode=background` sets `LSUIElement=true` in the bundle's `Info.plist` The sidecar runs with no Dock icon, no menu bar item. This is the macOS equivalent of Windows `--windows-disable-console`.
 - `--macos-signed-app-name` must match the `CFBundleIdentifier` used for code signing (see §13).
-- **CTranslate2 on macOS:** the wheels ship `libctranslate2.dylib` + `libiomp5.dylib` (OpenMP) under `$SITE/ctranslate2/lib/`. Apple Silicon wheels do NOT ship CUDA, CPU-only inference. Verify with `otool -L $SITE/ctranslate2/lib/libctranslate2.dylib` that every `@rpath` dependency resolves in the build env.
+- **GGUF runner on macOS:** the wheels ship `the external runner binary` + `libiomp5.dylib` (OpenMP) under `$SITE/the runner install/`. Apple Silicon wheels do NOT ship CUDA, CPU-only inference. Verify with `otool -L $SITE/the runner install/the external runner binary` that every `@rpath` dependency resolves in the build env.
 - **`pyobjc` deps:** `pyobjc-core`, `pyobjc-framework-CoreAudio`, `pyobjc-framework-Cocoa` are required (volume ducking + tray). Add `--include-package=pyobjc` (and the framework sub-packages). Nuitka's `--include-package=pyobjc` does not always pick up the framework bridges, run the sidecar once in dev mode and watch for `ImportError: pyobjc-...` to discover missing pieces.
 - **Apple Silicon vs Intel:** Nuitka cannot produce a universal binary. Build separately per arch and let Tauri pick the right `externalBin` at runtime via `std::env::consts::ARCH`.
 - **`--onefile` temp-dir on macOS:** extracts to `$TMPDIR/onefile_*`. Pin with `--onefile-tempdir-spec=$HOME/Library/Caches/lausu/onefile-tmp` (purgeable cache dir; `Application Support` is user data that is backed up and never reaped, so a frozen extract does not belong there).
@@ -523,16 +515,13 @@ SITE=$PYBS/lib/python3.12/site-packages
 python -m nuitka --standalone --onefile \
   --assume-yes-for-downloads \
   --enable-plugin=numpy \
-  --include-package=faster_whisper --include-package=ctranslate2 \
   --include-package=voice_typer --include-package=websockets \
-  --include-data-dir=$SITE/ctranslate2/lib=$SITE/ctranslate2/lib \
-  --include-data-dir=$SITE/ctranslate2/libs=$SITE/ctranslate2/libs \
   --output-filename=python-sidecar-x86_64-unknown-linux-gnu \
   voice_typer/server/ipc_server.py
 ```
 
 - **No `--windows-disable-console` equivalent is needed on Linux**. The sidecar is spawned by Tauri with `stdio` piped; no terminal window appears.
-- **CTranslate2 on Linux:** the wheels ship `libctranslate2.so` + `libiomp5.so` + `libgomp.so` (OpenMP) under `$SITE/ctranslate2/lib/`. CPU-only on most installs; CUDA wheels exist but are large. Verify with `ldd $SITE/ctranslate2/lib/libctranslate2.so` that every `NEEDED` dependency resolves in the build env.
+- **GGUF runner on Linux:** the wheels ship `the external runner binary` + `libiomp5.so` + `libgomp.so` (OpenMP) under `$SITE/the runner install/`. CPU-only on most installs; CUDA wheels exist but are large. Verify with `ldd $SITE/the runner install/the external runner binary` that every `NEEDED` dependency resolves in the build env.
 - **glibc version pinning:** the `python-build-standalone` Linux builds are compiled against a specific glibc. Pin to a build linked against glibc 2.35 (Ubuntu 22.04) so the sidecar runs on Ubuntu 22.04+ / Debian 12+ / Fedora 36+. Newer glibc builds (e.g., Ubuntu 24.04 baseline) would break older distributions. **This is the same baseline as the existing Linux native binary build** (`PLATFORM_STATUS.md`: "The native binary is compiled on `ubuntu-22.04` and links against glibc 2.35").
 - **`--onefile` temp-dir on Linux:** extracts to `/tmp/onefile_*`. Pin with `--onefile-tempdir-spec=$HOME/.cache/lausu/onefile-tmp` or `$XDG_CACHE_HOME/lausu/onefile-tmp`.
 - **AppImage considerations:** if shipping as AppImage, the sidecar binary is extracted at mount time to `/tmp/.mount_VoiceTy<XXXX>/usr/bin/`. The `externalBin` mechanism handles this transparently, but the prewarm binary (a `bundle.resource`, not an `externalBin`) must be looked up via `resolve_prewarm_exe()` (see §5) because AppImage mount paths are not stable across launches.
@@ -540,7 +529,7 @@ python -m nuitka --standalone --onefile \
 #### 4.5 Common Nuitka caveats (all platforms)
 
 - Path resolution inside the compiled exe: `os.path.dirname(sys.argv[0])` for the exe dir; the OS-specific data dir for config/models/logs (see §8). Tauri passes `VOICE_TYPER_IPC_TOKEN` (+ optionally `appConfigDir`/`appLogDir`) via env; the port is self-selected by the sidecar (`:0`) and reported via stdout (see §1). Dev mode (§14) instead passes `VOICE_TYPER_IPC_PORT` to the plain-Python server, which still reads it from env.
-- **Verify step (Phase 0 gate per platform):** run the sidecar binary with a one-shot command that loads `faster_whisper` (`WhisperModel("tiny")`), transcribes a 3-second WAV, prints the text, exits 0. This proves CTranslate2 + DLLs + model load all work inside Nuitka. Run this on every target triple. A Windows-success does NOT imply macOS-success.
+- **Verify step (Phase 0 gate per platform):** run the sidecar binary with a one-shot command that loads the GGUF runner (`the GGUF runner loading the tiny model`), transcribes a 3-second WAV, prints the text, exits 0. This proves GGUF runner + DLLs + model load all work inside Nuitka. Run this on every target triple. A Windows-success does NOT imply macOS-success.
 - **Existing PyInstaller spec (`scripts/build/lausu.spec`) is the fallback.** If Nuitka proves impractical on a target (e.g., macOS Apple Silicon ABI issues, Linux aarch64 missing wheels), the existing PyInstaller `--onedir` spec already bundles the native hotkey binaries, Linux permission scripts, data files, and platform-specific hidden imports. The sidecar entrypoint is identical; only the freeze tool changes. PyInstaller `--onedir` produces a folder, not a single file, Tauri `externalBin` cannot point at a folder, so the folder must be wrapped: on Windows, a thin launcher `.exe` that `CreateProcess`es the real entrypoint inside the folder; on macOS/Linux, a shell-script launcher with the executable bit set. The launcher must be named with the target-triple suffix.
 
 ### 5. Prewarm packaging (cross-platform)
@@ -777,7 +766,7 @@ Lausu today uses the platform-aware `_paths.config_dir()` (which delegates to `c
 
 ### 10. WebSocket disconnect / error handling + supervisor + rate limiter
 
-- **Clean shutdown:** Rust sends `{"type":"shutdown"}`; sidecar releases mic, acks `{"type":"result"}`, exits 0. **Hard timeout:** if the sidecar has not exited within **2.0 s** of the ack (e.g. it is stuck inside a native CTranslate2 call and cannot service the WS message), Rust force-kills the process tree via Tauri's `kill_children` handle. Never wait indefinitely on a blocked Python thread.
+- **Clean shutdown:** Rust sends `{"type":"shutdown"}`; sidecar releases mic, acks `{"type":"result"}`, exits 0. **Hard timeout:** if the sidecar has not exited within **2.0 s** of the ack (e.g. it is stuck inside a native GGUF runner call and cannot service the WS message), Rust force-kills the process tree via Tauri's `kill_children` handle. Never wait indefinitely on a blocked Python thread.
 - **Sidecar crash / WS close without shutdown:** Rust treats it as a crash → respawn (backoff 500→1000→2000 ms, cap 5). In-flight chunk discarded.
 - **Token validation failure:** sidecar closes the socket immediately; Rust logs + shows "connection rejected", retries with a fresh token (counts toward backoff).
   - **Transient loopback blip:** Rust attempts one immediate reconnect; on failure, falls into backoff.
@@ -837,7 +826,7 @@ Lausu today uses the platform-aware `_paths.config_dir()` (which delegates to `c
 - `LSUIElement`: `false` (the main app shows in the Dock; the sidecar sets `LSUIElement=true` separately).
 - `NSMicrophoneUsageDescription`: required for `sounddevice` to access the mic.
 - `NSUserNotificationsUsageDescription`: required for `tauri-plugin-notification` on macOS 11+.
-- **Hardened runtime** (`com.apple.security.cs.allow-jit` for CTranslate2 if it uses JIT; `com.apple.security.cs.disable-library-validation` if Nuitka's `--onefile` extracts unsigned dylibs at runtime: coordinate with Apple's notarization docs).
+- **Hardened runtime** (`com.apple.security.cs.allow-jit` for GGUF runner if it uses JIT; `com.apple.security.cs.disable-library-validation` if Nuitka's `--onefile` extracts unsigned dylibs at runtime: coordinate with Apple's notarization docs).
 
 **Match the existing `legacy builder config` config:** today the macOS build uses `MAC_SIGNING_IDENTITY` env var + `notarize: true` + `hardenedRuntime: true`. The Tauri build should reuse the same identity + notarization credentials.
 
@@ -954,7 +943,7 @@ Do NOT silently add commands/events during implementation. Every addition widens
 - [ ] Nuitka exe builds from `python-build-standalone` (x86_64-pc-windows-msvc).
 - [ ] `externalBin` sidecar spawns via Tauri; Rust reads `server_started` JSON from sidecar `stdout`, connects WS to the reported port.
 - [ ] HMAC handshake: wrong token rejected; correct token accepted.
-- [ ] **`faster-whisper` `WhisperModel("tiny")` loads + transcribes a WAV inside the Nuitka exe** (proves CTranslate2/DLLs/models).
+- [ ] **`GGUF Whisper` `the GGUF runner loading the tiny model` loads + transcribes a WAV inside the Nuitka exe** (proves GGUF runner/DLLs/models).
 - [ ] `enigo` types text into Notepad; clipboard+Ctrl+V path verified.
 - [ ] `tauri-plugin-notification` shows a toast.
 - [ ] Cooperative `{"type":"shutdown"}` exits cleanly; `kill_children` cleans on hard kill.
@@ -965,7 +954,7 @@ Do NOT silently add commands/events during implementation. Every addition widens
 - [ ] Nuitka exe builds from `python-build-standalone` (aarch64-apple-darwin AND x86_64-apple-darwin).
 - [ ] `externalBin` sidecar spawns via Tauri on both archs; Rust reads `server_started` JSON, connects WS.
 - [ ] HMAC handshake works on both archs.
-- [ ] `faster-whisper` `WhisperModel("tiny")` loads + transcribes inside both Nuitka exes.
+- [ ] `GGUF Whisper` `the GGUF runner loading the tiny model` loads + transcribes inside both Nuitka exes.
 - [ ] `enigo` types text into TextEdit on both archs.
 - [ ] `tauri-plugin-notification` posts a notification (after `UNUserNotificationCenter` authorization).
 - [ ] Cooperative `{"type":"shutdown"}` exits cleanly; `kill_children` cleans on hard kill.
@@ -977,7 +966,7 @@ Do NOT silently add commands/events during implementation. Every addition widens
 - [ ] Nuitka exe builds from `python-build-standalone` (x86_64-unknown-linux-gnu, glibc 2.35 baseline).
 - [ ] `externalBin` sidecar spawns via Tauri on X11 and Wayland; Rust reads `server_started` JSON, connects WS.
 - [ ] HMAC handshake works on both.
-- [ ] `faster-whisper` `WhisperModel("tiny")` loads + transcribes inside the Nuitka exe.
+- [ ] `GGUF Whisper` `the GGUF runner loading the tiny model` loads + transcribes inside the Nuitka exe.
 - [ ] `enigo` types text into `gnome-text-editor` on X11. On Wayland, `enigo.text()` is expected to fail: confirm the clipboard + `Ctrl+V` fallback works.
 - [ ] `tauri-plugin-notification` posts a notification via libnotify on both X11 and Wayland.
 - [ ] Cooperative `{"type":"shutdown"}` exits cleanly; `kill_children` cleans on hard kill.
@@ -1000,7 +989,7 @@ Do NOT silently add commands/events during implementation. Every addition widens
 
 ### Costs (documented, with mitigations)
 
-- **Installer size:** Python + CTranslate2 + model adds ~400 MB–1 GB. Mitigation: this is model/data weight, comparable to what the app already ships; far less than predecessor + Chromium overhead overall.
+- **Installer size:** Python + GGUF runner + model adds ~400 MB–1 GB. Mitigation: this is model/data weight, comparable to what the app already ships; far less than predecessor + Chromium overhead overall.
 - **Startup latency:** 2–5 s cold sidecar start. Mitigation: prewarm file-cache warming + background load. The existing `prewarm/` package + `prewarm_scheduler_posix.py` + `task_scheduler.py` already handle this: they keep working post-migration.
 - **Multiple processes in Task Manager** (app + sidecar + prewarm): this is expected and honest. The migration does NOT yield a single OS process. Mitigated by Tauri-managed lifecycle + `single-instance`; users perceive one app. Do not promise "one process" to the user.
 - **Lifecycle/PID bugs** (the child Python process must close cleanly or it lingers as a zombie / blocks reinstall): mitigated by four concrete measures, all to be applied:
@@ -1021,7 +1010,7 @@ predecessor code is untouched throughout the migration. The Tauri + Sidecar buil
 
 ## Consequences
 
-The migration's consequences are itemized below as the "What stays / what moves / what is removed" scope boundary, followed by the "Risks / Open Questions" section. Positive consequences: leaner host shell (~2–10 MB Tauri exe vs ~100 MB+ predecessor + Chromium), freeze-free UI (sidecar owns its own GIL), crash-isolation via a Rust supervisor, no hand-rolled launcher relay (`legacy host launcher` removed on the Tauri path), and the user perceives one application (one icon/install) despite the multi-process runtime. Negative consequences: installer size grows by Python + CTranslate2 + model weight (~400 MB–1 GB), 2–5 s cold sidecar startup latency (mitigated by prewarm), multiple processes visible in Task Manager, lifecycle/PID cleanup complexity (mitigated by `kill_children` + cooperative WebSocket shutdown), and WebView2/WKWebView/webkit2gtk rendering differences (minor CSS/API guardrails). Neutral: per-platform incremental cutover (Windows → macOS → Linux), each gated on its own Phase 0 spike; predecessor code is retained intact throughout as a reversible fallback; cutover is a packaging/default switch, not a destructive change.
+The migration's consequences are itemized below as the "What stays / what moves / what is removed" scope boundary, followed by the "Risks / Open Questions" section. Positive consequences: leaner host shell (~2–10 MB Tauri exe vs ~100 MB+ predecessor + Chromium), freeze-free UI (sidecar owns its own GIL), crash-isolation via a Rust supervisor, no hand-rolled launcher relay (`legacy host launcher` removed on the Tauri path), and the user perceives one application (one icon/install) despite the multi-process runtime. Negative consequences: installer size grows by Python + GGUF runner + model weight (~400 MB–1 GB), 2–5 s cold sidecar startup latency (mitigated by prewarm), multiple processes visible in Task Manager, lifecycle/PID cleanup complexity (mitigated by `kill_children` + cooperative WebSocket shutdown), and WebView2/WKWebView/webkit2gtk rendering differences (minor CSS/API guardrails). Neutral: per-platform incremental cutover (Windows → macOS → Linux), each gated on its own Phase 0 spike; predecessor code is retained intact throughout as a reversible fallback; cutover is a packaging/default switch, not a destructive change.
 
 ## What stays / what moves / what is removed
 
@@ -1038,7 +1027,7 @@ These modules / behaviors are unchanged by the migration. They live in the Pytho
 - `recording/` package, `recording_controller.py`, `streaming.py`, `dictation_pipeline.py`, `transcription.py` Audio capture + ASR pipeline. Unchanged.
 - `audio_processor.py`, `audio_filters/*`, `audio_chain_builder.py`, `audio_presets.py` Audio filter chain (ADR-0009, the real one). Unchanged.
 - `vad.py`, `silero_vad.onnx` Voice activity detection. **Changed by the ONNX migration (ADR-0005, `PLAN_ONNX_INTEGRATION.md` §2):** `vad.py` now uses an `onnxruntime.InferenceSession` against the bundled `silero_vad.onnx` (replacing the legacy `torch.jit.load` + `silero_vad.jit` path). The hidden-state buffer is threaded across calls (`_state` numpy array, not torch tensors) so streaming chunk detection preserves context. The legacy `silero_vad.jit` artifact and the `--module-parameter=torch-disable-jit=no` Nuitka flag were retired (Phase 1c complete 2026-08-15, see `plan-runtime-pack-split.md` §3.3).
-- `model_manager.py`, `model_registry.py`, `asr_registry.py`, `asr_setup.py`, `parakeet_engine.py`, `qwen_engine.py`, `cloud_engines.py` ASR engine management. Unchanged by the predecessor→Tauri migration. **Subsequent ONNX migration (completed 2026-08-15, Phase 1d):** `parakeet_engine.py` was rewritten (`PLAN_ONNX_INTEGRATION.md` §3) from `transformers + torch` to `onnx_asr` (ORT backend), and Qwen is ONNX-only via `qwen_onnx_model.py` (pre-exported `andrewleech/qwen3-asr-*-onnx`, see `PLAN_ONNX_INTEGRATION.md` §4). `cloud_engines.py` and `llm_polish.py` are unaffected (zero torch/transformers/onnxruntime imports: verified).
+- `model_manager.py`, `model_registry.py`, `asr_registry.py`, `asr_setup.py`, `parakeet_engine.py`, `qwen_engine.py`, `cloud_engines.py` ASR engine management. Unchanged by the predecessor→Tauri migration. **Subsequent ONNX migration (completed 2026-08-15, Phase 1d):** `parakeet_engine.py` was rewritten (`PLAN_ONNX_INTEGRATION.md` §3) from `transformers + torch` to `GGUF runner` (ORT backend), and Qwen is ONNX-only via `qwen_onnx_model.py` (pre-exported `handy-computer/Qwen3-ASR-*-gguf`, see `PLAN_ONNX_INTEGRATION.md` §4). `cloud_engines.py` and `llm_polish.py` are unaffected (zero torch/transformers/onnxruntime imports: verified).
 - `config.py`, `config_validators.py`, `_paths.py` Config + path resolution. Unchanged.
 - `history_db.py` SQLite WAL history. Unchanged.
 - `crash_recovery.py`, `crash_handler.py`, `duck_crash_recovery.py` Crash recovery. Unchanged.
@@ -1115,9 +1104,9 @@ These modules / behaviors are unchanged by the migration. They live in the Pytho
 2. **UI port effort (Phase 3)** is the largest unknown; mitigated by keeping React components shell-agnostic.
 3. **Transport bridge (Phase 2)** must preserve all current handler behaviors and the event flow exactly. The **Sidecar→UI Event Table** above enumerates every event so nothing is missed. The per-connection rate limiter (ADR-0019) must be ported to the WS path.
 4. **Recovery supervisor (supervisor)** must be implemented before cutover so a sidecar crash does not strand the user.
-5. **macOS notarization + entitlements** for the sidecar (which uses `pyobjc` + native dylibs) is the highest-risk unknown, Nuitka + `pyobjc` + hardened runtime + notarization has historical friction. Mitigation: Phase 0-M explicitly validates `faster-whisper` loads inside the notarized sidecar on both archs.
+5. **macOS notarization + entitlements** for the sidecar (which uses `pyobjc` + native dylibs) is the highest-risk unknown, Nuitka + `pyobjc` + hardened runtime + notarization has historical friction. Mitigation: Phase 0-M explicitly validates `GGUF Whisper` loads inside the notarized sidecar on both archs.
 6. **Wayland paste UX regression**, `enigo.text()` does not work on Wayland. Mitigation: clipboard + `Ctrl+V` fallback with `clipboard_snapshot.py` borrow/restore. User-facing doc must explain the clipboard-replacement behavior.
-7. **Linux ARM64 (aarch64-unknown-linux-gnu)**, the `python-build-standalone` aarch64 Linux builds + CTranslate2 aarch64 wheels + glibc pinning are less tested than x86_64. Mitigation: defer aarch64 Linux to a follow-up if Phase 0-L on x86_64 passes; document the deferral.
+7. **Linux ARM64 (aarch64-unknown-linux-gnu)**, the `python-build-standalone` aarch64 Linux builds + GGUF runner aarch64 wheels + glibc pinning are less tested than x86_64. Mitigation: defer aarch64 Linux to a follow-up if Phase 0-L on x86_64 passes; document the deferral.
 8. **WebView2 / WKWebView / webkit2gtk CSS+JS differences**. The React UI was built for Chromium (the predecessor). Audit for webkit2gtk-specific quirks (notably: `backdrop-filter` is partial in webkit2gtk; `:has()` is supported only in webkit2gtk ≥ 2.40; `structuredClone` requires webkit2gtk ≥ 2.36). Mitigation: add `@supports` guards or polyfills.
 9. **Auto-update is out of scope for v1** (see §15). Users upgrade by downloading the new release manually, same as today. Track auto-update as a separate follow-up ADR.
 10. **Tauri v2 maturity**: Tauri v2 was released in late 2024; some plugins (`tray`, `updater`) have had bugs in early 2.x releases. Mitigation: pin Tauri v2 to a known-stable minor version; monitor the Tauri issue tracker for sidecar / `externalBin` regressions.

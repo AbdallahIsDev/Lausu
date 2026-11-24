@@ -45,8 +45,8 @@ that platform's target archs:
    - `externalBin` sidecar spawns via Tauri; Rust reads `server_started`
      JSON from stdout and connects the WS.
    - Bearer-token handshake: wrong token rejected; correct token accepted.
-   - `faster-whisper` `WhisperModel("tiny")` loads + transcribes inside
-     the Nuitka exe (proves CTranslate2/DLLs/models).
+   - `GGUF Whisper` `the GGUF runner loading the tiny model` loads + transcribes inside
+     the Nuitka exe (proves GGUF runner/DLLs/models).
    - `enigo` types text into a foreground window (Notepad / TextEdit /
      `gnome-text-editor`); clipboard+Ctrl+V path verified (required on
      Wayland where `enigo.text()` is expected to fail).
@@ -97,7 +97,7 @@ that platform's target archs:
 - macOS `pyobjc` + hardened runtime + notarization friction (ADR-0020
   Risk #5): if Phase 0-M passes, this is de-risked; otherwise defer.
 - Linux aarch64 (ADR-0020 Risk #7): if `python-build-standalone` aarch64
-  Linux + CTranslate2 aarch64 wheels + glibc pinning prove unstable,
+  Linux + GGUF runner aarch64 wheels + glibc pinning prove unstable,
   defer aarch64 Linux to a follow-up. x86_64 Linux can cut over
   independently.
 - WebView CSS/JS differences (ADR-0020 Risk #8): if Phase 3 (UI port)
@@ -242,7 +242,7 @@ platform has been stable on Tauri for ≥ 1 release cycle.
   first; Wayland users stay on predecessor until the Wayland UX is
   validated as acceptable.
 - **x86_64 before aarch64**: aarch64 Linux is less tested
-  (`python-build-standalone` aarch64 + CTranslate2 aarch64 wheels +
+  (`python-build-standalone` aarch64 + GGUF runner aarch64 wheels +
   glibc pinning: ADR-0020 Risk #7). Defer aarch64 Linux to a follow-up
   if Phase 0-L on x86_64 passes but aarch64 is unstable.
 

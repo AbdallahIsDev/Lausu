@@ -195,7 +195,6 @@ python -m nuitka \
     --output-dir=src-tauri/bin \
     --output-filename=python-sidecar-$(rustc -vV | grep host | awk '{print $2}') \
     --include-package=voice_typer.server \
-    --include-package=faster_whisper \
     --include-package=enigo \
     --include-package=pystray \
     --include-data-dir=voice_typer/server/native=native \
@@ -352,7 +351,7 @@ marked RETIRED (prewarm is now a worker-startup phase, plan §6.2 P-1).
 | Component | Path | Status |
 |---|---|---|
 | Build orchestrator | `scripts/build/build_tauri_all.sh` | ✅ Local dev wrapper around the per-platform build scripts + `cargo tauri build`. Bash-syntax-verified. |
-| Sidecar build (Windows x86_64+aarch64) | `scripts/build/build_sidecar_windows.sh` | ✅ Nuitka `--standalone --onefile` against `python-build-standalone` cpython-3.12.x+x86_64-pc-windows-msvc. Includes ctranslate2/lib + ctranslate2.dll. `--windows-disable-console`. |
+| Sidecar build (Windows x86_64+aarch64) | `scripts/build/build_sidecar_windows.sh` | ✅ Nuitka `--standalone --onefile` against `python-build-standalone` cpython-3.12.x+x86_64-pc-windows-msvc. Includes the runner install + the external runner binary. `--windows-disable-console`. |
 | Sidecar build (macOS x86_64+aarch64) | `scripts/build/build_sidecar_macos.sh` | ✅ Nuitka with `--macos-create-app-bundle --macos-app-mode=background` (LSUIElement=true). Rosetta 2 fallback for x86_64 on Apple Silicon host. |
 | Sidecar build (Linux x86_64+aarch64) | `scripts/build/build_sidecar_linux.sh` | ✅ Nuitka with `--onefile-tempdir-spec=$XDG_CACHE_HOME/lausu/onefile-tmp`. qemu-user-static cross-build for aarch64 on x86_64 host. glibc ≤ 2.35 baseline check. |
 | Prewarm build (Windows) | ~~`scripts/build/build_prewarm_windows.sh`~~ | ❌ RETIRED (plan §6.2 P-1): the standalone `prewarm-<triple>.exe` is gone (no `voice_typer/server/prewarm/__main__.py`, no prewarm build step in `tauri-windows-build.yml`, no prewarm entries in `bundle.resources`). Prewarm runs as a worker-startup phase. |
@@ -385,7 +384,7 @@ marked RETIRED (prewarm is now a worker-startup phase, plan §6.2 P-1).
 | Actual Nuitka freeze run on macOS aarch64 + x86_64 | Need a real macOS host (Apple Silicon + Intel). Nuitka cannot cross-compile between arches. | Phase 0-M validation runbook (`macos-validation-runbook.md`): both arches on both macOS 13 + macOS 14. |
 | Actual Nuitka freeze run on Linux x86_64 | Headless Linux container cannot run `cargo tauri build` (no display server). | Phase 0-L validation runbook (`linux-validation-runbook.md`): X11 + Wayland. |
 | Actual Nuitka freeze run on Linux aarch64 | `ubuntu-22.04-arm` runner not generally available; qemu-user-static path untested. | Either wait for `ubuntu-22.04-arm`, or build on a real Linux-ARM device, or validate the qemu path on a real Linux host. |
-| CTranslate2 DLL/dylib/.so set per platform | ADR-0020 §4.2-4.4 mandate enumerating the exact runtime DLL set at build time on each host (libiomp5md.dll, mkl_*.dll, libgomp.so, libiomp5.dylib). | Run `import ctranslate2` in the build env on each platform + enumerate loaded companion DLLs (`listdlls`/`otool -L`/`ldd`). |
+| GGUF runner DLL/dylib/.so set per platform | ADR-0020 §4.2-4.4 mandate enumerating the exact runtime DLL set at build time on each host (libiomp5md.dll, mkl_*.dll, libgomp.so, libiomp5.dylib). | Verify the external runner is present in the build env on each platform (`listdlls`/`otool -L`/`ldd`). |
 | Code-signing end-to-end | Needs real certs + secrets in CI: `WIN_CSC_LINK`/`WIN_CSC_KEY_PASSWORD` (Windows), `MAC_SIGNING_IDENTITY`/`APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID` (macOS). | Provision secrets in GitHub Actions per `signing-guide.md` §"Reused signing identities". |
 | Per-platform cutover | Each platform must pass its Phase 0 gate + supervisor + side-by-side smoke + signing verification + user acceptance. | `cutover-playbook.md` §"Cutover criteria per platform". |
 

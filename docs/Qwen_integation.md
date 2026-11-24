@@ -3,7 +3,7 @@
 > **SUPERSEDED 2026-08-15.** This log documents the ORIGINAL torch-era
 > integration (`qwen-asr` package + PyTorch + transformers). The Qwen
 > backend is now ONNX-only: `voice_typer/server/qwen_onnx_model.py` runs
-> the pre-exported `andrewleech/qwen3-asr-*-onnx` models via
+> the pre-exported `handy-computer/Qwen3-ASR-*-gguf` models via
 > onnxruntime with NO torch. See `PLAN_ONNX_INTEGRATION.md` §4 (Phase 1d
 > completed). `torch`, `transformers`, and the `qwen-asr` package are no
 > longer project dependencies. This file is kept as a historical record.
@@ -27,7 +27,7 @@ huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir ./Qwen3-ASR-0.6B
 ```
 
 ### No Code Written Yet
-Zero Qwen references in source. `voice_typer/transcription.py` is pure `faster-whisper`.
+Zero Qwen references in source. `voice_typer/transcription.py` is pure `GGUF Whisper`.
 
 ## Integration Surface
 
@@ -58,7 +58,7 @@ class ASRTranscription:
 ## Architecture Decision: Qwen as Parallel Backend
 
 - Qwen adds as a **new optional backend**, completely separate from Whisper
-- **Never delete or replace** existing faster-whisper code
+- **Never delete or replace** existing GGUF Whisper code
 - **Never modify existing files**: create new `voice_typer/qwen_engine.py`
 - Whisper stays as the **default and fallback**
 - Qwen activated via config key (e.g. `"asr_backend": "qwen"`)
@@ -96,7 +96,7 @@ Integration tests only run when user confirms they've downloaded the model manua
 
 3. **GPU memory**: Qwen3-ASR-0.6B needs ~1.2-1.6 GB VRAM. Current GPU already runs Whisper small.en on CUDA. Both simultaneously may exceed VRAM, consider unloading Whisper when Qwen is active.
 
-4. **vLLM not available**: transformers backend only. Expect RTF ~0.05-0.1 (slower than faster-whisper's ~0.01-0.02). User is okay with 1-2 second transcription delay.
+4. **vLLM not available**: transformers backend only. Expect RTF ~0.05-0.1 (slower than GGUF Whisper's ~0.01-0.02). User is okay with 1-2 second transcription delay.
 
 5. **No changes to existing files**: New module only. Whisper code untouched.
 
