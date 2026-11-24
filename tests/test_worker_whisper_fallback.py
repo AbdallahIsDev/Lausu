@@ -246,32 +246,33 @@ class TestRegistryFallbackOrder:
         assert registry._try_system_whisper_fallback() is proxy
         assert registry.get("whisper") is proxy
 
-    def test_worker_down_falls_to_legacy(self, monkeypatch):
+    def test_worker_down_refuses_legacy_fallback(self, monkeypatch):
         from voice_typer.server import system_whisper
 
-        legacy = MagicMock()
+        def _forbidden(*a, **k):
+            raise AssertionError("legacy in-process path must not run when the worker is down")
+
         monkeypatch.setattr(system_whisper, "try_load_worker_whisper", lambda *a, **k: None)
-        monkeypatch.setattr(system_whisper, "try_load_system_whisper", lambda *a, **k: legacy)
+        monkeypatch.setattr(system_whisper, "try_load_system_whisper", _forbidden)
         registry = _registry()
-        assert registry._try_system_whisper_fallback() is legacy
-        assert registry.get("whisper") is legacy
+        assert registry._try_system_whisper_fallback() is None
+        assert registry.get("whisper") is None
 
-    def test_worker_error_falls_to_legacy(self, monkeypatch):
+    def test_worker_error_refuses_legacy_fallback(self, monkeypatch):
         from voice_typer.server import system_whisper
-
-        legacy = MagicMock()
 
         def _boom(*a, **k):
             raise RuntimeError("worker hop down")
 
+        def _forbidden(*a, **k):
+            raise AssertionError("legacy in-process path must not run after a worker error")
+
         monkeypatch.setattr(system_whisper, "try_load_worker_whisper", _boom)
-        monkeypatch.setattr(system_whisper, "try_load_system_whisper", lambda *a, **k: legacy)
-        registry = _registry()
-        assert registry._try_system_whisper_fallback() is legacy
+        monkeypatch.setattr(system_whisper, "try_load_system_whisper", _forbidden)
+        assert _registry()._try_system_whisper_fallback() is None
 
     def test_both_unavailable_returns_none(self, monkeypatch):
         from voice_typer.server import system_whisper
 
         monkeypatch.setattr(system_whisper, "try_load_worker_whisper", lambda *a, **k: None)
-        monkeypatch.setattr(system_whisper, "try_load_system_whisper", lambda *a, **k: None)
         assert _registry()._try_system_whisper_fallback() is None

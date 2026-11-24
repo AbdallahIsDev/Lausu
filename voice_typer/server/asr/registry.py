@@ -242,11 +242,10 @@ class RegistryCore:
             time.sleep(min(2.0, remaining))
 
     def _try_system_whisper_fallback(self) -> AsrBackend | None:
-        """Serve whisper from worker/system libraries when the pack is absent.
+        """Serve whisper from the pack worker when the local pack is absent.
 
-        Worker first (cached model, no in-process load), then the
-        system-library loader; the winner replaces the worker shim; ``None``
-        propagates the refusal.
+        In-process system-library decoding was removed with the legacy ASR
+        stack; a worker that cannot serve propagates ``None``.
         """
         engine: AsrBackend | None
         try:
@@ -256,13 +255,7 @@ class RegistryCore:
             source = "worker"
         except Exception:
             log.debug("[ASR_REGISTRY] worker whisper attempt failed", exc_info=True)
-            engine = None
-            source = ""
-        if engine is None:
-            from voice_typer.server.system_whisper import try_load_system_whisper
-
-            engine = try_load_system_whisper(self._config)
-            source = "system libraries"
+            return None
         if engine is None:
             return None
         self.register("whisper", engine)

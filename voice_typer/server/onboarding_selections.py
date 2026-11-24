@@ -72,15 +72,15 @@ class _OnboardingSelectionsMixin:
     # The Model step's local-vs-cloud choice. The app NEVER downloads
     BACKEND_CHOICES: tuple[str, ...] = ("local", "cloud")
 
-    @staticmethod
-    def visible_model_options() -> list[dict]:
+    @classmethod
+    def visible_model_options(cls) -> list[dict]:
         """Model options for this build; dev-only models never leave source."""
         from voice_typer.server.gguf_model_registry import is_frozen, production_models
 
         if is_frozen():
             allowed = set(production_models())
-            return [dict(option) for option in OnboardingController.MODEL_OPTIONS if option["name"] in allowed]
-        return [dict(option) for option in OnboardingController.MODEL_OPTIONS]
+            return [dict(option) for option in cls.MODEL_OPTIONS if option["name"] in allowed]
+        return [dict(option) for option in cls.MODEL_OPTIONS]
 
     # each entry now carries ``vram_gb`` (estimated VRAM for
     MODEL_OPTIONS = [
