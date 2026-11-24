@@ -92,7 +92,7 @@ function pointsIntoRepo(target) {
 const INSTALL_HINT =
   `The dictation extension is not connected. Open chrome://extensions in the dictation profile, ` +
   `enable Developer mode, choose "Load unpacked", and select ${stableExtensionDir()}. ` +
-  `Then reload the Gemini or Claude tab and press the hotkey again.`;
+  `Then reload the Claude, Gemini or ChatGPT tab and press the hotkey again.`;
 
 module.exports = {
   AUTHORITY,

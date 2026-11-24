@@ -73,7 +73,13 @@ def launch_profile_if_due(
     profile = str(profile_dir()) if legacy is not None and configured and Path(configured) == legacy else configured
     launched = launch_fn(
         profile,
-        str(config.get("url") or config.get("claudeUrl") or config.get("geminiUrl") or ""),
+        str(
+            config.get("url")
+            or config.get("claudeUrl")
+            or config.get("geminiUrl")
+            or config.get("chatgptUrl")
+            or ""
+        ),
     )
     return launched, now
 

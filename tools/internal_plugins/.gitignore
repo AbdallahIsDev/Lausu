@@ -10,8 +10,13 @@ anthropic_stt/debug/
 anthropic_stt/last_error.json
 anthropic_stt/config.json
 anthropic_stt/settings.json
+chatgpt_stt/debug/
+chatgpt_stt/last_error.json
+chatgpt_stt/config.json
+chatgpt_stt/settings.json
 _common/bridge/extension/generated/
 _common/bridge/token.json
 anthropic_stt/STOP
+chatgpt_stt/STOP
 __pycache__/
 *.pyc

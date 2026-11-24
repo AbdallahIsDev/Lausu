@@ -35,13 +35,19 @@ test('emits BOTH platform selector sets and the same one token the daemon uses',
   const generated = evaluateGenerated(dir);
   assert.equal(generated.token, loadConfig(dir, options(dir)).config.relayToken);
   assert.match(generated.wsUrl, /^ws:\/\/127\.0\.0\.1:17875\/extension$/);
-  assert.deepEqual(Object.keys(generated.platforms).sort(), ['claude', 'gemini']);
+  assert.deepEqual(Object.keys(generated.platforms).sort(), ['chatgpt', 'claude', 'gemini']);
   for (const platform of PLATFORMS) {
     const selectors = JSON.parse(fs.readFileSync(path.join(SELECTORS, `${platform}.json`), 'utf8'));
     assert.deepEqual(JSON.parse(JSON.stringify(generated.platforms[platform])), selectors);
   }
   assert.equal(generated.platforms.claude.composer.includes('contenteditable'), true);
   assert.equal(generated.platforms.gemini.micSelector, 'button[aria-label^="Dictate"]');
+  // ChatGPT's commit and discard controls are DIFFERENT controls, so the
+  // compiled selector sets must not overlap (C-ASR-4).
+  const chatgpt = generated.platforms.chatgpt;
+  assert.ok(chatgpt.stopSelector, 'the commit selector must be compiled');
+  assert.ok(chatgpt.cancelSelector, 'the discard selector must be compiled');
+  assert.notEqual(chatgpt.stopSelector, chatgpt.cancelSelector);
 });
 
 test('is deterministic and check passes on a clean tree', () => {

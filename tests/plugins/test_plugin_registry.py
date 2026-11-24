@@ -396,9 +396,10 @@ class TestPluginModuleRouting:
 
         return _App()
 
-    def test_module_table_covers_both_installed_plugins(self) -> None:
+    def test_module_table_covers_every_installed_plugin(self) -> None:
         assert hook.PLUGIN_MODULES["google_stt"] == "tools.internal_plugins.google_stt.plugin"
         assert hook.PLUGIN_MODULES["anthropic_stt"] == "tools.internal_plugins.anthropic_stt.plugin"
+        assert hook.PLUGIN_MODULES["chatgpt_stt"] == "tools.internal_plugins.chatgpt_stt.plugin"
 
     def test_unknown_id_resolves_to_no_module(self) -> None:
         """A stale/uninstalled id must not import anything (fails closed)."""

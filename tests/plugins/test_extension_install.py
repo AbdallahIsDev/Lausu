@@ -22,6 +22,7 @@ from tools.internal_plugins._common.bridge import (
     keepalive,
 )
 from tools.internal_plugins.anthropic_stt import plugin as anthropic
+from tools.internal_plugins.chatgpt_stt import plugin as chatgpt
 from tools.internal_plugins.google_stt import plugin as google
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -59,7 +60,7 @@ class TestInstallAuthority:
         assert target != repo and repo not in target.parents
         assert target.name == "extension"
 
-    @pytest.mark.parametrize("module", [anthropic, google])
+    @pytest.mark.parametrize("module", [anthropic, google, chatgpt])
     def test_one_profile_from_one_authority(self, module):
         # config.json is gitignored runtime state; the tracked example is the
         # shipped descriptor that must agree with the one profile authority.
@@ -71,14 +72,15 @@ class TestInstallAuthority:
 
     def test_one_extension_and_no_second_copy(self):
         assert (BRIDGE / "extension" / "manifest.json").is_file()
-        for name in ("anthropic_stt", "google_stt"):
+        for name in ("anthropic_stt", "google_stt", "chatgpt_stt"):
             assert not (PLUGINS / name / "extension").exists()
         stager = ROOT / "scripts" / "build" / "stage_internal_plugins.py"
         text = stager.read_text(encoding="utf-8")
         assert '"generated"' in text and '"config.json"' in text
 
     @pytest.mark.parametrize(
-        ("module", "platform"), [(anthropic, "claude"), (google, "gemini")]
+        ("module", "platform"),
+        [(anthropic, "claude"), (google, "gemini"), (chatgpt, "chatgpt")],
     )
     def test_one_port_and_one_token_store(self, module, platform):
         descriptor = json.loads((module.HERE / "config.example.json").read_text(encoding="utf-8"))
@@ -182,7 +184,7 @@ class TestSync:
 
 
 class TestKeepaliveRegression:
-    @pytest.mark.parametrize("module", [anthropic, google])
+    @pytest.mark.parametrize("module", [anthropic, google, chatgpt])
     def test_note_status_never_raises_and_dedupes(self, module, caplog):
         import logging
 
@@ -260,7 +262,12 @@ class TestVerifierOutput:
 
 class TestSingleChromeInstance:
     @pytest.mark.parametrize(
-        ("platform", "url"), [("claude", "https://claude.ai/new"), ("gemini", "https://gemini.google.com/app")]
+        ("platform", "url"),
+        [
+            ("claude", "https://claude.ai/new"),
+            ("gemini", "https://gemini.google.com/app"),
+            ("chatgpt", "https://chatgpt.com/"),
+        ]
     )
     def test_arg_vector_is_identical_except_the_url(self, platform, url):
         args = chrome_profile.profile_args(chrome_profile.PROFILE_DIR, url)

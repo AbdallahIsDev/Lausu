@@ -12,7 +12,11 @@ def _workspace(tmp_path: Path, monkeypatch) -> Path:
     root = tmp_path / "internal_plugins"
     root.mkdir()
     monkeypatch.setenv("VOICE_TYPER_PLUGINS_DIR", str(root))
-    for name, plugin_id in (("anthropic_stt", "anthropic_stt"), ("google_stt", "google_stt")):
+    for name, plugin_id in (
+        ("anthropic_stt", "anthropic_stt"),
+        ("google_stt", "google_stt"),
+        ("chatgpt_stt", "chatgpt_stt"),
+    ):
         d = root / name
         d.mkdir()
         (d / "plugin.json").write_text(
@@ -52,7 +56,7 @@ class TestImmediatePropagation:
         resp = ipc._dispatch({"type": "set_config", "data": {"plugin_visible": False}})
         assert resp is not None and resp["type"] == "ack"
         assert app.config.plugin_visible is False
-        for name in ("anthropic_stt", "google_stt"):
+        for name in ("anthropic_stt", "google_stt", "chatgpt_stt"):
             assert _stored(workspace, name)["visible"] is False
             # Daemon-owned keys survive the projection.
             assert _stored(workspace, name)["profileDir"] == "/tmp/profile"
@@ -62,7 +66,7 @@ class TestImmediatePropagation:
         ipc, app, _service = _server_with_config()
 
         ipc._dispatch({"type": "set_config", "data": {"plugin_notify": False}})
-        for name in ("anthropic_stt", "google_stt"):
+        for name in ("anthropic_stt", "google_stt", "chatgpt_stt"):
             assert _stored(workspace, name)["notify"] is False
 
     def test_visibility_change_applies_to_the_running_browser(
@@ -94,6 +98,6 @@ class TestImmediatePropagation:
 
         config = type("Cfg", (), {"plugin_visible": False, "plugin_notify": False})()
         shared_settings.sync_all(config)
-        for name in ("anthropic_stt", "google_stt"):
+        for name in ("anthropic_stt", "google_stt", "chatgpt_stt"):
             assert _stored(workspace, name)["visible"] is False
             assert _stored(workspace, name)["notify"] is False

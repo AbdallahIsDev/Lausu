@@ -12,7 +12,9 @@
     ? 'gemini'
     : HOST.includes('claude.ai')
       ? 'claude'
-      : '';
+      : HOST.includes('chatgpt.com')
+        ? 'chatgpt'
+        : '';
   // Unknown host: a clean no-op. Never inject a selector set by guessing.
   if (!PLATFORM) return;
   const SEL = (CFG.platforms && CFG.platforms[PLATFORM]) || {};
@@ -88,11 +90,101 @@
     return 'ok';
   }
 
-  function composerBox() {
+  // The selector list is a PRIORITY list, not one big union: a candidate that
+  // does not exist on this page is skipped and the next one is tried. That
+  // keeps a stale anchor (a leftover `#prompt-textarea` from an older
+  // release) from shadowing the live composer. Commas inside a functional
+  // pseudo-class (`:is(a, b)`) do not split the list.
+  function splitSelectors(list) {
+    const out = [];
+    let depth = 0;
+    let quote = '';
+    let current = '';
+    for (const ch of String(list || '')) {
+      if (quote) {
+        current += ch;
+        if (ch === quote) quote = '';
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        quote = ch;
+        current += ch;
+        continue;
+      }
+      if (ch === '(') depth += 1;
+      if (ch === ')') depth = Math.max(0, depth - 1);
+      if (ch === ',' && depth === 0) {
+        if (current.trim()) out.push(current.trim());
+        current = '';
+        continue;
+      }
+      current += ch;
+    }
+    if (current.trim()) out.push(current.trim());
+    return out;
+  }
+
+  // A control the user cannot see is not the control. Only a POSITIVE signal
+  // counts: an element with no layout API (a minimal DOM) is never hidden.
+  function isHiddenElement(el) {
     try {
-      return document.querySelector(COMPOSER);
+      if (!el) return true;
+      if (typeof el.getBoundingClientRect !== 'function') return false;
+      const rect = el.getBoundingClientRect();
+      if (rect && (rect.width > 0 || rect.height > 0)) return false;
+      if (typeof getComputedStyle !== 'function') return false;
+      const style = getComputedStyle(el);
+      if (!style) return false;
+      if (style.display === 'none' || style.visibility === 'hidden') return true;
+      if (Number(style.opacity || 1) === 0) return true;
+      // A zero rect with a visible style is a collapsed clone of the anchor.
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function composerBox() {
+    let fallback = null;
+    try {
+      for (const candidate of splitSelectors(COMPOSER)) {
+        let first = null;
+        try {
+          first = document.querySelector(candidate);
+        } catch (_) {
+          // An invalid candidate must not take the whole platform down.
+          continue;
+        }
+        if (!first) continue;
+        if (!isHiddenElement(first)) return first;
+        // The first match is hidden (a stale duplicate of the anchor): a
+        // VISIBLE match of the same anchor is the box the user types in.
+        try {
+          const visible = Array.from(document.querySelectorAll(candidate)).find(
+            (el) => !isHiddenElement(el),
+          );
+          if (visible) return visible;
+        } catch (_) {}
+        if (!fallback) fallback = first;
+      }
+      // Nothing visible matched, but the anchor EXISTS: report it as present
+      // rather than pretending the platform has no composer at all.
+      return fallback;
     } catch (_) {
       return null;
+    }
+  }
+
+  // A value-backed composer (a textarea) keeps its text in `.value`; its DOM
+  // text nodes are EMPTY, so reading innerText/textContent would report an
+  // empty composer forever and the transcript would never be scraped.
+  function isValueBacked(box) {
+    try {
+      const tag = (box && box.tagName ? box.tagName : '').toLowerCase();
+      if (tag === 'textarea' || tag === 'input') return true;
+      return typeof box.value === 'string';
+    } catch (_) {
+      return false;
     }
   }
 
@@ -100,8 +192,21 @@
     const box = composerBox();
     if (!box) return '';
     try {
-      const rich = box.querySelector('p');
-      if (rich && rich.innerText.trim()) return rich.innerText.trim();
+      if (isValueBacked(box)) return String(box.value || '').trim();
+      // A ProseMirror transcript can span several paragraphs: joining them
+      // keeps the whole text instead of the first paragraph only.
+      let rich = '';
+      if (typeof box.querySelectorAll === 'function') {
+        rich = Array.from(box.querySelectorAll('p'))
+          .map((p) => (p.innerText || p.textContent || ''))
+          .filter((t) => t.trim())
+          .join('\n')
+          .trim();
+      } else {
+        const first = box.querySelector('p');
+        rich = first ? String(first.innerText || '').trim() : '';
+      }
+      if (rich) return rich;
       const text = (box.innerText || box.textContent || '').trim();
       const placeholder =
         box.getAttribute('data-placeholder') || box.getAttribute('aria-placeholder') || '';
@@ -210,10 +315,13 @@
     try {
       const all = Array.from(document.querySelectorAll(STOP_SELECTOR));
       const clickable = all.filter(isClickable);
-      // Prefer the explicit commit label when several controls match.
+      // Prefer the explicit commit label when several controls match (a
+      // label fallback plus a glyph fallback can both hit). Claude calls it
+      // "Finish dictation", ChatGPT "Submit dictation".
       const rank = (el) => {
         const label = (el.getAttribute('aria-label') || '').toLowerCase();
-        return label.includes('finish dictation') ? 0 : 1;
+        if (label.includes('finish dictation') || label.includes('submit dictation')) return 0;
+        return 1;
       };
       return (clickable.length ? clickable : []).sort((a, b) => rank(a) - rank(b));
     } catch (_) {
@@ -223,7 +331,9 @@
 
   function cancelButtons() {
     try {
-      return Array.from(document.querySelectorAll(CANCEL_SELECTOR));
+      // Only a control the user can actually click can discard the capture: a
+      // hidden duplicate of the same label silently swallows the click.
+      return Array.from(document.querySelectorAll(CANCEL_SELECTOR)).filter(isClickable);
     } catch (_) {
       return [];
     }
@@ -499,24 +609,38 @@
   async function cancel() {
     state.recording = false;
     releaseIdleSlot();
-    // DISCARD: the sibling control that throws the capture away. Falling back
-    // to the commit control would transcribe an aborted recording.
+    // DISCARD: the sibling control that throws the capture away. Clicking the
+    // COMMIT control instead would transcribe an aborted recording, so a
+    // platform that HAS a discard control is never stopped through it
+    // (C-ASR-4). A platform with NO discard control (Gemini exposes only the
+    // Dictate/Stop toggle) stops through that toggle and the text it commits
+    // is cleared afterwards.
     const discard = cancelButtons();
+    let control = 'none';
+    let via = 'none';
     if (discard.length) {
+      control = describeControl(discard[0]);
+      via = 'discard';
       clickElement(discard[0]);
       await sleep(1200);
-    } else {
+    } else if (!CANCEL_SELECTOR) {
       const stopControl = stopButtons();
       if (stopControl.length) {
+        control = describeControl(stopControl[0]);
+        via = 'stop-fallback';
         clickElement(stopControl[0]);
         await sleep(1200);
       }
+    } else {
+      // The platform HAS a discard control but it is not clickable now.
+      // Report that instead of committing a dictation the user threw away.
+      via = 'discard-unavailable';
     }
     // Discard the text the platform already committed, IN PLACE: a New chat
     // click navigates and reloads the view (owner report 2026-11-20).
     const cleared = await clearComposer();
     if (!cleared.cleared) await newChat();
-    return { ok: true };
+    return { ok: true, control, via, cleared: cleared.cleared };
   }
 
   // Clear the prompt box in place after a delivered transcript. The text has
@@ -537,6 +661,32 @@
     ['dom-paragraph', (box) => runDomParagraphReset(box)],
     ['dom-empty', (box) => runDomEmpty(box)],
   ];
+
+  // A textarea keeps its text in `.value`. Emptying the DOM text leaves the
+  // value intact, so the value itself has to be cleared -- and the framework
+  // has to be told, or it restores the old text on its next render.
+  function runValueEmpty(box) {
+    setNativeValue(box, '');
+    notifyInput(box);
+  }
+
+  // React (and other frameworks) install their own `value` setter on the
+  // element INSTANCE and compare against it; assigning through the PROTOTYPE
+  // setter is what makes the framework see the change instead of treating it
+  // as a no-op.
+  function setNativeValue(box, value) {
+    try {
+      const proto = Object.getPrototypeOf(box);
+      const desc = proto && Object.getOwnPropertyDescriptor(proto, 'value');
+      if (desc && typeof desc.set === 'function') {
+        desc.set.call(box, value);
+        return;
+      }
+    } catch (_) {}
+    try {
+      box.value = value;
+    } catch (_) {}
+  }
 
   function runSelectionDelete(box) {
     box.focus();
@@ -580,8 +730,14 @@
     const box = composerBox();
     if (!box) return { cleared: false, reason: 'no-composer' };
     if (!composerText()) return { cleared: true, reason: 'already-empty' };
+    // A value-backed composer is emptied FIRST: the editing commands and the
+    // DOM-text strategies cannot touch a textarea's `.value`, so they would
+    // burn the whole list and report the box as still dirty.
+    const strategies = isValueBacked(box)
+      ? [['value-empty', (b) => runValueEmpty(b)], ...CLEAR_STRATEGIES]
+      : CLEAR_STRATEGIES;
     const steps = [];
-    for (const [name, run] of CLEAR_STRATEGIES) {
+    for (const [name, run] of strategies) {
       try {
         run(box);
       } catch (err) {

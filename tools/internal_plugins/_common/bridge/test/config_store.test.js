@@ -84,8 +84,12 @@ test('the measured scrape defaults are fixed, not user knobs', () => {
   // Still a safety net internally, just no longer surfaced in the manifest.
   assert.equal(DEFAULTS.timeoutMs, 15000);
   const dir = tempDir();
+  // C-PLUGIN-2: a manifest declares IDENTITY, never settings -- the visible
+  // and notify switches live in the one main config.json. The assertion used
+  // to pin a `settings` array in plugin.json, which the unified settings
+  // interface deliberately removed; the file was stale, not the behaviour.
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'plugin.json'), 'utf8'));
-  assert.deepEqual(manifest.settings.map((s) => s.key), ['visible', 'notify']);
+  assert.equal(manifest.settings, undefined);
 });
 
 test('the token and the generated extension config are gitignored', () => {

@@ -1,7 +1,7 @@
-"""One shared Chrome-extension bridge, two thin platform plugins.
+"""One shared Chrome-extension bridge, thin platform plugins.
 
 No real browser, network or Node process: the seams are faked. The contract
-pinned here is that both plugins spawn the SAME daemon with a platform
+pinned here is that every plugin spawns the SAME daemon with a platform
 descriptor, share one profile/port/token authority, and keep their own copy.
 """
 
@@ -17,6 +17,7 @@ from tests.plugins.profile_path_helpers import assert_shared_profile
 from tools.internal_plugins._common import daemon as daemon_common
 from tools.internal_plugins._common.bridge import chrome_profile, daemon_client
 from tools.internal_plugins.anthropic_stt import plugin as anthropic
+from tools.internal_plugins.chatgpt_stt import plugin as chatgpt
 from tools.internal_plugins.google_stt import plugin as google
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,6 +35,7 @@ class TestOneSharedAuthority:
         [
             (anthropic, "anthropic_stt", "claude", "https://claude.ai/new"),
             (google, "google_stt", "gemini", "https://gemini.google.com/app"),
+            (chatgpt, "chatgpt_stt", "chatgpt", "https://chatgpt.com/"),
         ],
     )
     def test_descriptor_and_client(self, module, plugin, platform, url):
@@ -50,20 +52,24 @@ class TestOneSharedAuthority:
         )
         assert Path(module._CLIENT.daemon_script) == BRIDGE / "run.js"
 
-    def test_one_token_authority_and_both_selectors(self):
+    def test_one_token_authority_and_every_selector_set(self):
         # token.json is gitignored runtime state; pin the single source authority.
         store = (BRIDGE / "config_store.js").read_text(encoding="utf-8")
         assert "const TOKEN_FILE = path.join(BRIDGE_DIR, 'token.json')" in store
         assert store.count("'token.json'") == 1
-        for name in ("claude", "gemini"):
+        for name in ("claude", "gemini", "chatgpt"):
             assert (BRIDGE / "selectors" / f"{name}.json").is_file()
         manifest = json.loads((BRIDGE / "extension" / "manifest.json").read_text(encoding="utf-8"))
         matches = manifest["content_scripts"][0]["matches"]
-        assert matches == ["https://claude.ai/*", "https://gemini.google.com/*"]
+        assert matches == [
+            "https://claude.ai/*",
+            "https://gemini.google.com/*",
+            "https://chatgpt.com/*",
+        ]
         assert set(manifest["host_permissions"]) >= set(matches)
 
     def test_no_plugin_carries_a_second_transport(self):
-        for name in ("anthropic_stt", "google_stt"):
+        for name in ("anthropic_stt", "google_stt", "chatgpt_stt"):
             root = PLUGINS / name
             for rel in ("run.js", "relay.js", "control_plane.js", "config_store.py",
                         "chrome_profile.py", "session.py", "extension"):
@@ -72,7 +78,8 @@ class TestOneSharedAuthority:
 
 class TestDaemonSpawn:
     @pytest.mark.parametrize(
-        ("module", "platform"), [(anthropic, "claude"), (google, "gemini")]
+        ("module", "platform"),
+        [(anthropic, "claude"), (google, "gemini"), (chatgpt, "chatgpt")]
     )
     def test_spawns_the_shared_daemon_with_a_platform(self, module, platform):
         calls = []
@@ -106,7 +113,7 @@ class TestPlatformGuards:
         assert ready({"browser": "connected", "page": "ok", "platform": "claude"}) is True
         assert ready({"browser": "connected", "page": "ok", "state": "wrong-platform"}) is False
 
-    @pytest.mark.parametrize("module", [anthropic, google])
+    @pytest.mark.parametrize("module", [anthropic, google, chatgpt])
     def test_visible_toggle_uses_the_plain_profile_launcher(self, module):
         seen = []
         original = chrome_profile._set_window_visible_fn
@@ -123,7 +130,12 @@ class TestPlatformGuards:
         assert seen == []  # launching is faked; no real window was touched
 
     @pytest.mark.parametrize(
-        ("module", "display"), [(anthropic, "Anthropic STT"), (google, "Google STT")]
+        ("module", "display"),
+        [
+            (anthropic, "Anthropic STT"),
+            (google, "Google STT"),
+            (chatgpt, "ChatGPT STT"),
+        ]
     )
     def test_notify_uses_each_plugins_copy(self, module, display):
         app = SimpleNamespace(tray=MagicMock())

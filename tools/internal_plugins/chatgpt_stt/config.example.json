@@ -1,0 +1,19 @@
+{
+  "hotkey": "ctrl+shift+space",
+  "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/dictation-profile",
+  "chromeChannel": "chrome",
+  "locale": "en",
+  "visible": true,
+  "pollMs": 150,
+  "stableMs": 500,
+  "stableWindows": 2,
+  "startTimeoutMs": 3000,
+  "timeoutMs": 15000,
+  "chatgptUrl": "https://chatgpt.com/",
+  "notify": true,
+  "platform": "chatgpt",
+  "url": "https://chatgpt.com/",
+  "port": 17875,
+  "selectorsRef": "../_common/bridge/selectors/chatgpt.json",
+  "relayToken": ""
+}

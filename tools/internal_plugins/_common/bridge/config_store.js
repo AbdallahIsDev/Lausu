@@ -17,6 +17,7 @@ const TOKEN_FILE = path.join(BRIDGE_DIR, 'token.json');
 const URLS = {
   claude: 'https://claude.ai/new',
   gemini: 'https://gemini.google.com/app',
+  chatgpt: 'https://chatgpt.com/',
 };
 
 // Measured 2026-11-19: poll 150 / 2 stable reads / 500ms beat 261 / 2 / 800
@@ -26,6 +27,7 @@ const DEFAULTS = {
   url: URLS.claude,
   claudeUrl: URLS.claude,
   geminiUrl: URLS.gemini,
+  chatgptUrl: URLS.chatgpt,
   port: PORT,
   profileDir: PROFILE_DIR,
   pollMs: 150,
@@ -68,9 +70,21 @@ function writeAtomic(file, value) {
 
 function platformFor(dir, raw) {
   const candidate = raw && raw.platform;
-  if (candidate === 'claude' || candidate === 'gemini') return candidate;
-  return path.basename(String(dir)).toLowerCase().includes('google') ? 'gemini' : 'claude';
+  if (candidate === 'claude' || candidate === 'gemini' || candidate === 'chatgpt') return candidate;
+  const name = path.basename(String(dir)).toLowerCase();
+  if (name.includes('google')) return 'gemini';
+  if (name.includes('chatgpt')) return 'chatgpt';
+  return 'claude';
 }
+
+// Each platform's own URL key: the descriptor names the tab its plugin owns,
+// and the config keeps that name so a plugin never has to know about another
+// platform's URL.
+const PLATFORM_URL_KEYS = {
+  claude: 'claudeUrl',
+  gemini: 'geminiUrl',
+  chatgpt: 'chatgptUrl',
+};
 
 function normalize(dir, raw) {
   const platform = platformFor(dir, raw);
@@ -79,9 +93,9 @@ function normalize(dir, raw) {
     out[key] = raw && raw[key] !== undefined ? raw[key] : DEFAULTS[key];
   }
   out.platform = platform;
-  out.url = (raw && (raw.url || (platform === 'gemini' ? raw.geminiUrl : raw.claudeUrl))) || URLS[platform];
-  if (platform === 'gemini') out.geminiUrl = out.url;
-  else out.claudeUrl = out.url;
+  const urlKey = PLATFORM_URL_KEYS[platform] || 'claudeUrl';
+  out.url = (raw && (raw.url || raw[urlKey])) || URLS[platform];
+  out[urlKey] = out.url;
   // The profile path belongs to install.json (and its one-time migration),
   // never to a per-plugin config snapshot that can go stale after a rename.
   out.profileDir = paths.profileDir().split(path.sep).join('/');

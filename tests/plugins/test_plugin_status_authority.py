@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 from tools.internal_plugins._common.status import set_cycle_state
 from tools.internal_plugins.anthropic_stt import plugin as anthropic_plugin
+from tools.internal_plugins.chatgpt_stt import plugin as chatgpt_plugin
 from tools.internal_plugins.google_stt import plugin as google_plugin
 from voice_typer.server.tray_types import AppState
 
@@ -71,6 +72,23 @@ class TestGooglePluginStatus:
             session._session_events(start=True)
             with patch.object(
                 google_plugin,
+                "_post",
+                return_value={"text": "", "duration_s": 0.0},
+            ):
+                session.stop()
+        assert seen == [AppState.RECORDING, AppState.TRANSCRIBING, AppState.IDLE]
+
+
+class TestChatGptPluginStatus:
+    def test_start_and_stop_drive_the_same_authority(self):
+        app, seen = _app_with_tray()
+        session = chatgpt_plugin.PluginSession(app)
+        session._active = True
+        session._t0 = 0.0
+        with patch("voice_typer.server.event_bus.publish"):
+            session._session_events(start=True)
+            with patch.object(
+                chatgpt_plugin,
                 "_post",
                 return_value={"text": "", "duration_s": 0.0},
             ):

@@ -171,10 +171,12 @@ function connect() {
 const TAB_PATTERNS = {
   claude: 'https://claude.ai/*',
   gemini: 'https://gemini.google.com/*',
+  chatgpt: 'https://chatgpt.com/*',
 };
 const TARGET_URLS = {
   claude: (CFG.platforms && CFG.platforms.claude && CFG.platforms.claude.claudeUrl) || 'https://claude.ai/new',
   gemini: (CFG.platforms && CFG.platforms.gemini && CFG.platforms.gemini.geminiUrl) || 'https://gemini.google.com/app',
+  chatgpt: (CFG.platforms && CFG.platforms.chatgpt && CFG.platforms.chatgpt.chatgptUrl) || 'https://chatgpt.com/',
 };
 // Commands that may legitimately open a missing target tab. status is a read;
 // stop/cancel must never create a tab just to answer a command.

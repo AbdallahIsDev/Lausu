@@ -5,7 +5,7 @@
 // connection belonging to the OTHER tab can never drive this plugin.
 
 const paths = require('./install_paths');
-const PLATFORM_NAMES = { claude: 'Claude', gemini: 'Gemini' };
+const PLATFORM_NAMES = { claude: 'Claude', gemini: 'Gemini', chatgpt: 'ChatGPT' };
 
 function failure(err) {
   const kind = err && err.kind ? err.kind : 'bridge-error';
@@ -127,6 +127,7 @@ async function handle(relay, method, pathname) {
         url: String(cfg.url || ''),
         claudeUrl: String(cfg.claudeUrl || ''),
         geminiUrl: String(cfg.geminiUrl || ''),
+        chatgptUrl: String(cfg.chatgptUrl || ''),
       },
     };
   }

@@ -1974,3 +1974,39 @@ Tests: tests/plugins/test_plugin_relaunch.py::TestStartAfterBrowserDisconnect; 1
   Owner decided 2026-11-24: prompt governs; flip deferred to the LOCAL agent.
 - Scoped pytest green for all touched modules; full suite not run in this session.
 - No model, GPU, CUDA file or large artifact downloaded; nothing merged.
+
+
+## 2026-11-24 - ChatGPT STT plugin: a THIRD member of the shared bridge
+
+Scope: add ChatGPT (OpenAI) as a third platform plugin on the shared Chrome-extension bridge - one daemon, one Chrome profile, one port (17875), one relay token store, one MV3 extension - with its OWN selector set.
+
+New plugin `tools/internal_plugins/chatgpt_stt/` (plugin.json, plugin.py, copy.py, config.example.json) plus `voice_typer/server/internal_plugin_hook.py` registration. It carries no second transport: `run.js`, `relay.js`, `control_plane.js`, `chrome_profile.py`, `session.py` and `extension/` all stay in `_common/bridge/`.
+
+Shared-bridge wiring: `config_store.js` (URL, default, platform resolution), `control_plane.js` (platform name + URL), `extension/service_worker.js` (tab pattern + target URL), `extension/manifest.json` (content script match + host permission), `tools/build-extension.js` (compiled platform list), `session.py` + `install_paths.js` (launch URL, install hint).
+
+Selector set `selectors/chatgpt.json` (new): the commit control ("Submit dictation", checkmark glyph `M20 6L9 17l-5-5`) and the discard control ("Stop dictation") have SEPARATE selectors, and the mic ("Dictate button", microphone glyph `M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z`) never matches either. The blue Voice orb is excluded by accessible label and testid. Every composer candidate is ANCHORED to the composer form (`form[data-chatgpt-composer]`, the send-button's own form, the legacy `#prompt-textarea`): a page-wide editable match would scrape the wrong box.
+
+Shared content script (`extension/content.js`):
+- `composerBox()` now treats the selector list as a PRIORITY list (a stale anchor cannot shadow the live composer) and prefers a visible match over a hidden duplicate.
+- `composerText()` reads a VALUE-backed composer (a textarea keeps its text in `.value`; its DOM text nodes are empty) and joins a multi-paragraph ProseMirror transcript instead of returning only the first paragraph.
+- `clearComposer()` empties a textarea's `.value` through the prototype setter (React compares against its own instance setter) and dispatches the input/change events, so the framework sees the change.
+- `cancel()` reports WHICH control it clicked (`control`, `via`). A platform that HAS a discard control is never stopped through the commit control; only a platform with NO discard selector falls back to its own toggle. `stop()` now also prefers an explicit "Submit dictation" commit label.
+
+Popup: the extension popup was Anthropic/Claude-branded ("Anthropic STT bridge", "Drives Claude's own dictation..."). It is now the shared "STT bridge" and its enable switch notifies EVERY open platform tab (Claude, ChatGPT AND Gemini) instead of Claude only.
+
+Tests:
+- New `tools/internal_plugins/_common/bridge/test/content_chatgpt_dictation.test.js` (9 cases): the REAL content script driven against a REAL DOM (jsdom) so the shipped selector strings are exercised by a real CSS engine. Pins that "Submit dictation" commits and "Stop dictation" discards, that neither control ever serves the other, the glyph fallbacks, the anchored composer, and the textarea value read/clear.
+- New `tests/plugins/test_chatgpt_plugin.py` (22 cases): manifest, descriptor, hook registration, shared transport, selector completeness, copy.
+- `tests/plugins/test_shared_bridge_contract.py`, `test_extension_install.py`, `test_plugin_registry.py`, `test_shared_plugin_settings.py`, `test_plugin_status_authority.py` and `tests/tauri/test_internal_plugin_packaging.py` now enumerate the third platform.
+- Fixed a STALE assertion in `test/config_store.test.js` (E2: fix pre-existing failures, never grandfather): it pinned a `settings` array in `plugin.json`, which C-PLUGIN-2 deliberately removed. The assertion now pins that the manifest declares NO settings.
+
+Validation Performed:
+- `pytest tests/plugins/ -q` -> **182 passed, 0 failed** (baseline on the same tree: 151 passed).
+- `pytest tests/tauri/test_internal_plugin_packaging.py -q` -> 18 passed.
+- `node --test test/*.test.js` (bridge suite) -> **79 passed, 1 failed** (baseline: 69 passed, 2 failed). The one remaining failure (`the token and the generated extension config are gitignored`) needs a git WORKSPACE and only passes inside a real checkout.
+- `ruff check` on every touched Python file -> clean.
+
+Known Limitations:
+- ChatGPT's selectors are NOT measured live: the control SEMANTICS come from two independent working implementations (herrkaefer/micpipe, bibryam/chatgpt-dictate) and the layout anchors from public DOM reports. A signed-in `probe.js` run is still required to confirm the idle-slot anchor and the live applicability of every fallback.
+- No browser is available in this environment, so start / commit / delivery / clearing / cancellation were verified against the DOM harness, not against the real page.
+- The corpus comparison + automatic field report (`xerj`) could not run: `xerj` is not installed here.

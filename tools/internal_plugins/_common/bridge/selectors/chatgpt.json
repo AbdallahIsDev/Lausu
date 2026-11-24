@@ -1,0 +1,17 @@
+{
+  "locale": "en",
+  "note": "ChatGPT web composer (2026-11-24). NOT measured live in this checkout: the CONTROL SEMANTICS come from two independent working implementations (herrkaefer/micpipe and bibryam/chatgpt-dictate), the LAYOUT ANCHORS come from public DOM reports of chatgpt.com. Re-verify every entry with probe.js while signed in, then fix here and re-run tools/build-extension.js + sync_extension.js and reload the extension. Three facts drive this file. (1) ChatGPT's dictation row has THREE distinct controls: the mic that STARTS the capture, 'Submit dictation' (a checkmark) that COMMITS the transcript, and 'Stop dictation' that DISCARDS it. The commit and the discard must never share a selector -- stopping through 'Stop dictation' throws the whole dictation away (C-ASR-4). (2) The composer is a contenteditable ProseMirror whose id/testid drift between releases, so every entry carries more than one candidate, and every candidate is ANCHORED to the composer form: a page-wide editable match would scrape the wrong box. (3) The blue Voice orb starts a live conversation, not a dictation, so it is excluded from the mic selector by its accessible label and its testid.",
+  "chatgptUrl": "https://chatgpt.com/",
+  "idleSlot": "form[data-chatgpt-composer] fieldset, form[data-chatgpt-composer] [data-testid=\"composer-trailing-actions\"], [data-testid=\"composer-dictate\"], form[data-type=\"unified-composer\"], form:has(#prompt-textarea), form:has(textarea[data-testid=\"prompt-textarea\"])",
+  "composer": "form[data-chatgpt-composer] [data-composer-markdown][contenteditable=\"true\"][role=\"textbox\"], form[data-chatgpt-composer] div.ProseMirror[contenteditable=\"true\"], form[data-chatgpt-composer] textarea, form[data-mobile-composer] textarea#mobile-composer-prompt, form:has(button[data-testid=\"send-button\"]) #prompt-textarea, form:has(button[data-testid=\"send-button\"]) [data-testid=\"prompt-textarea\"], form:has(button[data-testid=\"send-button\"]) textarea, form:has(button[data-testid=\"send-button\"]) div[contenteditable=\"true\"][role=\"textbox\"], #prompt-textarea, textarea[data-testid=\"prompt-textarea\"]",
+  "micSelector": "button[aria-label=\"Dictate button\"], button[aria-label*=\"dictate\" i]:not([aria-label*=\"voice mode\" i]):not([aria-label*=\"voice conversation\" i]), button[data-testid=\"composer-dictate\"], button[data-testid=\"dictate-button\"], button:not([data-testid=\"voice-button\"]):not([data-testid=\"composer-voice-button\"]):has(svg path[d*=\"M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z\"])",
+  "stopSelector": "button[aria-label=\"Submit dictation\"], button[aria-label*=\"submit dictation\" i], button:has(svg path[d*=\"M20 6L9 17l-5-5\"])",
+  "cancelSelector": "button[aria-label=\"Stop dictation\"], button[aria-label*=\"stop dictation\" i]",
+  "micButton": "button \"Dictate button\" (the small microphone beside the blue Voice orb; the Voice orb is never clicked)",
+  "recordingIndicator": "the mic is replaced by the recording row: a waveform plus 'Submit dictation' (checkmark, commit) and 'Stop dictation' (discard)",
+  "stopButton": "button \"Submit dictation\" (checkmark) -- the COMMIT control; the sibling \"Stop dictation\" is the DISCARD control and must never be used to finish a dictation",
+  "promptBox": "textbox \"Message ChatGPT\"",
+  "newChatNames": [
+    "New chat"
+  ]
+}

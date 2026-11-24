@@ -88,6 +88,8 @@ class TestStageCarriesSourceOnly:
             "_common/bridge/run.js",
             "anthropic_stt/plugin.py",
             "anthropic_stt/plugin.json",
+            "chatgpt_stt/plugin.py",
+            "chatgpt_stt/plugin.json",
             "_common/bridge/chrome_profile.py",
         ):
             assert (staged_plugins / rel).is_file(), f"{rel} must be bundled"
@@ -174,6 +176,7 @@ class TestPluginSourcesAreTrackedButStateIsNot:
             "tools/internal_plugins/anthropic_stt/plugin.json",
             "tools/internal_plugins/anthropic_stt/plugin.py",
             "tools/internal_plugins/google_stt/plugin.json",
+            "tools/internal_plugins/chatgpt_stt/plugin.json",
         ):
             assert rel in tracked, f"{rel} must be tracked in the parent repo"
 

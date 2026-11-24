@@ -11,7 +11,8 @@
   "host_permissions": [
     "http://127.0.0.1:17875/*",
     "https://claude.ai/*",
-    "https://gemini.google.com/*"
+    "https://gemini.google.com/*",
+    "https://chatgpt.com/*"
   ],
   "background": {
     "service_worker": "service_worker.js"
@@ -20,7 +21,8 @@
     {
       "matches": [
         "https://claude.ai/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://chatgpt.com/*"
       ],
       "js": [
         "generated/config.js",

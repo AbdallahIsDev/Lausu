@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Compiles BOTH platform selector sets + the one shared relay token into the
+// Compiles EVERY platform selector set + the one shared relay token into the
 // single MV3 extension's generated config. selectors/<platform>.json stays the
 // only hand-edited authority; --check fails when the generated copy drifts.
 
@@ -10,7 +10,7 @@ const path = require('path');
 const { loadConfig, BRIDGE_DIR } = require('../config_store');
 
 const EXTENSION_DIR = path.join(BRIDGE_DIR, 'extension');
-const PLATFORMS = ['claude', 'gemini'];
+const PLATFORMS = ['claude', 'gemini', 'chatgpt'];
 const LOG = '[stt-bridge]';
 
 function generatedPath(options = {}) {

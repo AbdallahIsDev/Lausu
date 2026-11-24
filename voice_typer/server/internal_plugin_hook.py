@@ -44,6 +44,7 @@ ENV_FLAG = "VOICE_TYPER_INTERNAL_PLUGINS"
 PLUGIN_MODULES = {
     "google_stt": "tools.internal_plugins.google_stt.plugin",
     "anthropic_stt": "tools.internal_plugins.anthropic_stt.plugin",
+    "chatgpt_stt": "tools.internal_plugins.chatgpt_stt.plugin",
 }
 
 

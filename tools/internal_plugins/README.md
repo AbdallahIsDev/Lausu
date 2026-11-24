@@ -34,9 +34,9 @@ The earlier private mirror is optional. `backup.ps1` still works from a
 checkout that has the nested `.git` directory; a normal clone of the parent
 repo does not have one.
 
-## Chrome-extension bridge (both platforms)
+## Chrome-extension bridge (every platform)
 
-`anthropic_stt` and `google_stt` share ONE MV3 extension, ONE loopback relay,
+`anthropic_stt`, `google_stt` and `chatgpt_stt` share ONE MV3 extension, ONE loopback relay,
 ONE relay token and ONE Chrome profile. There is no Playwright path any more:
 `playwright_runner.js` and Google's old `run.js` are deleted. Playwright's
 `launchPersistentContext` forces `--disable-extensions` into Chromium's default
@@ -50,15 +50,16 @@ STT was selected — both plugins now use the same normal Chrome session.
     `/warm`, `/probe`, `/shutdown`, all scoped to the owning plugin's platform.
   - `config_store.js` — one config authority: one token, one port, one profile.
   - `extension/` — the SOURCE of truth for ONE MV3 service worker and ONE
-    content script, matching both `https://claude.ai/*` and
-    `https://gemini.google.com/*`.
+    content script, matching `https://claude.ai/*`, `https://gemini.google.com/*`
+    and `https://chatgpt.com/*`.
   - `install.json` — the ONE authority for the stable install path, extension
     id, profile relative path and port. `install_paths.js` / `install_paths.py`
     resolve it from `LOCALAPPDATA`; no second literal exists.
   - `sync_extension.js` — copies the source into the stable app-data install
     path on every daemon boot and settings change, removing stale files.
-  - `selectors/claude.json`, `selectors/gemini.json` — per-platform selectors.
-  - `tools/build-extension.js` — compiles both selector sets + the token into
+  - `selectors/claude.json`, `selectors/gemini.json`, `selectors/chatgpt.json` —
+    per-platform selectors.
+  - `tools/build-extension.js` — compiles every selector set + the token into
     `extension/generated/config.js`; `--check` fails on drift.
   - `verify_extension_install.py` — one read-only command that prints the
     stable install path, the registration target and the exact next step.
@@ -70,7 +71,8 @@ STT was selected — both plugins now use the same normal Chrome session.
 - Each plugin directory keeps only `plugin.json`, `plugin.py` (hotkey seam,
   bubble/cues, paste/history), `config.json`, `config.example.json` and its
   `copy.py`. Its `config.json` is a platform descriptor: `platform`
-  (`claude` | `gemini`), `url`, `port` (17875), `profileDir`, `relayToken`.
+  (`claude` | `gemini` | `chatgpt`), `url`, `port` (17875), `profileDir`,
+  `relayToken`.
 
 ### Invariants
 
