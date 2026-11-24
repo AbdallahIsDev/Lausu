@@ -149,7 +149,8 @@
 		"group": {
 			"system": "Système",
 			"main": "Principal"
-		}
+		},
+		"dictionarySnippets": "Dictionnaire et extraits"
 	},
 	"home": {
 		"showMore": "Afficher plus",
@@ -297,6 +298,8 @@
 		"llmPresetDescription": "Preset de style pour le polissage LLM",
 		"overlay": "Superposition",
 		"overlayDescription": "Bulle d'enregistrement flottante.",
+		"dictionarySnippets": "Dictionnaire et extraits de texte",
+		"dictionarySnippetsDescription": "Gérez votre vocabulaire et vos extraits de texte, et choisissez comment les utiliser pendant la dictée.",
 		"bubbleBehaviorLabel": "Comportement de la bulle",
 		"bubbleBehaviorInfo": "Afficher la bulle uniquement pendant l'enregistrement, ou la garder visible en permanence.",
 		"bubblePositionLabel": "Position de la bulle",
@@ -314,6 +317,7 @@
 		"textSnippets": "Extraits de texte",
 		"textSnippetsInfo": "Commandes vocales qui se déploient en Extraits de texte. Ouvrez la page Extraits de texte pour les gérer.",
 		"openTemplates": "Ouvrir les extraits de texte",
+		"openVocabulary": "Ouvrir le vocabulaire",
 		"llmPolishing": "Polissage de texte (Beta)",
 		"llmPolishingDescription2": "Envoie le texte à une IA en ligne. Nécessite internet et une clé API. Prend 10 à 25 secondes par message.",
 		"enable": "Activer",
@@ -339,11 +343,6 @@
 		"bubbleShowRecordingTimerInfo": "Affiche la durée d'enregistrement (mm:ss) à côté du point rouge pendant l'enregistrement. Désactivé par défaut.",
 		"screenshotBeta": "Capture d'écran (Bêta)",
 		"screenshotBetaInfo": "Joint une zone d'écran à la transcription, une fois par enregistrement. Windows uniquement. Désactivé par défaut ; l'enregistrement continue pendant la sélection.",
-		"bubblePreview": "Aperçu de la bulle",
-		"bubblePreviewInfo": "Voici l'apparence de la bulle dans chaque état. Le minuteur tourne en direct ici.",
-		"bubblePreviewIdle": "Inactive",
-		"bubblePreviewRecording": "Enregistrement",
-		"bubblePreviewTranscribing": "Transcription",
 		"languageAutoDetect": "Détection automatique",
 		"languageEnglish": "Anglais",
 		"languageChinese": "Chinois",
@@ -803,7 +802,10 @@
 			"advancedDescription": "Dépannage, diagnostics, ressources, cache et mises à jour.",
 			"backToSettings": "Retour aux paramètres",
 			"on": "Activé",
-			"off": "Désactivé"
+			"off": "Désactivé",
+			"dictionarySnippetsSummary": "Extraits {snippets} · Automatisation du vocabulaire {vocabulary}",
+			"chatDescription": "Conversation vocale avec le chat intégré.",
+			"providersDescription": "Clés et modèles des fournisseurs cloud."
 		},
 		"modelIdleUnload": "Garder le modèle vocal en mémoire",
 		"modelIdleUnloadDescription": "Durée pendant laquelle le modèle vocal reste chargé après la fin de la dictée. Une durée plus longue rend la dictée toujours instantanée et utilise environ 2 Go de mémoire tant que l'application est ouverte. Fermer l'application libère cette mémoire immédiatement.",
@@ -812,7 +814,17 @@
 		"modelIdleUnload.minutes60": "1 heure",
 		"modelIdleUnload.minutes90": "1 heure 30 minutes",
 		"modelIdleUnload.minutes120": "2 heures",
-		"modelIdleUnload.never": "Toujours (garder chargé)"
+		"modelIdleUnload.never": "Toujours (garder chargé)",
+		"generalOverlayTitle": "Général et superposition",
+		"generalOverlayDescription": "Démarrage, langue, notifications et comportement de la bulle flottante.",
+		"hotkeysRecordingTitle": "Raccourcis et enregistrement",
+		"hotkeysRecordingDescription": "Touche de dictée, mode d'enregistrement et retours.",
+		"textEnhancementTitle": "Amélioration du texte",
+		"textEnhancementDescription": "Langue, traduction, nettoyage et mise en forme du texte.",
+		"privacyConsentTitle": "Confidentialité et consentement",
+		"privacyConsentDescription": "Gestion des données, consentement cloud et récupération.",
+		"bubbleSettings": "Bulle",
+		"bubbleSettingsDescription": "Choisissez quand la bulle flottante apparaît."
 	},
 	"plugins": {
 		"title": "Plugins",
@@ -1017,6 +1029,7 @@
 		},
 		"cloudModels": "Modèles Cloud",
 		"cloudModelsDescription": "Utilisez des APIs cloud pour une transcription plus rapide. Clé API requise.",
+		"ttsModels": "Synthèse vocale",
 		"noModelBanner": "Aucun modèle vocal n'est sélectionné. Sélectionnez un modèle ci-dessous."
 	},
 	"history": {
@@ -1899,7 +1912,16 @@
 			"badgeRecommended": "Recommandé",
 			"badgeFast": "Rapide"
 		},
-		"languageCountBadge": "{count} langues"
+		"languageCountBadge": "{count} langues",
+		"skip": "Ignorer la configuration",
+		"skipAria": "Ignorer la configuration et utiliser les valeurs par défaut",
+		"skipTitle": "Ignorer la configuration ?",
+		"skipDescription": "La configuration se terminera avec le raccourci par défaut, aucun modèle vocal sélectionné et aucun fournisseur cloud. Vous pourrez tout modifier plus tard dans les Paramètres.",
+		"skipConfirm": "Ignorer la configuration",
+		"microphoneReady": "{count} microphone(s) trouvé(s).",
+		"microphoneMissing": "Aucun microphone détecté. Vérifiez les paramètres d’entrée du système ou ouvrez Paramètres → Microphone.",
+		"microphoneCheck": "Revérifier",
+		"orientation": "Quelques choix rapides. Vous pourrez tout modifier plus tard dans les Paramètres."
 	},
 	"microphoneTest": {
 		"title": "Résultat du test",
@@ -2430,5 +2452,12 @@
 		"reset": "Réinitialiser",
 		"open": "Ouvrir le panneau de débogage",
 		"close": "Réduire le panneau de débogage"
+	},
+	"dictionarySnippets": {
+		"title": "Dictionnaire et extraits",
+		"description": "Corrigez ce que l'application entend et gérez les extraits réutilisables.",
+		"dictionary": "Dictionnaire",
+		"snippets": "Extraits",
+		"switcherAria": "Type de collection"
 	}
 }

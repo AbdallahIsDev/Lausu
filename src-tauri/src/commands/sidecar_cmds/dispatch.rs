@@ -38,6 +38,9 @@ const _LONG_RUNNING_COMMANDS: &[&str] = &[
     // Local TTS renders a full paragraph: the first call of a session
     // also pays the runtime's model load (~15s for Audio8).
     "tts_speak",
+    // Removing a multi-GB TTS pack is a model-lifecycle delete, same as
+    // `delete_model` above, not a 15s control command.
+    "tts_delete",
 ];
 
 // Multi-GB transfer commands get the 1h download-scale cap

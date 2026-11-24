@@ -170,7 +170,8 @@
 		"group": {
 			"main": "Main",
 			"system": "System"
-		}
+		},
+		"dictionarySnippets": "Dictionary & Snippets"
 	},
 	"home": {
 		"showMore": "Show more",
@@ -828,6 +829,8 @@
 		"generalDescription": "Configure how {appName} starts, behaves at login, and interacts with your system.",
 		"overlay": "Overlay",
 		"overlayDescription": "Control how the floating recording indicator appears and behaves on screen.",
+		"dictionarySnippets": "Dictionary & Snippets",
+		"dictionarySnippetsDescription": "Manage your vocabulary and text snippets, and choose how they are used during dictation.",
 		"bubbleBehaviorLabel": "Bubble Behavior",
 		"bubbleBehaviorInfo": "Show the bubble only while recording, or keep it visible at all times.",
 		"bubblePositionLabel": "Bubble Position",
@@ -845,6 +848,7 @@
 		"textSnippets": "Text Snippets",
 		"textSnippetsInfo": "Voice commands that expand into your Text Snippets. Open the Text Snippets page to manage them.",
 		"openTemplates": "Open Text Snippets",
+		"openVocabulary": "Open Vocabulary",
 		"llmPolishing": "Text Polish (Beta)",
 		"llmPolishingDescription2": "Sends text to an online AI. Needs internet and an API key. Takes 10–25 seconds per message.",
 		"enable": "Enable",
@@ -879,11 +883,6 @@
 		"bubbleShowRecordingTimerInfo": "Show the recording duration (mm:ss) next to the red dot while recording. Off by default.",
 		"screenshotBeta": "Screenshot capture (Beta)",
 		"screenshotBetaInfo": "Attach a screen region to the transcription, once per recording. Windows only. Off by default; recording continues while you select.",
-		"bubblePreview": "Bubble Preview",
-		"bubblePreviewInfo": "How the bubble looks in each state. The recording timer ticks live here.",
-		"bubblePreviewIdle": "Idle",
-		"bubblePreviewRecording": "Recording",
-		"bubblePreviewTranscribing": "Transcribing",
 		"loading": "Loading settings…",
 		"saveFailedToast": "Failed to save setting",
 		"couldNotOpenLogFolder": "Could not open log folder",
@@ -1318,7 +1317,10 @@
 			"advancedDescription": "Troubleshooting, diagnostics, resources, cache, and updates.",
 			"backToSettings": "Back to Settings",
 			"on": "On",
-			"off": "Off"
+			"off": "Off",
+			"dictionarySnippetsSummary": "Snippets {snippets} · Vocabulary automation {vocabulary}",
+			"chatDescription": "Voice conversation with the built-in chat.",
+			"providersDescription": "Cloud provider keys and models."
 		},
 		"modelIdleUnload": "Keep Speech Model in Memory",
 		"modelIdleUnloadDescription": "How long the speech model stays loaded after you stop dictating. A longer time means dictation is always instant, and uses about 2 GB of memory while the app is open. Closing the app frees it immediately.",
@@ -1327,7 +1329,17 @@
 		"modelIdleUnload.minutes60": "1 hour",
 		"modelIdleUnload.minutes90": "1 hour 30 minutes",
 		"modelIdleUnload.minutes120": "2 hours",
-		"modelIdleUnload.never": "Always (Keep Loaded)"
+		"modelIdleUnload.never": "Always (Keep Loaded)",
+		"generalOverlayTitle": "General & Overlay",
+		"generalOverlayDescription": "Startup, language, notifications and floating bubble behavior.",
+		"hotkeysRecordingTitle": "Hotkeys & Recording",
+		"hotkeysRecordingDescription": "Dictation key, recording mode and feedback.",
+		"textEnhancementTitle": "Text Enhancement",
+		"textEnhancementDescription": "Language, translation, cleanup and text polishing.",
+		"privacyConsentTitle": "Privacy & Consent",
+		"privacyConsentDescription": "Data handling, cloud consent and recovery.",
+		"bubbleSettings": "Bubble",
+		"bubbleSettingsDescription": "Choose when the floating bubble appears."
 	},
 	"plugins": {
 		"title": "Plugins",
@@ -1532,6 +1544,7 @@
 		},
 		"cloudModels": "Cloud Models",
 		"cloudModelsDescription": "Use cloud-based APIs for faster transcription. Requires API key.",
+		"ttsModels": "Text-to-Speech",
 		"noModelBanner": "No speech model is selected. Select a model below."
 	},
 	"tooltips": {
@@ -1776,7 +1789,16 @@
 			"badgeRecommended": "Recommended",
 			"badgeFast": "Fast"
 		},
-		"languageCountBadge": "{count} languages"
+		"languageCountBadge": "{count} languages",
+		"skip": "Skip setup",
+		"skipAria": "Skip setup and use defaults",
+		"skipTitle": "Skip setup?",
+		"skipDescription": "Setup will finish with the default hotkey, no speech model selected, and no cloud provider. You can change everything later in Settings.",
+		"skipConfirm": "Skip setup",
+		"microphoneReady": "{count} microphone(s) found.",
+		"microphoneMissing": "No microphone found. Check the OS input settings or open Settings → Microphone.",
+		"microphoneCheck": "Check again",
+		"orientation": "A few quick choices. You can change everything later in Settings."
 	},
 	"titleBar": {
 		"minimize": "Minimize",
@@ -2430,5 +2452,12 @@
 		"reset": "Reset to defaults",
 		"open": "Open debug panel",
 		"close": "Collapse debug panel"
+	},
+	"dictionarySnippets": {
+		"title": "Dictionary & Snippets",
+		"description": "Correct what the app hears and manage reusable snippets.",
+		"dictionary": "Dictionary",
+		"snippets": "Snippets",
+		"switcherAria": "Collection type"
 	}
 }

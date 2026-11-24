@@ -1,23 +1,15 @@
-// settingsSections, the canonical registry of Settings section pages.
-// The Settings surface is a HUB + nested section pages: the hub
-// (the `settings` Page literal) renders ONE card whose rows are the
-// sections below; each row navigates to its section page, which renders
-// (General / AI & Audio / Appearance / Privacy) where up to five
-// unrelated domains stacked on a single sub-page.
-// This module is the SINGLE SOURCE OF TRUTH for the section set:
-//   - the hub card rows (title, description, icon, order),
-//   - `isSettingsSectionPage` (Sidebar active-state, GlobalSearchBar
-//     placeholder, prefetch),
-//   - the search label sets (see `settingsTabLabels.ts`, keyed by
-//     `SettingsSectionPage`).
-// The `Page` union in `types/ipc/enums.ts` must stay in lockstep: every
-// literal below is a `Page`, and `Record`-typing keeps the compiler
-// honest if either side drifts.
+// The canonical registry of the Settings landing rows and their section
+// pages. One hub card lists SETTINGS_HUB_ROWS; every row either opens a
+// Settings section page (settingsGeneral … settingsAdvanced) or an
+// existing full page (Chat, Providers). The section subset is also used
+// for the sidebar's roving-tabindex fallback, search deep links and
+// route-chunk prefetch; `Page` in types/ipc/enums.ts must stay in sync.
 
 import {
+	AiBrain03Icon,
 	CpuIcon,
-	EyeIcon,
 	KeyboardIcon,
+	MessageMultiple01Icon,
 	PaintBoardIcon,
 	Shield01Icon,
 	SlidersHorizontalIcon,
@@ -27,10 +19,9 @@ import {
 import type { IconSvgElement } from "@hugeicons/react";
 import type { Page } from "@/types/ipc";
 
-/** Every Settings section page, in hub-card (and sidebar-history) order. */
+/** Pages that render a focused Settings section card set. */
 export const SETTINGS_SECTION_PAGES = [
 	"settingsGeneral",
-	"settingsOverlay",
 	"settingsHotkeys",
 	"settingsTranscription",
 	"settingsAudio",
@@ -41,55 +32,40 @@ export const SETTINGS_SECTION_PAGES = [
 
 export type SettingsSectionPage = (typeof SETTINGS_SECTION_PAGES)[number];
 
-/**
- * Skullet shape key for the OUTER Settings wrap. Each surface gets its own
- * id: the hub and a section page have different heights, and one shared id
- * would make Skullet recall the wrong shape on the next cold start (and
- * warn about the jump when the real content arrived). Section components
- * carry their own `settings-*` ids, hence the `settings-page-` prefix here.
- */
+/** Every page reachable from a Settings hub row. */
+export type SettingsHubPage = SettingsSectionPage | "chat" | "providers";
+
 export function settingsSkeletonId(
 	page: SettingsSectionPage | "settings",
 ): string {
 	return page === "settings" ? "settings-hub" : `settings-page-${page}`;
 }
 
-export interface SettingsSectionDef {
-	page: SettingsSectionPage;
-	/** i18n key for the row title, the SAME key the nested page's
-	 *  section card renders as its `<SettingsSection title>`, so the hub
-	 *  label and the destination heading can never drift. */
+export interface SettingsHubRow {
+	page: SettingsHubPage;
+	/** i18n key for the row title (and the destination heading). */
 	titleKey: string;
-	/** i18n key for the row's muted description line. */
+	/** i18n key for search keywords. No longer rendered on the row. */
 	descriptionKey: string;
 	icon: IconSvgElement;
 }
 
-/** Registry entry shape, the page IS the key, so it's not repeated. */
-type SettingsSectionDefData = Omit<SettingsSectionDef, "page">;
+type RowData = Omit<SettingsHubRow, "page">;
 
-const SETTINGS_SECTION_DEFS: Record<
-	SettingsSectionPage,
-	SettingsSectionDefData
-> = {
+const SETTINGS_HUB_ROW_DEFS: Record<SettingsHubPage, RowData> = {
 	settingsGeneral: {
-		titleKey: "settings.general",
-		descriptionKey: "settings.generalDescription",
+		titleKey: "settings.generalOverlayTitle",
+		descriptionKey: "settings.generalOverlayDescription",
 		icon: SlidersHorizontalIcon,
 	},
-	settingsOverlay: {
-		titleKey: "settings.overlay",
-		descriptionKey: "settings.overlayDescription",
-		icon: EyeIcon,
-	},
 	settingsHotkeys: {
-		titleKey: "settings.hotkeySection.recordingTitle",
-		descriptionKey: "settings.hotkeySection.recordingDescription",
+		titleKey: "settings.hotkeysRecordingTitle",
+		descriptionKey: "settings.hotkeysRecordingDescription",
 		icon: KeyboardIcon,
 	},
 	settingsTranscription: {
-		titleKey: "settings.postProcessing",
-		descriptionKey: "settings.postProcessingDescription",
+		titleKey: "settings.textEnhancementTitle",
+		descriptionKey: "settings.textEnhancementDescription",
 		icon: TextIcon,
 	},
 	settingsAudio: {
@@ -103,8 +79,8 @@ const SETTINGS_SECTION_DEFS: Record<
 		icon: PaintBoardIcon,
 	},
 	settingsPrivacy: {
-		titleKey: "settings.privacy.privacyTitle",
-		descriptionKey: "settings.privacy.privacyDescription",
+		titleKey: "settings.privacyConsentTitle",
+		descriptionKey: "settings.privacyConsentDescription",
 		icon: Shield01Icon,
 	},
 	settingsAdvanced: {
@@ -112,33 +88,33 @@ const SETTINGS_SECTION_DEFS: Record<
 		descriptionKey: "settings.hub.advancedDescription",
 		icon: CpuIcon,
 	},
+	chat: {
+		titleKey: "nav.chat",
+		descriptionKey: "settings.hub.chatDescription",
+		icon: MessageMultiple01Icon,
+	},
+	providers: {
+		titleKey: "nav.providers",
+		descriptionKey: "settings.hub.providersDescription",
+		icon: AiBrain03Icon,
+	},
 };
 
-/** The registry as an ordered list (hub rows iterate this). */
-export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] =
-	SETTINGS_SECTION_PAGES.map((page) => ({
-		page,
-		...SETTINGS_SECTION_DEFS[page],
-	}));
+/** Landing rows, in display order. Chat and Providers are appended. */
+export const SETTINGS_HUB_ROWS: readonly SettingsHubRow[] = (
+	[...SETTINGS_SECTION_PAGES, "chat", "providers"] as SettingsHubPage[]
+).map((page) => ({ page, ...SETTINGS_HUB_ROW_DEFS[page] }));
 
-/** Section page → its title i18n key. Consumers that need a section's
- *  display title WITHOUT its description/icon (e.g. App.tsx's
- *  document.title, cross-section search-result group headers) use this
- *  so they can never drift from the registry. */
-export const SECTION_TITLE_BY_PAGE: Record<SettingsSectionPage, string> =
+/** Row title keys for document titles + search result group headers. */
+export const SECTION_TITLE_BY_PAGE: Record<SettingsHubPage, string> =
 	Object.fromEntries(
-		SETTINGS_SECTION_PAGES.map((page) => [
-			page,
-			SETTINGS_SECTION_DEFS[page].titleKey,
-		]),
-	) as Record<SettingsSectionPage, string>;
+		SETTINGS_HUB_ROWS.map((row) => [row.page, row.titleKey]),
+	) as Record<SettingsHubPage, string>;
 
-/** Type guard: is `page` one of the Settings section pages? */
 export function isSettingsSectionPage(page: Page): page is SettingsSectionPage {
 	return (SETTINGS_SECTION_PAGES as readonly string[]).includes(page);
 }
 
-/** Is `page` any Settings surface (hub or a section page)? */
 export function isSettingsSurface(
 	page: Page,
 ): page is SettingsSectionPage | "settings" {

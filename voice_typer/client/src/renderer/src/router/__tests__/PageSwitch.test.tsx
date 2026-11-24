@@ -1,6 +1,13 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const { mockPluginsAvailable } = vi.hoisted(() => ({
+	mockPluginsAvailable: vi.fn(() => true),
+}));
+vi.mock("@/hooks/usePluginCatalog", () => ({
+	usePluginsAvailable: mockPluginsAvailable,
+}));
+
 vi.mock("@/pages/Home", () => ({
 	default: () => <div data-testid="page-home">Home page</div>,
 }));
@@ -12,6 +19,11 @@ vi.mock("@/pages/Templates", () => ({
 }));
 vi.mock("@/pages/Vocabulary", () => ({
 	default: () => <div data-testid="page-vocabulary">Vocabulary page</div>,
+}));
+vi.mock("@/pages/DictionarySnippets", () => ({
+	default: () => (
+		<div data-testid="page-dictionarySnippets">Dictionary & Snippets page</div>
+	),
 }));
 vi.mock("@/pages/Models", () => ({
 	default: () => <div data-testid="page-models">Models page</div>,
@@ -55,7 +67,13 @@ vi.mock("@/pages/Settings", () => ({
 					General
 				</button>
 				<button type="button" data-testid="settings-hub-row-settingsPrivacy">
-					Privacy
+					Privacy & Consent
+				</button>
+				<button type="button" data-testid="settings-hub-row-chat">
+					Chat
+				</button>
+				<button type="button" data-testid="settings-hub-row-providers">
+					Providers
 				</button>
 			</section>
 		) : (
@@ -71,6 +89,7 @@ const navigate = vi.fn();
 afterEach(() => {
 	cleanup();
 	navigate.mockClear();
+	mockPluginsAvailable.mockReturnValue(true);
 });
 
 async function renderFor(page: Page) {
@@ -87,14 +106,12 @@ describe("PageSwitch, route table mapping", () => {
 	it.each([
 		["home", "page-home"],
 		["history", "page-history"],
-		["templates", "page-templates"],
-		["vocabulary", "page-vocabulary"],
+		["dictionarySnippets", "page-dictionarySnippets"],
 		["models", "page-models"],
 		["media", "page-media"],
 		["microphone", "page-microphone"],
-		["plugins", "page-plugins"],
+		["plugins", "page-models"],
 		["analytics", "page-analytics"],
-		["aboutAndPrivacy", "page-aboutAndPrivacy"],
 	] as const)(
 		"renders %s as its mapped page component",
 		async (page, testid) => {
@@ -104,10 +121,36 @@ describe("PageSwitch, route table mapping", () => {
 	);
 
 	it.each([
+		["templates", "page-dictionarySnippets"],
+		["vocabulary", "page-dictionarySnippets"],
+	] as const)(
+		"redirects legacy %s to the merged collection page",
+		async (page, testid) => {
+			renderFor(page);
+			expect(await screen.findByTestId(testid)).toBeTruthy();
+		},
+	);
+
+	it("redirects the legacy aboutAndPrivacy route to the Privacy section", async () => {
+		renderFor("aboutAndPrivacy");
+		expect(await screen.findByTestId("settings-settingsPrivacy")).toBeTruthy();
+	});
+
+	it("redirects the Plugins route to Models and never renders the old page", async () => {
+		mockPluginsAvailable.mockReturnValue(false);
+		renderFor("plugins");
+		expect(await screen.findByTestId("page-models")).toBeTruthy();
+		expect(screen.queryByTestId("page-plugins")).toBeNull();
+	});
+
+	it.each([
 		"settingsGeneral",
+		"settingsHotkeys",
+		"settingsTranscription",
 		"settingsAudio",
 		"settingsAppearance",
 		"settingsPrivacy",
+		"settingsAdvanced",
 	] as const)("renders %s with its sub-page prop", async (sub) => {
 		renderFor(sub);
 		expect(await screen.findByTestId(`settings-${sub}`)).toBeTruthy();
@@ -120,6 +163,10 @@ describe("PageSwitch, route table mapping", () => {
 		).toBeTruthy();
 		expect(
 			await screen.findByTestId("settings-hub-row-settingsPrivacy"),
+		).toBeTruthy();
+		expect(await screen.findByTestId("settings-hub-row-chat")).toBeTruthy();
+		expect(
+			await screen.findByTestId("settings-hub-row-providers"),
 		).toBeTruthy();
 	});
 

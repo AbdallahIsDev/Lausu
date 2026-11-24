@@ -7,7 +7,9 @@ Index-Translate-2B Q4_K_M served by a bundled llama.cpp runtime.
 from __future__ import annotations
 
 from voice_typer.server.translation.service import (
+    TranslationCancelledError,
     TranslationError,
+    prewarm,
     resolve_model_path,
     resolve_runtime_path,
     shutdown,
@@ -15,7 +17,9 @@ from voice_typer.server.translation.service import (
 )
 
 __all__ = [
+    "TranslationCancelledError",
     "TranslationError",
+    "prewarm",
     "resolve_model_path",
     "resolve_runtime_path",
     "shutdown",

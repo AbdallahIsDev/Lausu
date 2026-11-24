@@ -155,19 +155,14 @@ describe("BG-R19 #11: Sidebar keyboard navigation (roving tabindex) + aria-keysh
 	const EXPECTED_NAV_ORDER: string[] = [
 		// Main (header-less top group)
 		"home",
-		"chat",
 		"history",
 		"analytics",
 		"models",
-		"providers",
-		"templates",
-		"vocabulary",
+		"dictionarySnippets",
 		"media",
-		"plugins",
+		"microphone",
 		// System (pinned bottom group)
 		"settings",
-		"microphone",
-		"aboutAndPrivacy",
 	];
 
 	beforeEach(() => {

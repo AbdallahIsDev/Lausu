@@ -3,10 +3,11 @@
  *
  * Previously a 1448-line monolith. After the split:
  *  • `useModelLifecycle` owns all state + IPC actions.
- *  • `LocalModelsPanel` renders the local-models tab (family cards,
+ *  • `LocalModelsPanel` renders the local ASR tab (family cards,
  *    disk-space warning, open-folder button).
- *  • `CloudProvidersPanel` renders the cloud-models tab (provider
+ *  • `CloudProvidersPanel` renders the cloud ASR tab (provider
  *    groups with API key + test + consent).
+ *  • `TtsPanel` owns the independent local text-to-speech tab.
  *  • `ModelCardActions` is the pure presentational 4-branch button
  *    row used by each model card.
  *
@@ -41,9 +42,11 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { CloudProvidersPanel } from "@/components/models/CloudProvidersPanel";
 import { LocalModelsPanel } from "@/components/models/LocalModelsPanel";
+import { PluginsPanel } from "@/components/models/PluginsPanel";
 import { TtsPanel } from "@/components/models/TtsPanel";
 import { Button } from "@/components/ui/button";
 import { useModelLifecycle } from "@/hooks/useModelLifecycle";
+import { usePluginsUnlocked } from "@/hooks/usePluginCatalog";
 import { t } from "@/i18n/i18n";
 import {
 	getActiveFamilyId,
@@ -60,16 +63,21 @@ import {
 
 export default function ModelsPage() {
 	const lifecycle = useModelLifecycle();
-	// Persist the active tab (Local / Cloud) across page
-	// navigation via sessionStorage, a user who picked the Cloud
-	// tab to configure an API key expects to still be on it when
-	// they navigate away and back. Shared zustand store with the
-	// title-bar ModelsTabSwitcher (`stores/useModelsTab`). The entry
-	// effect below overrides it once per page visit from the active
-	// model, so arriving from Home (or anywhere else) lands on the
-	// relevant tab; manual switches afterwards are untouched.
+	// Persist the active tab (Local / Cloud / Text-to-Speech) across
+	// navigation via sessionStorage. The entry effect below normally
+	// follows the active ASR model, preserving the existing context-aware
+	// Local/Cloud behavior; an explicit TTS choice is independent of ASR
+	// and therefore survives page navigation. The title-bar switcher
+	// shares this zustand store (`stores/useModelsTab`).
 	const activeTab = useModelsTab((s) => s.activeTab);
 	const setActiveTab = useModelsTab((s) => s.setActiveTab);
+	// Developer-only Plugins tab: BOTH the local reveal and the backend's
+	// `get_plugins.available` must be true. The switcher hides the option
+	// and this page refuses to render the panel when either gate is off.
+	const pluginsUnlocked = usePluginsUnlocked();
+	useEffect(() => {
+		if (activeTab === "plugins" && !pluginsUnlocked) setActiveTab("local");
+	}, [activeTab, pluginsUnlocked, setActiveTab]);
 
 	const handleApiKeyChange = useCallback(
 		(provider: string, value: string) =>
@@ -136,22 +144,23 @@ export default function ModelsPage() {
 		userCloudAccordionValue ?? initialCloudAccordionValue;
 
 	// Context-aware entry: navigating to the Models page lands on the tab
-	// matching the active model — a local model opens Local with its
+	// matching the active ASR model — a local model opens Local with its
 	// family expanded, a cloud model opens Cloud with its provider
-	// expanded — so the active selection is immediately visible. Runs
-	// once per page visit, when config first resolves; manual tab
-	// switches afterwards never re-trigger it.
+	// expanded. Text-to-Speech is independent of ASR, so an explicit TTS
+	// choice is preserved instead. Runs once per page visit, when config
+	// first resolves; manual tab switches afterwards never re-trigger it.
 	const entrySyncedRef = useRef(false);
 	useEffect(() => {
 		const cfg = lifecycle.config;
 		if (entrySyncedRef.current || !cfg) return;
 		entrySyncedRef.current = true;
+		if (activeTab === "tts" || activeTab === "plugins") return;
 		if (cfg.asr_backend === "cloud" && (cfg.cloud_provider ?? "") !== "") {
 			setActiveTab("cloud");
 		} else {
 			setActiveTab("local");
 		}
-	}, [lifecycle.config, setActiveTab]);
+	}, [activeTab, lifecycle.config, setActiveTab]);
 
 	// Dismissible "no model selected" banner, compact, sticky, independent
 	// of the main content flow. Replaces the former centered EmptyState which
@@ -229,7 +238,13 @@ export default function ModelsPage() {
 			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 				<PageHeading
 					title={t("models.asrTitle")}
-					description={t("models.asrSubtitle")}
+					description={
+						activeTab === "tts"
+							? t("tts.description")
+							: activeTab === "plugins"
+								? t("plugins.description")
+								: t("models.asrSubtitle")
+					}
 				>
 					{activeTab === "local" && (
 						<Button
@@ -348,16 +363,13 @@ export default function ModelsPage() {
 					    same pattern as GlobalSearchBar. Only the page heading
 					    + banner remain in the flow here. */}
 
-				{/* The two panels are labelled REGIONS, not `role="tabpanel"`.
-				    The switcher (`ModelsTabSwitcher`) is the primitive's
-				    DEFAULT variant — a radiogroup — since 2026-10-11, so
-				    there is no tablist here for a tabpanel to belong to and
-				    no `models-tab-*` id for `aria-labelledby` to point at. A
-				    `tabpanel` with a dangling `aria-labelledby` is an axe
-				    failure (`aria-valid-attr-value`), which is exactly what
-				    leaving the old markup would have produced.
-				    A `<section>` with an accessible name IS `role="region"`,
-				    so the native element carries the role for free. */}
+				{/* Each visible ASR panel is a labelled region, not a
+				    `tabpanel`: the switcher (`ModelsTabSwitcher`) is the
+				    primitive's DEFAULT variant — a radiogroup — so there is
+				    no tablist for a tabpanel to belong to. A `tabpanel` with
+				    a dangling `aria-labelledby` is an axe failure
+				    (`aria-valid-attr-value`). The TTS panel provides its own
+				    labelled region. */}
 				{/* Measured wrap over the panel body only: heading action,
 				    banners and tab switcher stay mounted during load, and
 				    the no-model banner (which needs real config) stays
@@ -375,7 +387,6 @@ export default function ModelsPage() {
 									aria-label={t("models.localModels")}
 									className="flex flex-col gap-4 scroll-mt-32"
 								>
-									<TtsPanel />
 									<LocalModelsPanel
 										modelFamilies={modelFamilies}
 										modelCatalog={panelCatalog}
@@ -404,7 +415,7 @@ export default function ModelsPage() {
 										onAccordionValueChange={setUserAccordionValue}
 									/>
 								</section>
-							) : (
+							) : activeTab === "cloud" ? (
 								<section
 									aria-label={t("models.cloudModels")}
 									className="flex flex-col gap-4 scroll-mt-32"
@@ -423,6 +434,14 @@ export default function ModelsPage() {
 										onAccordionValueChange={setUserCloudAccordionValue}
 									/>
 								</section>
+							) : activeTab === "plugins" ? (
+								<div className="flex flex-col gap-4 scroll-mt-32">
+									{pluginsUnlocked ? <PluginsPanel /> : null}
+								</div>
+							) : (
+								<div className="flex flex-col gap-4 scroll-mt-32">
+									<TtsPanel />
+								</div>
 							)}
 						</div>
 					)}

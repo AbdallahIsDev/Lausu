@@ -21,6 +21,7 @@ vi.mock("@/hooks/usePython", () => ({
 }));
 vi.mock("@/hooks/usePluginCatalog", () => ({
 	usePluginsAvailable: () => false,
+	usePluginsUnlocked: () => false,
 }));
 vi.mock("@/components/layout/DeviceToggle", () => ({
 	DeviceToggle: () => null,

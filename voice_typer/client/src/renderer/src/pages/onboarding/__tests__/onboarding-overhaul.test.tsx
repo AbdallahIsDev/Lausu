@@ -440,12 +440,13 @@ describe("Model step rebuild (ONB-5)", () => {
 		expect(screen.queryByText("Powered by")).toBeNull();
 	});
 
-	it("ERR-1: raw catalog-only entry without speed/size does NOT crash the wizard", async () => {
+	it("ERR-1: raw catalog entry without speed/size does NOT crash the wizard", async () => {
 		// Real backend `get_model_catalog` returns ModelMetadata dicts
 		// (speed_rating/download_size_mb/supported_languages, NO
-		// speed/size). The qwen entry is catalog-only (not in curated
-		// MODEL_OPTIONS). Before the fix, merge passed it through raw
-		// and ModelStep's formatModelSpeed(m.speed) threw
+		// speed/size). The visible set comes from the registry-derived
+		// `onboarding_get_model_options` (so a dev-only catalog row can never
+		// appear); the catalog only enriches those rows. Before the fix,
+		// merge passed raw dicts through and formatModelSpeed(m.speed) threw
 		// "Cannot read properties of undefined (reading 'length')".
 		mockCall.mockImplementation((type: string) => {
 			switch (type) {
@@ -464,7 +465,19 @@ describe("Model step rebuild (ONB-5)", () => {
 				case "onboarding_get_hotkey_presets":
 					return Promise.resolve({ presets: ["<caps_lock>"] });
 				case "onboarding_get_model_options":
-					return Promise.resolve({ models: MODEL_OPTIONS });
+					return Promise.resolve({
+						models: [
+							...MODEL_OPTIONS,
+							{
+								name: "qwen3-1.7b",
+								size: "~1.3GB",
+								speed: "Medium",
+								description: "Qwen",
+								backend: "qwen",
+								recommended: true,
+							},
+						],
+					});
 				case "get_model_catalog":
 					return Promise.resolve({
 						models: [

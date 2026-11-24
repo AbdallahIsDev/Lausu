@@ -169,7 +169,7 @@ export interface LausuConfig {
 	translation_gpu_enabled?: boolean;
 	translation_model_path?: string;
 	translation_runtime_path?: string;
-	device: "cuda" | "cpu";
+	device: "cpu" | "vulkan" | "cuda";
 	/**
 	 * READ-ONLY computed device the LOADED engine actually runs on,
 	 * attached to every `get_config` response and pushed with
@@ -179,7 +179,7 @@ export interface LausuConfig {
 	 * they never claim a GPU that is not serving. Optional: absent on
 	 * older sidecars and `null` while no engine is loaded.
 	 */
-	active_device?: "cpu" | "cuda" | null;
+	active_device?: "cpu" | "vulkan" | "cuda" | null;
 	/**
 	 * Minutes of dictation inactivity before the ASR model is dropped from
 	 * memory. `0` means "never unload" (keep it loaded while the app is

@@ -835,6 +835,24 @@ export interface TtsPlaybackStateEvent {
 }
 
 /**
+ * Progress for one `tts_prepare` transfer (a determinate counter, unlike the
+ * bare spinner the call used to show). `percent` is 0–100 across the whole
+ * pack, not just the current artifact; `artifact` is the pinned filename.
+ */
+export interface TtsPrepareProgressEvent {
+	type: "tts_prepare_progress";
+	data: {
+		engine: string;
+		artifact: string;
+		artifact_index: number;
+		artifact_count: number;
+		bytes_done: number;
+		bytes_total: number;
+		percent: number;
+	};
+}
+
+/**
  * One push-to-talk conversation turn, published by `server/service/chat.py`
  * from `ChatManager`'s sink. `phase` drives the Chat page's indicator and is
  * the ONLY source of truth for it (the page never infers a phase from a
@@ -969,6 +987,7 @@ export type PythonPushEvent =
 	| TrayFallbackNotificationEvent
 	| ProviderLocalOnnxStateEvent
 	| TtsPlaybackStateEvent
+	| TtsPrepareProgressEvent
 	| ChatTurnEvent
 	| CudaProgressEvent;
 

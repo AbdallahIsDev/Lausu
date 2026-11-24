@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { getOfflinePackSectionLabels } from "@/components/settings/OfflinePackSection";
 import { getPrewarmAndUpdatesLabels } from "@/components/settings/PrewarmAndUpdates";
-import type { SettingsSectionPage } from "@/components/settings/settingsSections";
+import type { SettingsHubPage } from "@/components/settings/settingsSections";
 import { getSectionLabels } from "@/components/settings/settingsTabLabels";
 import { fuzzyContains } from "@/hooks/useFuzzySearch";
 import type { NavigateOptions } from "@/hooks/useNavigation";
@@ -25,7 +25,7 @@ export function searchLabelMatches(label: string, query: string): boolean {
 
 /** One section page's cross-section result group (matched labels only). */
 export interface OtherSectionGroup {
-	sectionPage: SettingsSectionPage;
+	sectionPage: SettingsHubPage;
 	labels: string[];
 }
 
@@ -33,13 +33,13 @@ export interface UseSettingsSearchOptions {
 	/** The active global-search query (from the useGlobalSearch store). */
 	query: string;
 	/** The active section page, or `null` on the Settings hub. */
-	activeSection: SettingsSectionPage | null;
+	activeSection: SettingsHubPage | null;
 	/** Navigation callback (from useNavigation) used by the auto-switch. */
 	navigate: (page: Page, opts?: NavigateOptions) => void;
 }
 
 export interface UseSettingsSearchReturn {
-	sectionLabelsByPage: Record<SettingsSectionPage, string[]>;
+	sectionLabelsByPage: Record<SettingsHubPage, string[]>;
 	/** Empty-banner sentinel: does ANY label anywhere match the query? */
 	hasAnyVisibleRow: boolean;
 	/** Cross-section result groups (matches from OTHER section pages). */
@@ -98,11 +98,26 @@ export function useSettingsSearch({
 		if (!activeSection) return;
 		const q = query.toLowerCase().trim();
 		if (!q || q.length < 2) return;
-		let bestPage: SettingsSectionPage | null = null;
+		let bestPage: SettingsHubPage | null = null;
 		let bestScore = 0;
 		let bestLabel = "";
 		for (const [sectionPage, labels] of Object.entries(sectionLabelsByPage)) {
-			for (const label of labels) {
+			const page = sectionPage as SettingsHubPage;
+			// The first label is the section title. Prefer a title match
+			// over body-copy matches so broad terms such as "privacy" or
+			// "audio" land on the corresponding Settings destination,
+			// rather than a longer disclosure paragraph elsewhere.
+			const title = labels[0];
+			if (title && searchLabelMatches(title, q)) {
+				const exact = title.toLowerCase().includes(q);
+				const titleScore = 1_000_000 + (exact ? 10000 : 0) + title.length;
+				if (titleScore > bestScore) {
+					bestScore = titleScore;
+					bestPage = page;
+					bestLabel = title;
+				}
+			}
+			for (const label of labels.slice(1)) {
 				if (!searchLabelMatches(label, q)) continue;
 				// Exact-substring hits outrank typo-tolerant extras so a
 				// precise query keeps its previous destination.
@@ -110,7 +125,7 @@ export function useSettingsSearch({
 				const score = label.length + (exact ? 10000 : 0);
 				if (score > bestScore) {
 					bestScore = score;
-					bestPage = sectionPage as SettingsSectionPage;
+					bestPage = page;
 					bestLabel = label;
 				}
 			}
@@ -155,7 +170,7 @@ export function useSettingsSearch({
 		return Object.entries(sectionLabelsByPage)
 			.filter(([sectionPage]) => sectionPage !== activeSection)
 			.map(([sectionPage, labels]) => ({
-				sectionPage: sectionPage as SettingsSectionPage,
+				sectionPage: sectionPage as SettingsHubPage,
 				// Different section titles can render the same translated
 				// word, dedupe so a match produces ONE chip per unique
 				// label (and unique React keys).

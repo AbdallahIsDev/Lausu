@@ -50,6 +50,7 @@ export function ModelGroupTrigger({
 }: ComponentProps<typeof AccordionTrigger>) {
 	return (
 		<AccordionTrigger
+			headingLevel={2}
 			className={cn(
 				// Full-width row: the primitive spreads its two groups with
 				// `justify-between` — the left content group below against
@@ -89,11 +90,11 @@ export function ModelGroupContent({
 // ── Single model/plan row ─────────────────────────────────────────────
 
 export interface ModelVariantRowProps {
-	/** Row heading (the model/plan display name). Rendered as an <h4>
-	 *  unless the caller's section heading is an <h2> (a TTS panel sitting
-	 *  at page level), where <h3> keeps the heading order valid. */
+	/** Row heading (the model/plan display name). The accordion group
+	 *  header is an <h2>, so rows are <h3> (also valid under a page-level
+	 *  TTS <h2>). Callers may request <h4> for a deeper nesting. */
 	name: string;
-	/** Heading element level, 4 by default (models accordion rows). */
+	/** Heading element level, 3 by default. */
 	headingLevel?: 3 | 4;
 	/** Optional badges rendered inline next to the heading. */
 	headingExtra?: ReactNode;
@@ -105,7 +106,7 @@ export interface ModelVariantRowProps {
 
 export function ModelVariantRow({
 	name,
-	headingLevel = 4,
+	headingLevel = 3,
 	headingExtra,
 	meta,
 	actions,

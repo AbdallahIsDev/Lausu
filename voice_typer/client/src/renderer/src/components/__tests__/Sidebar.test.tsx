@@ -54,22 +54,23 @@ describe("Sidebar", () => {
 		onNavigate: vi.fn(),
 	};
 
-	it("renders all 10 navigation items with their labels", () => {
+	it("renders the primary navigation labels", () => {
 		renderWithProviders(<Sidebar {...baseProps} />);
 		const labels = [
 			"Home",
 			"History",
 			"Analytics",
-			"Text Snippets",
-			"Vocabulary",
-			"Media",
 			"Models",
+			"Dictionary & Snippets",
+			"Media",
 			"Microphone",
 			"Settings",
-			"About & Privacy",
 		];
 		for (const label of labels) {
 			expect(screen.getByText(label)).toBeTruthy();
+		}
+		for (const removed of ["Chat", "Providers", "Plugins", "About & Privacy"]) {
+			expect(screen.queryByText(removed)).toBeNull();
 		}
 	});
 
@@ -95,16 +96,13 @@ describe("Sidebar", () => {
 		expect(onNavigate).toHaveBeenCalledWith("microphone");
 	});
 
-	it("calls onNavigate with 'aboutAndPrivacy' when the About & Privacy item is clicked", () => {
-		const onNavigate = vi.fn();
-		renderWithProviders(<Sidebar {...baseProps} onNavigate={onNavigate} />);
-		fireEvent.click(screen.getByText("About & Privacy"));
-		expect(onNavigate).toHaveBeenCalledWith("aboutAndPrivacy");
-	});
-
 	it("marks the active page with aria-current='page'", () => {
-		renderWithProviders(<Sidebar {...baseProps} currentPage="vocabulary" />);
-		const activeItem = screen.getByText("Vocabulary").closest("button");
+		renderWithProviders(
+			<Sidebar {...baseProps} currentPage="dictionarySnippets" />,
+		);
+		const activeItem = screen
+			.getByText("Dictionary & Snippets")
+			.closest("button");
 		expect(activeItem?.getAttribute("aria-current")).toBe("page");
 	});
 

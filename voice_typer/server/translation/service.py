@@ -20,14 +20,18 @@ import threading
 import weakref
 from pathlib import Path
 from typing import Any
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from voice_typer.server import i18n
 from voice_typer.server._paths import config_dir
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.translation import paths as translation_paths
-from voice_typer.server.translation.catalogue import normalize_language_code, resolve_spec
+from voice_typer.server.translation.catalogue import (
+    TRANSLATION_TARGETS,
+    normalize_language_code,
+    resolve_spec,
+)
 from voice_typer.server.translation.chat_template import CHAT_TEMPLATE
 from voice_typer.server.translation.preservation import protect_spans, restore_spans
 from voice_typer.server.translation.prompt import build_user_prompt, needs_translation
@@ -41,6 +45,10 @@ _REQUEST_TIMEOUT_S = 120.0
 
 class TranslationError(RuntimeError):
     """Raised when the translation runtime or model cannot be used."""
+
+
+class TranslationCancelledError(RuntimeError):
+    """Raised when an explicit caller cancel token fires; never a failure."""
 
 
 # One user-facing notice per process while translation stays broken. The text
@@ -197,14 +205,18 @@ class TranslationService:
                 self._runtime = RuntimeServer.start(self._spec(), timeout_s=180.0)
             return self._runtime
 
-    def _complete(self, prompt: str) -> str:
+    def _complete(self, prompt: str, *, cancel_event: threading.Event | None = None) -> str:
         # Hold the lock for the whole request, not just runtime start, so a
         # concurrent stop() (config change / shutdown) cannot tear down the
         # process while a POST is in flight.
         with self._lock:
-            return self._complete_locked(prompt)
+            if cancel_event is None:
+                return self._complete_locked(prompt)
+            return self._complete_locked(prompt, cancel_event=cancel_event)
 
-    def _complete_locked(self, prompt: str) -> str:
+    def _complete_locked(self, prompt: str, *, cancel_event: threading.Event | None = None) -> str:
+        if cancel_event is not None and cancel_event.is_set():
+            raise TranslationCancelledError("translation cancelled before request")
         runtime = self._ensure_runtime()
         payload = {
             "model": _ALIAS,
@@ -232,6 +244,12 @@ class TranslationService:
         try:
             with urlopen(request, timeout=_REQUEST_TIMEOUT_S) as response:  # noqa: S310 - loopback
                 body = json.loads(response.read().decode("utf-8"))
+            if cancel_event is not None and cancel_event.is_set():
+                raise TranslationCancelledError("translation cancelled while waiting for the model")
+        except TimeoutError as exc:
+            raise TranslationError(f"translation did not answer within {_REQUEST_TIMEOUT_S:.0f}s") from exc
+        except HTTPError as exc:
+            raise TranslationError(f"translation service returned HTTP {exc.code}") from exc
         except (URLError, OSError, ValueError) as exc:
             raise TranslationError(f"translation request failed: {exc}") from exc
         try:
@@ -242,25 +260,45 @@ class TranslationService:
             raise TranslationError("translation response content was not text")
         return content.strip()
 
-    def translate(self, text: str, target_code: str) -> str:
+    def ensure_runtime(self) -> None:
+        """Start (or reuse) the single model process without translating."""
+        self._ensure_runtime()
+
+    def translate(
+        self,
+        text: str,
+        target_code: str,
+        *,
+        cancel_event: threading.Event | None = None,
+    ) -> str:
         """Translate one Stage A text; returns the source unchanged on error.
 
         Non-translatable spans are masked before the call and restored after,
         so URLs, emails, inline code and numbers survive byte-identical. A
         failure never overwrites the dictation and surfaces one user-facing
-        notice per broken episode.
+        notice per broken episode. ``cancel_event`` is opt-in and never used
+        by the dictation pipeline; a cancellation is not a failure.
         """
         global _translation_failed_notified
+        if cancel_event is not None and cancel_event.is_set():
+            raise TranslationCancelledError("translation cancelled before start")
         target = normalize_language_code(target_code)
         if not target or not text.strip():
             return text
         protected, spans = protect_spans(text)
         markers = tuple(marker for marker, _original in spans)
         try:
-            result = self._complete(build_user_prompt(protected, target, self.glossary, markers))
+            result = self._complete(
+                build_user_prompt(protected, target, self.glossary, markers),
+                cancel_event=cancel_event,
+            )
+            if cancel_event is not None and cancel_event.is_set():
+                raise TranslationCancelledError("translation cancelled after the model answered")
             if not result:
                 raise TranslationError("translation response was empty")
             result = restore_spans(result, spans)
+        except TranslationCancelledError:
+            raise
         except TranslationError as exc:
             log.warning("[TRANSLATE] %s; keeping original text", exc)
             _notify_translation_failure(_app_ref)
@@ -272,6 +310,23 @@ class TranslationService:
         with _translation_failed_lock:
             _translation_failed_notified = False
         return result
+
+    def translate_batch(
+        self,
+        texts: list[str],
+        target_code: str,
+        *,
+        cancel_event: threading.Event | None = None,
+    ) -> list[str]:
+        """Translate several already-decided texts through one loaded runtime.
+
+        This is an opt-in helper for callers that own chunking (e.g. the
+        benchmark). The dictation path sends the whole Stage A text in one call
+        per ADR-0021 §5.2 and never uses this method.
+        """
+        if cancel_event is not None and cancel_event.is_set():
+            raise TranslationCancelledError("batch cancelled before start")
+        return [self.translate(text, target_code, cancel_event=cancel_event) for text in texts]
 
     def stop(self) -> None:
         """Stop the owned runtime; safe to call more than once.
@@ -314,12 +369,31 @@ def get_service(config: Any) -> TranslationService:
         return _SERVICE
 
 
+def prewarm(config: Any) -> bool:
+    """Start the cached translator ahead of the first dictation, if enabled.
+
+    Explicit and best-effort: startup never blocks on a missing model and no
+    user-facing notice is raised here. A later translate() still lazy-loads the
+    runtime when this was not called.
+    """
+    if not bool(getattr(config, "translation_enabled", False)):
+        return False
+    try:
+        get_service(config).ensure_runtime()
+        return True
+    except Exception:
+        log.warning("[TRANSLATE] prewarm failed; first translation starts the runtime on demand", exc_info=True)
+        return False
+
+
 def translate_text(
     text: str,
     config: Any,
     target_code: str,
     spoken_code: str = "",
     app: Any | None = None,
+    *,
+    cancel_event: threading.Event | None = None,
 ) -> str:
     """Entry point used by the dictation pipeline's TranslationStage.
 
@@ -327,14 +401,22 @@ def translate_text(
     toast; the translation decision itself never depends on it.
     """
     _bind_app(app)
+    if cancel_event is not None and cancel_event.is_set():
+        raise TranslationCancelledError("translation cancelled before start")
     target = normalize_language_code(target_code)
     spoken = normalize_language_code(spoken_code or str(getattr(config, "language", "") or ""))
     if not bool(getattr(config, "translation_enabled", False)):
         return text
+    if target and target not in TRANSLATION_TARGETS:
+        log.warning("[TRANSLATE] unsupported target %r; keeping original text", target)
+        _notify_translation_failure(app)
+        return text
     if not needs_translation(text, target, spoken):
         return text
     try:
-        return get_service(config).translate(text, target)
+        return get_service(config).translate(text, target, cancel_event=cancel_event)
+    except TranslationCancelledError:
+        raise
     except TranslationError as exc:
         log.warning("[TRANSLATE] %s; keeping original text", exc)
         _notify_translation_failure(app)

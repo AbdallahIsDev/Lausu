@@ -1,11 +1,7 @@
-// OverlaySettingsSection, the Overlay section of the Settings surface.
-// General and Overlay cards on one page) so the Overlay domain gets its
-// own focused section page (settingsOverlay). Renders one SettingsSection
-// block: "Overlay" (Bubble Behavior, Bubble Position, Show on App Startup,
-// Drag to Move, Bubble Mic Button). Behaviour is identical to the previous
-// combined implementation, including the per-row search-filter visibility
-// via the `isVisible` prop and the section-level "hide if no items match"
-// check.
+// The bubble card of the merged General & Overlay Settings page.
+// One card for behavior, position, startup visibility, drag and related
+// controls. The former Bubble Preview card (mock pills + state variants)
+// is gone; controls and persistence are unchanged.
 
 import { memo } from "react";
 import { SettingsSection } from "@/components/common/SettingsSection";
@@ -15,7 +11,6 @@ import { SAMPLE_CONFIG } from "@/components/skullet/sampleConfig";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { useT } from "@/i18n/i18n";
-import { BubblePreview } from "./BubblePreview";
 import { anyRowVisible, GatedSettingRow } from "./settingsRowGating";
 
 import type { SettingsSectionSharedProps } from "./types";
@@ -39,7 +34,7 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 	// constant feeds BOTH the `<SettingsSection title>` prop AND the
 	// `isVisible` third parameter, so search matches the heading the
 	// user actually sees.
-	const overlaySectionTitle = t("settings.overlay");
+	const overlaySectionTitle = t("settings.bubbleSettings");
 	const overlayItems = [
 		{
 			label: t("settings.bubbleBehaviorLabel"),
@@ -68,10 +63,6 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 		{
 			label: t("settings.screenshotBeta"),
 			info: t("settings.screenshotBetaInfo"),
-		},
-		{
-			label: t("settings.bubblePreview"),
-			info: t("settings.bubblePreviewInfo"),
 		},
 	];
 	const overlayVisible = anyRowVisible(
@@ -106,21 +97,6 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 	const handleScreenshotBetaChange = (checked: boolean) =>
 		updateConfig({ screenshot_beta_enabled: checked });
 
-	// The preview gets its own card ("Bubble Preview") instead of
-	// living as a last row inside the Overlay card: a mock pill in a
-	// list of controls reads as one more control. It is gated by the
-	// same search predicate (its own label, so a query that matches
-	// one row hides the preview and vice versa) and by the bubble
-	// actually being enabled.
-	const previewSectionTitle = t("settings.bubblePreview");
-	const previewVisible =
-		config?.bubble_behavior !== "hidden" &&
-		isVisible(
-			previewSectionTitle,
-			t("settings.bubblePreviewInfo"),
-			overlaySectionTitle,
-		);
-
 	if (!overlayVisible) return null;
 
 	return (
@@ -135,7 +111,7 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 				<>
 					<SettingsSection
 						title={overlaySectionTitle}
-						description={t("settings.overlayDescription")}
+						description={t("settings.bubbleSettingsDescription")}
 					>
 						{/* ── Dropdowns ──────────────────────────────────────── */}
 						<GatedSettingRow
@@ -154,7 +130,7 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 								ariaLabel={t("settings.bubbleBehaviorLabel")}
 							/>
 						</GatedSettingRow>{" "}
-						{/* Position, drag, timer, and preview are meaningless while
+						{/* Position, drag and timer are meaningless while
 				    the bubble itself is hidden, so the rows stay visible but
 				    locked instead of disappearing. */}
 						<GatedSettingRow
@@ -194,8 +170,7 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 						</GatedSettingRow>
 						{/*mic button toggle, available for both visible behaviors. It
                 	takes effect on the always-visible bubble (the only one
-                	with an idle state to host it); the preview below shows
-                	the difference live. */}
+                	with an idle state to host it). */}
 						<GatedSettingRow
 							isVisible={isVisible}
 							sectionTitle={overlaySectionTitle}
@@ -223,7 +198,7 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 							/>
 						</GatedSettingRow>{" "}
 						{/* Recording timer toggle, locked only while the bubble itself
-			    is hidden. Drives the live preview below instantly. */}
+			    is hidden. Applied to the live bubble on the next state change. */}
 						<GatedSettingRow
 							isVisible={isVisible}
 							sectionTitle={overlaySectionTitle}
@@ -253,28 +228,6 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 							/>
 						</GatedSettingRow>
 					</SettingsSection>
-
-					{/* Second card: the preview. Every bubble setting above is
-		    mirrored into it, so toggling the mic button, the timer or
-		    the behavior repaints it on the same commit. */}
-					{previewVisible && (
-						<SettingsSection
-							title={previewSectionTitle}
-							description={t("settings.bubblePreviewInfo")}
-							descriptionMode="text"
-						>
-							<BubblePreview
-								timerOn={cfg.bubble_show_recording_timer ?? false}
-								micOn={
-									cfg.bubble_behavior === "always_visible" &&
-									cfg.bubble_mic_button !== false &&
-									cfg.bubble_click_to_toggle !== false
-								}
-								dismissOn={cfg.bubble_behavior === "always_visible"}
-								position={cfg.bubble_position ?? "bottom"}
-							/>
-						</SettingsSection>
-					)}
 				</>
 			)}
 		</MeasuredSkeleton>

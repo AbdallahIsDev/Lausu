@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { RouteSkeleton } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
+import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
 import { useT } from "@/i18n/i18n";
 // Route-level code splitting. Home is the default landing page
 // and stays eagerly imported so first paint is fast. The other 9 pages
@@ -15,6 +16,7 @@ import { useT } from "@/i18n/i18n";
 // synchronously, so the Suspense fallback below only appears for a
 // genuinely cold chunk — see router/RouteChunk.tsx.
 import Home from "@/pages/Home";
+import { resolvePageAlias } from "@/router/routes";
 import type { Page } from "@/types/ipc";
 
 import { RouteChunk } from "./RouteChunk";
@@ -38,19 +40,25 @@ export function PageSwitch({
 	onOnboardingComplete,
 }: PageSwitchProps) {
 	const t = useT();
+	// Defense in depth: App redirects stale/locked plugin routes to Home;
+	// this route-level gate ensures the page itself never renders if a
+	// caller bypasses that navigation effect.
+	const pluginsAvailable = usePluginsAvailable();
+	// Legacy routes (old Settings sections, the old collection pages and
+	// About & Privacy) resolve to their current home even if a caller
+	// bypasses the nav store and hands this switch the old literal.
+	const resolved = resolvePageAlias(page);
 
 	const renderPage = () => {
-		switch (page) {
+		switch (resolved.page) {
 			case "home":
 				return <Home />;
 			case "chat":
 				return <RouteChunk page="chat" />;
 			case "history":
 				return <RouteChunk page="history" />;
-			case "templates":
-				return <RouteChunk page="templates" />;
-			case "vocabulary":
-				return <RouteChunk page="vocabulary" />;
+			case "dictionarySnippets":
+				return <RouteChunk page="dictionarySnippets" />;
 			case "media":
 				return <RouteChunk page="media" />;
 			case "models":
@@ -58,7 +66,7 @@ export function PageSwitch({
 			case "microphone":
 				return <RouteChunk page="microphone" />;
 			case "plugins":
-				return <RouteChunk page="plugins" />;
+				return pluginsAvailable ? <RouteChunk page="plugins" /> : null;
 			case "providers":
 				return <RouteChunk page="providers" />;
 			case "analytics":
@@ -73,8 +81,6 @@ export function PageSwitch({
 				return <RouteChunk page="settings" />;
 			case "settingsGeneral":
 				return <RouteChunk page="settingsGeneral" />;
-			case "settingsOverlay":
-				return <RouteChunk page="settingsOverlay" />;
 			case "settingsHotkeys":
 				return <RouteChunk page="settingsHotkeys" />;
 			case "settingsTranscription":
@@ -87,8 +93,6 @@ export function PageSwitch({
 				return <RouteChunk page="settingsPrivacy" />;
 			case "settingsAdvanced":
 				return <RouteChunk page="settingsAdvanced" />;
-			case "aboutAndPrivacy":
-				return <RouteChunk page="aboutAndPrivacy" />;
 			case "onboarding":
 				return (
 					<RouteChunk page="onboarding" onComplete={onOnboardingComplete} />

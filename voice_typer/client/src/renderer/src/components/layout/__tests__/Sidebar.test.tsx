@@ -196,7 +196,7 @@ describe("Sidebar", () => {
 		expect(document.querySelectorAll("aside section").length).toBe(2);
 	});
 
-	it("Home/History/Analytics/Models/Text Snippets/Vocabulary/Media are in the header-less Main group; Settings/Microphone/About & Privacy in System", () => {
+	it("Home/History/Analytics/Models/Dictionary & Snippets/Media/Microphone are in Main; only Settings is in System", () => {
 		renderWithProviders(<Sidebar {...baseProps} />);
 		const groupOf = (label: string) =>
 			findNavButton(label).closest("section")?.getAttribute("aria-label");
@@ -205,13 +205,11 @@ describe("Sidebar", () => {
 		expect(groupOf("History")).toBe("Main");
 		expect(groupOf("Analytics")).toBe("Main");
 		expect(groupOf("Models")).toBe("Main");
-		expect(groupOf("Text Snippets")).toBe("Main");
-		expect(groupOf("Vocabulary")).toBe("Main");
+		expect(groupOf("Dictionary & Snippets")).toBe("Main");
 		expect(groupOf("Media")).toBe("Main");
+		expect(groupOf("Microphone")).toBe("Main");
 
 		expect(groupOf("Settings")).toBe("System");
-		expect(groupOf("Microphone")).toBe("System");
-		expect(groupOf("About & Privacy")).toBe("System");
 	});
 
 	it("PROD-7: renders NO <hr> dividers between the groups", () => {
@@ -220,38 +218,12 @@ describe("Sidebar", () => {
 		expect(nav.querySelectorAll("hr").length).toBe(0);
 	});
 
-	it("PROD-7: still renders all 10 nav item labels (grouping does not drop items)", () => {
+	it("PROD-7: About & Privacy is no longer a top-level sidebar destination", () => {
 		renderWithProviders(<Sidebar {...baseProps} />);
-		const labels = [
-			"Home",
-			"History",
-			"Analytics",
-			"Text Snippets",
-			"Vocabulary",
-			"Media",
-			"Models",
-			"Microphone",
-			"Settings",
-			"About & Privacy",
-		];
-		for (const label of labels) {
-			expect(findNavButton(label)).toBeTruthy();
-		}
-	});
-
-	it("About & Privacy is ONE destination: exactly one merged nav button, no separate About or Privacy buttons", () => {
-		renderWithProviders(<Sidebar {...baseProps} />);
-		// Exactly one button matches the merged label.
-		const merged = screen.getAllByRole("button", {
-			name: /^About & Privacy/,
-		});
-		expect(merged.length).toBe(1);
-		// label as its full accessible name.
-		const plainLabels = screen
-			.getAllByRole("button")
-			.map((b) => b.textContent?.trim())
-			.filter((name) => name === "About" || name === "Privacy");
-		expect(plainLabels.length).toBe(0);
+		expect(findNavButton("Settings")).toBeTruthy();
+		expect(
+			screen.queryByRole("button", { name: /^About & Privacy/ }),
+		).toBeNull();
 	});
 
 	//aria-keyshortcuts on nav items ────────────────────────
@@ -311,15 +283,14 @@ describe("Sidebar", () => {
 
 	it("PROD-9: nav items without a keyboard shortcut omit aria-keyshortcuts entirely", () => {
 		renderWithProviders(<Sidebar {...baseProps} />);
-		// History, Text Snippets, Vocabulary, Models, Microphone,
-		// About & Privacy, none have shortcuts bound in App.tsx.
+		// Only Home and Settings expose shortcuts in the nav composite.
 		const noShortcutItems = [
 			"History",
-			"Text Snippets",
-			"Vocabulary",
+			"Analytics",
+			"Dictionary & Snippets",
+			"Media",
 			"Models",
 			"Microphone",
-			"About & Privacy",
 		];
 		for (const label of noShortcutItems) {
 			const btn = findNavButton(label);
@@ -332,11 +303,10 @@ describe("Sidebar", () => {
 		const sectionClassOf = (label: string) =>
 			findNavButton(label).closest("section")?.className ?? "";
 		expect(sectionClassOf("Settings")).toContain("mt-auto");
-		expect(sectionClassOf("About & Privacy")).toContain("mt-auto");
 		// The top groups flow normally, no auto margin competing with
 		// the System group's bottom anchor.
 		expect(sectionClassOf("Home")).not.toContain("mt-auto");
-		expect(sectionClassOf("Text Snippets")).not.toContain("mt-auto");
+		expect(sectionClassOf("Dictionary & Snippets")).not.toContain("mt-auto");
 	});
 
 	//sidebar branding removed ──────────────────────────

@@ -87,6 +87,7 @@ COMMAND_COSTS: dict[str, int] = {
     "provider_models": 3,  # may fetch a remote catalogue
     # TTS engine pack download / synthesis.
     "tts_prepare": 50,  # multi-GB runtime + pack download
+    "tts_delete": 20,  # rmtree of a multi-GB pack + engine unload
     "tts_speak": 20,  # subprocess synthesis (+ playback)
     "tts_stop": 1,  # one sd.stop() call, no I/O of its own
     "tts_status": 1,  # filesystem probe

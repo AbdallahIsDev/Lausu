@@ -1296,6 +1296,13 @@ Applies to: All agents, all modes, all sub-agents.
 
 ## Category: Internal Plugins & Local Engine Ownership
 
+```
+C-PLUGIN-4
+Rule: Do NOT gate a developer-only surface on the local reveal flag alone; render it only when the backend's own availability flag (get_plugins `available`) is also true, and keep refusing plugin IPC in the backend regardless.
+Rationale: A frozen/end-user build can carry a persisted developer_mode flag from a dev profile; the backend flag is the only proof plugins can actually run, and two gates keep the UI honest without weakening the real gate (2026-11-25).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ### Unified plugin architecture (current)
 
 One system for every internal plugin (Anthropic STT, Google STT, and any future

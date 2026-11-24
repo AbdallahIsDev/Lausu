@@ -1,34 +1,37 @@
-// settingsTabLabels, the source of truth for "which labels appear on
-// which Settings section page?" Used by the search auto-switch (so the
-// user's query navigates to the section page whose labels best match)
-// and by the hub's query filter (so hub rows hide unless their section
-// matches), label-based, not hint-based.
-// Hints (settings.searchHints.*) remain in i18n for completeness
-// (translated into zh/de/fr/hi/ru) but are NOT used by the
-// auto-switch logic; labels are sufficient because every section title
-// and row label is already translated and reflects the user's locale.
+// One label universe for Settings search: the hub filters rows by these
+// strings, the section pages use the SAME set for the empty-banner
+// sentinel, auto-switch and cross-section results (useSettingsSearch).
+// Text removed from the hub rows (descriptions, current values, old page
+// names) remains here as a search keyword so queries still find things.
 
+import { APP_NAME } from "@/branding";
 import { t } from "@/i18n/i18n";
-import type { SettingsSectionPage } from "./settingsSections";
+import type { SettingsHubPage } from "./settingsSections";
 
-export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
+export function getSectionLabels(): Record<SettingsHubPage, string[]> {
 	return {
 		settingsGeneral: [
+			t("settings.generalOverlayTitle"),
+			t("settings.generalOverlayDescription"),
+			// General + Overlay controls, preserved as keywords.
 			t("settings.general"),
 			t("settings.launchAtLogin"),
 			t("settings.fastStartup"),
 			t("settings.appLanguage"),
 			t("settings.notifications"),
-		],
-		settingsOverlay: [
-			t("settings.overlay"),
+			t("settings.bubbleSettings"),
+			t("settings.bubbleSettingsDescription"),
 			t("settings.bubbleBehaviorLabel"),
 			t("settings.bubblePositionLabel"),
 			t("settings.showOnAppStartup"),
 			t("settings.dragToMove"),
 			t("settings.bubbleMicButton"),
+			t("settings.bubbleShowRecordingTimer"),
+			t("settings.screenshotBeta"),
 		],
 		settingsHotkeys: [
+			t("settings.hotkeysRecordingTitle"),
+			t("settings.hotkeysRecordingDescription"),
 			t("settings.hotkeySection.recordingTitle"),
 			t("settings.hotkeySection.dictationKey"),
 			t("settings.hotkeySection.repasteKey"),
@@ -44,15 +47,17 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 			t("settings.hotkeySection.maxRecordingTime"),
 		],
 		settingsTranscription: [
+			t("settings.textEnhancementTitle"),
+			t("settings.textEnhancementDescription"),
 			t("settings.postProcessing"),
 			t("settings.transcriptionLanguage"),
+			t("settings.translationEnable"),
+			t("settings.translationTarget"),
+			t("settings.translationGpu"),
+			t("settings.translationGlossary"),
+			t("settings.translationDownload"),
 			t("settings.autoPunctuation"),
 			t("settings.textCleanupLabel"),
-			t("settings.textSnippets"),
-			t("settings.openTemplates"),
-			t("settings.vocabAutomation.title"),
-			t("settings.vocabAutomation.enable"),
-			// Text Polish lives on this page (the AI pass after cleanup).
 			t("settings.llmPolishing"),
 			t("settings.llmPolish"),
 			t("settings.enable"),
@@ -63,6 +68,7 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 		],
 		settingsAudio: [
 			t("settings.audioEnhancement.title"),
+			t("settings.audioEnhancement.description"),
 			t("settings.audioEnhancement.volumeBackend"),
 			t("settings.audioEnhancement.autoDuckVolume"),
 			t("settings.audioEnhancement.duckLevel"),
@@ -78,12 +84,15 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 		],
 		settingsAppearance: [
 			t("settings.appearance.title"),
+			t("settings.appearance.description"),
 			t("settings.appearance.colorScheme"),
 			t("settings.appearance.themePreset"),
 			t("settings.appearance.customTheme"),
 			t("settings.appearance.textSize"),
 		],
 		settingsPrivacy: [
+			t("settings.privacyConsentTitle"),
+			t("settings.privacyConsentDescription"),
 			t("settings.privacy.privacyTitle"),
 			t("settings.privacy.audioRecoveryTitle"),
 			t("settings.privacy.crashRecovery"),
@@ -96,14 +105,29 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 			t("settings.privacy.deepgramCloudAsrLabel"),
 			t("settings.privacy.llmTextPolishingLabel"),
 			t("settings.privacy.exportAllDataLabel"),
+			// About & Privacy is a section of this page; its labels stay
+			// searchable here.
+			t("aboutAndPrivacy.title"),
+			t("aboutAndPrivacy.description", { appName: APP_NAME }),
+			t("about.productTagline"),
+			t("about.localTitle"),
+			t("about.cloudTitle"),
+			t("about.version"),
+			t("about.checkForUpdates"),
+			t("about.audioProcessingTitle"),
+			t("about.modelWeightsTitle"),
+			t("about.cloudAsrTitle"),
+			t("about.voiceBiometricsTitle"),
+			t("about.localDataTitle"),
+			t("about.thirdPartyTitle"),
+			t("about.viewThirdPartyNotices"),
 		],
 		settingsAdvanced: [
 			t("settings.hub.advancedTitle"),
+			t("settings.hub.advancedDescription"),
 			t("settings.troubleshooting.title"),
 			t("settings.troubleshooting.diagnostics"),
 			t("settings.troubleshooting.reportBug"),
-			// The setup wizard is a dev-only affordance; listing its label
-			// in production would route a search to a page with no match.
 			...(import.meta.env.DEV
 				? [t("settings.troubleshooting.reRunWizard")]
 				: []),
@@ -111,6 +135,12 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 			t("settings.troubleshooting.resetLinux"),
 			t("about.cacheTitle"),
 			t("about.updatesTitle"),
+		],
+		chat: [t("nav.chat"), t("settings.hub.chatDescription"), t("chat.title")],
+		providers: [
+			t("nav.providers"),
+			t("settings.hub.providersDescription"),
+			t("providers.title"),
 		],
 	};
 }

@@ -28,6 +28,9 @@ export interface ModelOption {
 	name: string;
 	display_name?: string;
 	size: string;
+	/** Registry byte count in MB, when the backend supplies it. The
+	 *  renderer never curates sizes; the catalogue value wins. */
+	download_size_mb?: number;
 	speed: string;
 	description: string;
 	//VRAM requirement (in GB) and language coverage, so the

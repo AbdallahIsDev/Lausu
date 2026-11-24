@@ -9,75 +9,47 @@ export const SAMPLE_STEP: StepInfo = {
 	step_name: "Model",
 };
 
-// Mirrors `OnboardingController.MODEL_OPTIONS`
-// (`server/onboarding_selections.py`): the curated four, in that order,
-// with `recommended` on parakeet only. The earlier sample carried three
-// invented picks and flagged the wrong model as recommended, so the
-// skeleton showed a different list than the wizard rendered.
+// Skeleton-only stand-ins for the five production models. Sizes are a single
+// neutral placeholder: this list is never shown as data (the Skeleton hides
+// it), it only measures the card, and curated per-model sizes used to drift
+// from the registry. The real rows come from the backend's registry-derived
+// options + catalog (see useOnboardingWizard.mergeModelOptions).
 export const SAMPLE_MODEL_OPTIONS: ModelOption[] = [
 	{
-		name: "tiny",
-		size: "~75MB",
-		speed: "Fastest",
-		description: "Multilingual, best for quick notes",
-		vram_gb: 0.5,
-		languages: null,
-		backend: "whisper",
-	},
-	{
-		name: "large-v3",
-		size: "~3GB",
-		speed: "Slow",
-		description: "Multilingual, highest accuracy, GPU recommended",
-		vram_gb: 3.0,
-		languages: null,
-		backend: "whisper",
+		name: "parakeet",
+		size: "~1.0GB",
+		speed: "Fast",
+		description: "",
+		backend: "parakeet",
 	},
 	{
 		name: "large-v3-turbo",
-		size: "~1.6GB",
+		size: "~1.0GB",
 		speed: "Fast",
-		description: "Multilingual, near-large-v3 accuracy at 8x speed",
-		vram_gb: 2.0,
-		languages: null,
+		description: "",
+		backend: "whisper",
+		recommended: true,
+	},
+	{
+		name: "large-v3",
+		size: "~1.0GB",
+		speed: "Slow",
+		description: "",
 		backend: "whisper",
 	},
 	{
-		name: "parakeet",
-		display_name: "Parakeet Ultra",
-		size: "~670MB",
+		name: "qwen3-1.7b",
+		size: "~1.0GB",
+		speed: "Medium",
+		description: "",
+		backend: "qwen",
+	},
+	{
+		name: "qwen3-0.6b",
+		size: "~1.0GB",
 		speed: "Fast",
-		description: "Parakeet Ultra, fast & accurate, 25 European languages",
-		vram_gb: 2.0,
-		languages: [
-			"bg",
-			"hr",
-			"cs",
-			"da",
-			"nl",
-			"en",
-			"et",
-			"fi",
-			"fr",
-			"de",
-			"el",
-			"hu",
-			"it",
-			"lv",
-			"lt",
-			"mt",
-			"pl",
-			"pt",
-			"ro",
-			"sk",
-			"sl",
-			"es",
-			"sv",
-			"ru",
-			"uk",
-		],
-		backend: "parakeet",
-		recommended: true,
+		description: "",
+		backend: "qwen",
 	},
 ];
 

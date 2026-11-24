@@ -1,0 +1,15 @@
+[package]
+name = "overlay-gpui-prototype"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Standalone GPUI prototype for the bubble overlay (not part of the app build)"
+
+# Standalone by design: the app workspace lives in ../../src-tauri/Cargo.toml.
+[workspace]
+
+[dependencies]
+gpui = { package = "gpui-ce", version = "0.3" }
+gpui_platform = { package = "gpui_ce_platform", version = "0.3" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -271,6 +271,74 @@ describe("Settings page, PERF-002 batched config writes", () => {
 		expect(mockConsumeConsentField).toHaveBeenCalledTimes(1);
 	});
 
+	it("renders About & Privacy as a section inside Privacy & Consent without moving consent controls", async () => {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") return Promise.resolve(baseConfig);
+			if (type === "set_config") return Promise.resolve({ success: true });
+			if (type === "get_status")
+				return Promise.resolve({ config_dir: "/tmp/lausu" });
+			return Promise.resolve({});
+		});
+
+		const { default: SettingsPage } = await import("@/pages/Settings");
+		renderWithProviders(<SettingsPage page="settingsPrivacy" />);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("heading", { name: "About & Privacy" }),
+			).toBeTruthy();
+		});
+		expect(screen.getByText("Voice biometrics")).toBeTruthy();
+		expect(screen.getByText("Local data")).toBeTruthy();
+		// Consent controls stay on this same page, not on a second page.
+		expect(
+			document.querySelectorAll("[data-consent-field]").length,
+		).toBeGreaterThan(0);
+	});
+
+	it("routes the Privacy & Consent hub row to its section callback", async () => {
+		const { useGlobalSearch } = await import("@/stores/useGlobalSearch");
+		useGlobalSearch.getState().clearQuery();
+		const { SettingsHub } = await import("@/components/settings/SettingsHub");
+		const onNavigateSection = vi.fn();
+
+		renderWithProviders(<SettingsHub onNavigateSection={onNavigateSection} />);
+		fireEvent.click(screen.getByTestId("settings-hub-row-settingsPrivacy"));
+		expect(onNavigateSection).toHaveBeenCalledWith("settingsPrivacy");
+	});
+
+	it("keeps the hub rows to icon, title and chevron (no summary or subtitle)", async () => {
+		const { useGlobalSearch } = await import("@/stores/useGlobalSearch");
+		useGlobalSearch.getState().clearQuery();
+		const { SettingsHub } = await import("@/components/settings/SettingsHub");
+		renderWithProviders(<SettingsHub onNavigateSection={() => {}} />);
+		const row = screen.getByTestId("settings-hub-row-settingsPrivacy");
+		expect(row.textContent).toContain("Privacy & Consent");
+		// Exactly one text node: the title. No description/current-value
+		// summary remains on the row.
+		expect(row.children).toHaveLength(3);
+	});
+
+	it("filters embedded About & Privacy disclosures using the Settings search query", async () => {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") return Promise.resolve(baseConfig);
+			if (type === "set_config") return Promise.resolve({ success: true });
+			if (type === "get_status")
+				return Promise.resolve({ config_dir: "/tmp/lausu" });
+			return Promise.resolve({});
+		});
+
+		const { useGlobalSearch } = await import("@/stores/useGlobalSearch");
+		useGlobalSearch.getState().setQuery("voice biometrics");
+		const { default: SettingsPage } = await import("@/pages/Settings");
+		renderWithProviders(<SettingsPage page="settingsPrivacy" />);
+
+		await waitFor(() => {
+			expect(screen.getByText("Voice biometrics")).toBeTruthy();
+		});
+		expect(screen.queryByText("Audio processing")).toBeNull();
+	});
+
 	it("S5-CR-103: Reset to Defaults is a muted ghost button on the hub using RefreshIcon, distinct from Re-run Wizard's ArrowTurnBackwardIcon", async () => {
 		mockCall.mockImplementation((type: string) => {
 			if (type === "get_config") return Promise.resolve(baseConfig);

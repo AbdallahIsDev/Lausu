@@ -109,7 +109,7 @@ _SELF_SERIALIZED_COMMANDS: frozenset[str] = frozenset(
 # Host-only commands: registered here, never invoked by the renderer
 _PYTHON_ONLY_COMMANDS: frozenset[str] = frozenset({"shutdown", "tray_click", "bubble_host_hidden"})
 
-# Maps IPC command name → handler method on IPCServer. Count pinned at 110
+# Maps IPC command name → handler method on IPCServer. Count pinned at 111
 _COMMAND_REGISTRY: dict[str, str] = {
     "get_status": "_handle_get_status",
     "toggle_dictation": "_handle_toggle_dictation",
@@ -226,6 +226,7 @@ _COMMAND_REGISTRY: dict[str, str] = {
     # Local text-to-speech (Audio8 + MagpieTTS) — Models page engine rows.
     "tts_status": "_handle_tts_status",
     "tts_prepare": "_handle_tts_prepare",
+    "tts_delete": "_handle_tts_delete",
     "tts_speak": "_handle_tts_speak",
     # Stops the clip the icon-only Test control is playing (no payload).
     "tts_stop": "_handle_tts_stop",

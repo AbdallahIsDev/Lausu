@@ -678,14 +678,13 @@ describe("App recording state, rewrite of test_no_unvalidated_as_recording_state
 			// transcribing/loading strings are suppressed (Home's dynamic
 			// status line covers them), which would make the
 			// transcribing/loading cases fail for the wrong reason.
-			// "aboutAndPrivacy" is stubbed above (aboutAndPrivacy-page testid)
-			// so App mounts the lightweight stub rather than the real
-			// merged About & Privacy page.
+			// History is stubbed above (history-page testid) so App mounts
+			// a lightweight non-Home page instead of a real data page.
 			localStorage.setItem(
 				"vt_nav_state",
 				JSON.stringify({
-					page: "aboutAndPrivacy",
-					history: ["aboutAndPrivacy"],
+					page: "history",
+					history: ["history"],
 					index: 0,
 				}),
 			);
@@ -695,7 +694,7 @@ describe("App recording state, rewrite of test_no_unvalidated_as_recording_state
 			render(<App />);
 
 			await waitFor(() => {
-				expect(screen.getByTestId("aboutAndPrivacy-page")).toBeTruthy();
+				expect(screen.getByTestId("history-page")).toBeTruthy();
 			});
 
 			// The aria-live region must announce the state.  This proves

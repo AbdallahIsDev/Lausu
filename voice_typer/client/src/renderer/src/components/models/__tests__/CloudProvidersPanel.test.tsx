@@ -253,9 +253,10 @@ describe("CloudProvidersPanel, Configure is a provider-level action", () => {
 		expect(
 			configure.closest('[data-slot="accordion-trigger-trailing"]'),
 		).not.toBeNull();
-		// …and the button spans the header row (Radix `Header`, an H3).
+		// …and the button spans the header row. Models group headers are <h2>
+		// so the page h1 → h2 → h3(row) order stays valid for axe.
 		const header = trigger.parentElement;
-		expect(header?.tagName).toBe("H3");
+		expect(header?.tagName).toBe("H2");
 		expect(trigger.className).toContain("w-full");
 	});
 

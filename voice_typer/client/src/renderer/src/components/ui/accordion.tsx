@@ -38,8 +38,15 @@ function AccordionTrigger({
 	children,
 	actions,
 	disclosure = true,
+	headingLevel = 3,
 	...props
 }: React.ComponentProps<typeof AccordionPrimitive.Trigger> & {
+	/**
+	 * Radix's Header defaults to <h3>. Pages whose accordion is the first
+	 * section under an <h1> need <h2> to keep heading order valid; the
+	 * default stays <h3> for every other consumer.
+	 */
+	headingLevel?: 2 | 3;
 	/**
 	 * Optional trailing slot, rendered INSIDE the trigger button at the
 	 * far right (e.g. the Cloud tab's provider-level Configure action,
@@ -69,59 +76,62 @@ function AccordionTrigger({
 	// `disclosure={false}` instance with no actions (the microphone
 	// preset selector) renders no trailing group at all.
 	const hasTrailing = hasActions || disclosure;
+	const HeaderTag = headingLevel === 2 ? "h2" : "h3";
 
 	return (
 		// The header is layout only: the trigger button is the row. It
 		// spans the full width (`flex-1` in this flex header) and owns
 		// the single hover surface — there is no sibling half painting
 		// a second tint.
-		<AccordionPrimitive.Header className="flex">
-			<AccordionPrimitive.Trigger
-				data-slot="accordion-trigger"
-				className={cn(
-					"group/accordion-trigger relative flex w-full flex-1 items-center justify-between gap-6 border border-transparent p-4 text-start text-sm font-medium transition-all outline-hidden hover:bg-foreground/5 hover:underline focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50",
-					className,
-				)}
-				{...props}
-			>
-				{children}
-				{hasTrailing ? (
-					// biome-ignore lint/a11y/noStaticElementInteractions: the div is not a control — it only stops an action button's click reaching the trigger <button> beside it, which is the accessible control.
-					// biome-ignore lint/a11y/useKeyWithClickEvents: keyboard users activate the action button directly, so a keydown mirror here would double-fire.
-					<div
-						data-slot="accordion-trigger-trailing"
-						className="flex shrink-0 items-center gap-2"
-						// An action (e.g. Configure) inside the trigger must
-						// not toggle the panel: stop its click reaching the
-						// trigger button. Chevron/padding clicks fall through
-						// and toggle normally — the whole button is the hit
-						// area.
-						onClick={(event) => {
-							const target = event.target;
-							if (target instanceof Element && target.closest("button"))
-								event.stopPropagation();
-						}}
-					>
-						{actions}
-						{disclosure ? (
-							/* A RIGHT chevron that rotates to point DOWN when the
+		<AccordionPrimitive.Header asChild>
+			<HeaderTag className="flex">
+				<AccordionPrimitive.Trigger
+					data-slot="accordion-trigger"
+					className={cn(
+						"group/accordion-trigger relative flex w-full flex-1 items-center justify-between gap-6 border border-transparent p-4 text-start text-sm font-medium transition-all outline-hidden hover:bg-foreground/5 hover:underline focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50",
+						className,
+					)}
+					{...props}
+				>
+					{children}
+					{hasTrailing ? (
+						// biome-ignore lint/a11y/noStaticElementInteractions: the div is not a control — it only stops an action button's click reaching the trigger <button> beside it, which is the accessible control.
+						// biome-ignore lint/a11y/useKeyWithClickEvents: keyboard users activate the action button directly, so a keydown mirror here would double-fire.
+						<div
+							data-slot="accordion-trigger-trailing"
+							className="flex shrink-0 items-center gap-2"
+							// An action (e.g. Configure) inside the trigger must
+							// not toggle the panel: stop its click reaching the
+							// trigger button. Chevron/padding clicks fall through
+							// and toggle normally — the whole button is the hit
+							// area.
+							onClick={(event) => {
+								const target = event.target;
+								if (target instanceof Element && target.closest("button"))
+									event.stopPropagation();
+							}}
+						>
+							{actions}
+							{disclosure ? (
+								/* A RIGHT chevron that rotates to point DOWN when the
 							   group is open. Rendered AFTER the actions slot,
 							   so a row-level action reads as "…action, then
 							   the disclosure". Driven from the TRIGGER's
 							   `data-state`: the glyph is a descendant of the
 							   trigger, so the trigger group selector reaches
 							   it. */
-							<HugeiconsIcon
-								icon={ArrowRight01Icon}
-								strokeWidth={2}
-								data-slot="accordion-trigger-icon"
-								aria-hidden="true"
-								className="pointer-events-none size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/accordion-trigger:rotate-90"
-							/>
-						) : null}
-					</div>
-				) : null}
-			</AccordionPrimitive.Trigger>
+								<HugeiconsIcon
+									icon={ArrowRight01Icon}
+									strokeWidth={2}
+									data-slot="accordion-trigger-icon"
+									aria-hidden="true"
+									className="pointer-events-none size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/accordion-trigger:rotate-90"
+								/>
+							) : null}
+						</div>
+					) : null}
+				</AccordionPrimitive.Trigger>
+			</HeaderTag>
 		</AccordionPrimitive.Header>
 	);
 }

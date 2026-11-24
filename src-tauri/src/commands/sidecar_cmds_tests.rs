@@ -151,9 +151,9 @@ fn test_allowed_commands_set_is_nonempty() {
 #[test]
 fn test_allowed_commands_count_matches_python_registry_parity() {
     // The Rust literal is exactly the renderer-reachable subset of the
-    // Python `_COMMAND_REGISTRY`: 109 registry entries minus the five
+    // Python `_COMMAND_REGISTRY`: 110 registry entries minus the five
     // host-dispatched commands (`heartbeat`, `relaunch_ack`, `shutdown`,
-    // `tray_click`, `bubble_host_hidden`) = 104. The Python parity test
+    // `tray_click`, `bubble_host_hidden`) = 105. The Python parity test
     // `tests/test_ipc_command_parity.py::test_registry_minus_rust_equals_host_dispatched_delta`
     // asserts the entries match exactly; this Rust-side test pins the
     // COUNT so a local `cargo test` catches drift before the Python test
@@ -161,8 +161,8 @@ fn test_allowed_commands_count_matches_python_registry_parity() {
     // (see `dispatch_inner`), so they are intentionally ABSENT here.
     assert_eq!(
         allowed_commands().len(),
-        104,
-        "must match the Python registry (109 entries) minus the 5 host-dispatched \
+        105,
+        "must match the Python registry (110 entries) minus the 5 host-dispatched \
          commands (heartbeat, relaunch_ack, shutdown, tray_click, bubble_host_hidden)"
     );
 }
@@ -206,10 +206,11 @@ fn test_allowed_commands_set_contains_no_duplicates() {
     // CUDA install flow, 2026-11-09).
     // 105 → 104 (2026-11): `set_plugin_setting` removed by the
     // unified-plugin architecture.
+    // 104 → 105: `tts_delete` (Models pack removal).
     assert_eq!(
         set.len(),
-        104,
-        "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (104). \
+        105,
+        "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (105). \
          Check the constructor log for the duplicate name.",
         set.len()
     );
@@ -217,18 +218,18 @@ fn test_allowed_commands_set_contains_no_duplicates() {
 
 #[test]
 fn test_allowed_commands_exact_snapshot() {
-    //Stricter parity test: pin the EXACT 104-entry set (sorted)
+    //Stricter parity test: pin the EXACT 105-entry set (sorted)
     // so any drift between the Rust literal and the Python registry is
     // caught at `cargo test` time, BEFORE the cross-layer Python
     // parity test in `tests/test_ipc_command_parity.py` runs. The
     // count-only test above catches add/remove drift but
     // MISSES a rename (e.g. `onboarding_reset` → `reset_onboarding`)
-    // that keeps the count at 104. This snapshot test catches both
+    // that keeps the count at 105. This snapshot test catches both
     // renames and any silent reordering that would mask a missing
     // entry.
     //
     // The expected list is the alphabetically-sorted union of:
-    //   - the Python `_COMMAND_REGISTRY` literal (109 entries, once the
+    //   - the Python `_COMMAND_REGISTRY` literal (110 entries, once the
     //     backend slice lands the four screenshot handlers)
     //   - minus the five host-dispatched commands: `heartbeat`
     //     (Rust WS-reader task), `relaunch_ack` (Rust `relaunch_app`
@@ -384,6 +385,7 @@ fn test_allowed_commands_exact_snapshot() {
         "toggle_dictation",
         "toggle_favorite",
         "transcribe_offline",
+        "tts_delete",
         "tts_prepare",
         "tts_speak",
         "tts_status",
@@ -395,14 +397,14 @@ fn test_allowed_commands_exact_snapshot() {
         expected.len(),
         "snapshot length mismatch: actual Rust set has {} entries, snapshot expected {}. \
          If you added/removed a command, update BOTH this snapshot AND the cmds literal AND \
-         the Python `_COMMAND_REGISTRY` (= 109 entries with open_mic_settings).",
+         the Python `_COMMAND_REGISTRY` (= 110 entries with open_mic_settings).",
         actual.len(),
         expected.len()
     );
     assert_eq!(
         actual, expected,
         "ALLOWED_COMMANDS snapshot drift: the Rust literal no longer matches the pinned \
-         104-entry snapshot. Diff the actual vs expected Vec above. If the change is \
+         105-entry snapshot. Diff the actual vs expected Vec above. If the change is \
          intentional, update this snapshot in lockstep with the cmds literal AND the \
          Python `_COMMAND_REGISTRY` (see MAINTENANCE note above)."
     );

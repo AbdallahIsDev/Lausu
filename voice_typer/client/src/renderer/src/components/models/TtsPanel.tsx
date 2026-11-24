@@ -13,8 +13,11 @@
  * renders engine text, timings or "cached sample" diagnostics.
  */
 
+import { Delete01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { LevelBar } from "@/components/feedback/LevelBar";
 import {
 	ActiveActionButton,
 	DownloadActionButton,
@@ -23,6 +26,7 @@ import {
 	type TestActionState,
 } from "@/components/models/ModelActionButtons";
 import { ModelVariantRow } from "@/components/models/ModelGroupList";
+import { Button } from "@/components/ui/button";
 import {
 	Select,
 	SelectContent,
@@ -38,11 +42,13 @@ import { usePython, usePythonEvent } from "@/hooks/usePython";
 import { t } from "@/i18n/i18n";
 import { formatBytes } from "@/lib/format";
 
-type TtsEngine = "off" | "audio8" | "magpie";
+type TtsEngine = string;
 
-/** Engines with a pack row, in display order (mirrors the backend tuple). */
-const TTS_ENGINES = ["audio8", "magpie"] as const;
-type TtsEngineId = (typeof TTS_ENGINES)[number];
+/**
+ * Engine ids come from the `tts_status.engines` payload, which is produced by
+ * the backend's own `ENGINES`/pack registry. No second id literal lives here.
+ */
+type TtsEngineId = string;
 
 interface TtsVoiceInfo {
 	id: string;
@@ -83,6 +89,16 @@ interface TtsSpeakResult {
 	voice?: string;
 }
 
+interface TtsPrepareProgress {
+	engine: string;
+	artifact: string;
+	artifact_index: number;
+	artifact_count: number;
+	bytes_done: number;
+	bytes_total: number;
+	percent: number;
+}
+
 /** IPC envelopes are `{ type, data }`; tolerate a bare payload too. */
 function unwrap<T>(response: unknown): T {
 	const envelope = response as { data?: T } | undefined;
@@ -97,6 +113,11 @@ export const TtsPanel = memo(function TtsPanel() {
 	const [status, setStatus] = useState<TtsStatusData | null>(null);
 	/** Engine whose pack is arriving right now (that row shows the spinner). */
 	const [preparing, setPreparing] = useState<TtsEngineId | null>(null);
+	/** Last pushed byte counter for the in-flight download. */
+	const [prepareProgress, setPrepareProgress] =
+		useState<TtsPrepareProgress | null>(null);
+	/** Engine being removed right now. */
+	const [deleting, setDeleting] = useState<TtsEngineId | null>(null);
 	/** Engine being made active right now. */
 	const [selecting, setSelecting] = useState<TtsEngineId | null>(null);
 	/** Engine whose clip is rendering right now (spinner state). */
@@ -107,7 +128,7 @@ export const TtsPanel = memo(function TtsPanel() {
 	const failures = useRef(0);
 	const playRef = useRef<(engine: TtsEngineId) => void>(() => {});
 
-	const busy = preparing !== null || selecting !== null;
+	const busy = preparing !== null || selecting !== null || deleting !== null;
 
 	const refresh = useCallback(async () => {
 		const response = await callRef.current("tts_status");
@@ -130,6 +151,28 @@ export const TtsPanel = memo(function TtsPanel() {
 			return;
 		}
 		setPlayingEngine((current) => (current === engine ? null : current));
+	});
+
+	usePythonEvent("tts_prepare_progress", (data) => {
+		const payload = (data ?? {}) as Partial<TtsPrepareProgress>;
+		if (typeof payload.engine !== "string") return;
+		const percent =
+			typeof payload.percent === "number" && Number.isFinite(payload.percent)
+				? Math.max(0, Math.min(100, payload.percent))
+				: 0;
+		setPrepareProgress({
+			engine: payload.engine,
+			artifact: typeof payload.artifact === "string" ? payload.artifact : "",
+			artifact_index:
+				typeof payload.artifact_index === "number" ? payload.artifact_index : 0,
+			artifact_count:
+				typeof payload.artifact_count === "number" ? payload.artifact_count : 0,
+			bytes_done:
+				typeof payload.bytes_done === "number" ? payload.bytes_done : 0,
+			bytes_total:
+				typeof payload.bytes_total === "number" ? payload.bytes_total : 0,
+			percent,
+		});
 	});
 
 	const run = useCallback(async (action: () => Promise<void>) => {
@@ -161,6 +204,7 @@ export const TtsPanel = memo(function TtsPanel() {
 
 	const prepare = useCallback(
 		(engine: TtsEngineId) => {
+			setPrepareProgress(null);
 			setPreparing(engine);
 			return run(async () => {
 				try {
@@ -168,6 +212,22 @@ export const TtsPanel = memo(function TtsPanel() {
 					await refresh();
 				} finally {
 					setPreparing(null);
+				}
+			});
+		},
+		[callRef, refresh, run],
+	);
+
+	const remove = useCallback(
+		(engine: TtsEngineId) => {
+			setDeleting(engine);
+			return run(async () => {
+				try {
+					await callRef.current("tts_delete", { engine });
+					await refresh();
+				} finally {
+					setDeleting(null);
+					setPrepareProgress(null);
 				}
 			});
 		},
@@ -292,6 +352,8 @@ export const TtsPanel = memo(function TtsPanel() {
 
 	const active = status?.engine ?? "off";
 	const engines = status?.engines ?? {};
+	// Display order is whatever the backend registry ships (Audio8, Magpie).
+	const engineIds = Object.keys(engines);
 	const enabled = status?.enabled ?? false;
 	const selectedVoice = status?.voice ?? "";
 	const activeLanguages =
@@ -331,7 +393,7 @@ export const TtsPanel = memo(function TtsPanel() {
 			</div>
 
 			<div className="divide-y divide-border/8">
-				{TTS_ENGINES.map((engine) => {
+				{engineIds.map((engine) => {
 					const info = engines[engine];
 					const label = info?.label ?? engine;
 					const available = info?.available ?? false;
@@ -387,9 +449,42 @@ export const TtsPanel = memo(function TtsPanel() {
 												onClick={() => void selectEngine(engine)}
 											/>
 										)}
+										{available && !isActive ? (
+											<Button
+												variant="outline"
+												size="icon-sm"
+												disabled={busy && deleting !== engine}
+												aria-busy={deleting === engine}
+												aria-label={`${t("models.deleteModel")} ${label}`}
+												title={`${t("models.deleteModel")} ${label}`}
+												onClick={() => void remove(engine)}
+											>
+												<HugeiconsIcon
+													icon={Delete01Icon}
+													strokeWidth={2}
+													className="h-3.5 w-3.5"
+												/>
+											</Button>
+										) : null}
 									</div>
 								}
 							/>
+
+							{isPreparing && prepareProgress?.engine === engine ? (
+								<div className="flex flex-col gap-1 border-t border-border/8 px-4 py-2.5">
+									<LevelBar
+										level={prepareProgress.percent / 100}
+										playing={false}
+										ariaLabel={downloadLabel}
+										ariaValueText={`${prepareProgress.percent}%`}
+									/>
+									<p className="text-xs text-muted-foreground">
+										{prepareProgress.artifact} ·{" "}
+										{prepareProgress.artifact_index}/
+										{prepareProgress.artifact_count}
+									</p>
+								</div>
+							) : null}
 
 							{isActive ? (
 								<div className="flex flex-col gap-3 border-t border-border/8 px-4 py-3">

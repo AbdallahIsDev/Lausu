@@ -27,7 +27,7 @@ afterEach(() => {
 	cleanup();
 });
 
-describe("OverlaySettingsSection, bubble behavior + timer + preview", () => {
+describe("OverlaySettingsSection, bubble controls without the preview card", () => {
 	it("offers Hidden alongside Show on Record and Always Visible", () => {
 		renderSection();
 		expect(screen.getByText("Show on Record")).toBeTruthy();
@@ -61,17 +61,13 @@ describe("OverlaySettingsSection, bubble behavior + timer + preview", () => {
 		expect(drag).toBeDisabled();
 		fireEvent.click(drag);
 		expect(updateConfig).not.toHaveBeenCalled();
-		// The live preview card has nothing to mirror while the bubble
-		// itself is hidden, so it stays out of the way.
-		expect(screen.queryByText("Bubble Preview")).toBeNull();
 	});
 
-	it("shows position, drag, and preview when behavior is not hidden", () => {
+	it("shows position and drag when behavior is not hidden", () => {
 		renderSection({ bubble_behavior: "show_on_record" });
 		expect(screen.getByText("Bubble Position")).toBeTruthy();
 		expect(screen.getByLabelText("Drag to Move")).toBeTruthy();
 		expect(screen.getByLabelText("Drag to Move")).toBeEnabled();
-		expect(screen.getByText("Bubble Preview")).toBeTruthy();
 	});
 
 	it("locks the startup toggle until Always Visible is picked", () => {
@@ -90,23 +86,6 @@ describe("OverlaySettingsSection, bubble behavior + timer + preview", () => {
 		expect(screen.getByLabelText("Bubble Mic Button")).toBeTruthy();
 	});
 
-	it("idle preview shows the mic only when it can appear on the real bubble", () => {
-		const { unmount } = renderSection({
-			bubble_behavior: "always_visible",
-			bubble_click_to_toggle: true,
-			bubble_mic_button: true,
-		});
-		expect(
-			document.querySelectorAll('[aria-label="Start dictation"]'),
-		).toHaveLength(1);
-		unmount();
-		cleanup();
-		renderSection({ bubble_behavior: "show_on_record" });
-		expect(
-			document.querySelectorAll('[aria-label="Start dictation"]'),
-		).toHaveLength(0);
-	});
-
 	it("shows the timer toggle otherwise and commits the toggle", () => {
 		const updateConfig = vi.fn();
 		renderSection({ bubble_behavior: "show_on_record" }, updateConfig);
@@ -118,67 +97,18 @@ describe("OverlaySettingsSection, bubble behavior + timer + preview", () => {
 		});
 	});
 
-	it("renders idle/recording previews with a live fake timer", () => {
-		renderSection({
-			bubble_behavior: "show_on_record",
-			bubble_show_recording_timer: true,
-		});
-		expect(screen.getByText("Bubble Preview")).toBeTruthy();
-		expect(screen.getByText("Idle")).toBeTruthy();
-		expect(screen.getByText("Recording")).toBeTruthy();
+	it("renders exactly one card, with no mock bubble variants", () => {
+		renderSection({ bubble_behavior: "always_visible" });
+		expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(1);
+		expect(screen.queryByText("Bubble Preview")).toBeNull();
+		expect(screen.queryByText("Idle")).toBeNull();
 		expect(screen.queryByText("Transcribing")).toBeNull();
-		expect(document.querySelector(".bubble-shimmer-text")).toBeNull();
-		const timer = document.querySelector(
-			'[data-slot="bubble-recording-timer"]',
-		);
-		expect(timer).toBeTruthy();
-		expect(timer?.textContent).toBe("00:00");
-	});
-
-	it("recording preview omits the timer when the toggle is off", () => {
-		renderSection({
-			bubble_behavior: "show_on_record",
-			bubble_show_recording_timer: false,
-		});
+		expect(
+			document.querySelectorAll('[aria-label="Start dictation"]'),
+		).toHaveLength(0);
 		expect(
 			document.querySelector('[data-slot="bubble-recording-timer"]'),
 		).toBeNull();
-	});
-
-	it("renders the preview as its own card, not a row of the Overlay card", () => {
-		renderSection({ bubble_behavior: "always_visible" });
-		const headings = screen.getAllByRole("heading", { level: 2 });
-		expect(headings.map((h) => h.textContent)).toEqual([
-			"Overlay",
-			"Bubble Preview",
-		]);
-		// The preview pills live in the preview's own <section>, not in
-		// the Overlay card's row list.
-		const overlaySection = screen
-			.getByRole("heading", { level: 2, name: "Overlay" })
-			.closest("section");
-		const previewSection = screen
-			.getByRole("heading", { level: 2, name: "Bubble Preview" })
-			.closest("section");
-		expect(overlaySection).not.toBe(previewSection);
-		expect(
-			overlaySection?.querySelector('[aria-label="Start dictation"]'),
-		).toBeNull();
-		expect(
-			previewSection?.querySelector('[aria-label="Start dictation"]'),
-		).toBeTruthy();
-	});
-
-	it("drops the dismiss button from the preview when the bubble is not dismissable", () => {
-		renderSection({ bubble_behavior: "always_visible" });
-		expect(
-			document.querySelectorAll('[aria-label="Dismiss bubble"]'),
-		).toHaveLength(1);
-		cleanup();
-		renderSection({ bubble_behavior: "show_on_record" });
-		expect(
-			document.querySelectorAll('[aria-label="Dismiss bubble"]'),
-		).toHaveLength(0);
 	});
 
 	it("offers the screenshot beta toggle off by default and commits the toggle", () => {
@@ -198,19 +128,5 @@ describe("OverlaySettingsSection, bubble behavior + timer + preview", () => {
 		const toggle = screen.getByLabelText("Screenshot capture (Beta)");
 		expect(toggle).toBeInTheDocument();
 		expect(toggle).toBeDisabled();
-	});
-
-	it("mirrors bubble position into the preview", () => {
-		renderSection({
-			bubble_behavior: "always_visible",
-			bubble_position: "top",
-		});
-		expect(screen.getByText("Bubble Position: Top Center")).toBeTruthy();
-		cleanup();
-		renderSection({
-			bubble_behavior: "always_visible",
-			bubble_position: "bottom",
-		});
-		expect(screen.getByText("Bubble Position: Bottom Center")).toBeTruthy();
 	});
 });

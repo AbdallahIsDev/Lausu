@@ -640,21 +640,19 @@ describe("useNavigation, rewrite of localStorage persistence tests", () => {
 	});
 });
 
-describe("Sidebar, rewrite of About-nav tests", () => {
+describe("Sidebar, About & Privacy is reached through Settings", () => {
 	afterEach(() => {
 		cleanup();
 	});
 
-	it("renders an 'About & Privacy' nav button that fires onNavigate('aboutAndPrivacy')", async () => {
+	it("does not render About & Privacy as a separate top-level navigation item", async () => {
 		const { Sidebar } = await import("@/components/layout/Sidebar");
-		const onNavigate: (page: Page) => void = vi.fn();
-		renderWithProviders(<Sidebar currentPage="home" onNavigate={onNavigate} />);
+		renderWithProviders(<Sidebar currentPage="home" onNavigate={() => {}} />);
 
-		const aboutBtn = screen.getByRole("button", { name: "About & Privacy" });
-		expect(aboutBtn).toBeTruthy();
-
-		fireEvent.click(aboutBtn);
-		expect(onNavigate).toHaveBeenCalledWith("aboutAndPrivacy");
+		expect(
+			screen.queryByRole("button", { name: "About & Privacy" }),
+		).toBeNull();
+		expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy();
 	});
 });
 
@@ -1022,7 +1020,7 @@ describe("App routing + chrome, rewrite of routing + ErrorBoundary tests", () =>
 		cleanup();
 	});
 
-	it("routes to the About & Privacy page when currentPage is 'aboutAndPrivacy'", async () => {
+	it("redirects the legacy 'aboutAndPrivacy' route into Settings", async () => {
 		await registerAppPageStubs();
 		mockNavState.page = "aboutAndPrivacy";
 		vi.resetModules();
@@ -1030,8 +1028,9 @@ describe("App routing + chrome, rewrite of routing + ErrorBoundary tests", () =>
 		render(<App />);
 
 		await waitFor(() => {
-			expect(screen.getByTestId("aboutAndPrivacy-page")).toBeTruthy();
+			expect(screen.getByTestId("settings-page")).toBeTruthy();
 		});
+		expect(screen.queryByTestId("aboutAndPrivacy-page")).toBeNull();
 	});
 
 	it("wraps the page tree in an ErrorBoundary (skip-link + main landmark pass through)", async () => {

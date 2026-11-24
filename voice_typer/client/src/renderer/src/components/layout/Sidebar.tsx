@@ -2,15 +2,11 @@ import {
 	AiBrain03Icon,
 	Analytics01Icon,
 	BookOpen02Icon,
-	File02Icon,
 	Film01Icon,
 	HistoryIcon,
 	Home04Icon,
-	MessageMultiple01Icon,
 	Mic02Icon,
-	PuzzleIcon,
 	Settings01Icon,
-	ShieldUserIcon,
 } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -20,139 +16,61 @@ import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
 import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
 import { DeviceToggle } from "@/components/layout/DeviceToggle";
-import {
-	type PluginsBadgeHue,
-	PluginsNewBadge,
-} from "@/components/layout/PluginsNewBadge";
 import { SidebarActiveModel } from "@/components/layout/SidebarActiveModel";
 import { isSettingsSurface } from "@/components/settings/settingsSections";
 import { Button } from "@/components/ui/button";
-import { useDebugPrefs } from "@/hooks/useDebugPrefs";
-import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
-import { usePluginsNewBadge } from "@/hooks/usePluginsNewBadge";
 import { getLocale, isRtlLocale, t, useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { prefetchPage } from "@/router/prefetch";
 import type { Page } from "@/types/ipc";
 
-// The subset of Page values that appear as sidebar destinations.
-// Narrowing the id (instead of reusing the whole Page union) keeps the
-// nav-label lookup `t(`nav.${item.id}`)` inside the compile-time
-// translation-catalog contract: every id here must have a `nav.*`
-// catalog key, so adding a nav item without its translation fails
-// typecheck instead of rendering the raw key at runtime.
+// Only actual sidebar destinations are in this union. Keeping it narrow
+// makes `t(`nav.${item.id}`)` type-checked against the locale catalogs:
+// adding a nav item without its translation fails typecheck.
 type NavLeafId = Extract<
 	Page,
 	| "home"
-	| "chat"
 	| "history"
 	| "analytics"
 	| "models"
-	| "providers"
-	| "templates"
-	| "vocabulary"
+	| "dictionarySnippets"
 	| "media"
-	| "plugins"
-	| "settings"
 	| "microphone"
-	| "aboutAndPrivacy"
+	| "settings"
 >;
 
 interface NavItem {
 	id: NavLeafId;
 	icon: IconSvgElement;
-	// Marks a freshly added destination with a trailing "new" label.
-	// The label text is resolved through i18n at RENDER time (never at
-	// module scope), so a locale switch re-labels the badge.
-	badge?: true;
-	// Gated destination: rendered only when the backend reports the
-	// internal plugin surface as available on this install. A shipped
-	// build must not show it at all (see `usePluginsAvailable`).
-	requiresPlugins?: true;
 }
 
-// 2-group nav hierarchy. Splitting the flat NAV_ITEMS list into
-// semantically meaningful groups gives users a faster mental model of
-// the app: the default page + content tools (header-less top group),
-// and low-priority system/device/info destinations (System). Each
-// group renders as its own
-// <section aria-label=...> (no <hr> dividers between groups). The
-// System group is PINNED TO THE BOTTOM of the sidebar via flex auto
-// margin (see NavGroup.pinnedToBottom) so the importance hierarchy —
-// frequent destinations on top, system/device/info at the bottom, is
-// encoded by the layout itself, in both sidebar states.
-// TWO groups, deliberately:
-//   1. Top group: the default page set speaks for itself. Day-to-day
-//      destinations (Home / History / Analytics) first, then the content
-//      tools (Models / Templates / Vocabulary).
-//   2. System group, app + device configuration and information:
-//      Settings, Microphone (input-device configuration belongs beside app
-//      settings), About & Privacy.
-// NEITHER group renders a visible heading: the group names are carried by
-// each `<section aria-label=...>` for screen-reader navigation only. The
-// sidebar reads as one clean list, and the System cluster still separates
-// from the destinations above it through the `mt-auto` bottom pin.
+// The everyday group is the whole navigation except Settings. Settings
+// lives in the bottom cluster so the future profile/settings-entry
+// options (title bar, profile row, dropdown) only have to replace that
+// one leaf — nothing in this group changes.
 const MAIN_NAV_ITEMS: NavItem[] = [
 	{ id: "home", icon: Home04Icon },
-	// Voice conversation: a primary destination (hold, speak, hear the reply).
-	{ id: "chat", icon: MessageMultiple01Icon },
 	{ id: "history", icon: HistoryIcon },
 	{ id: "analytics", icon: Analytics01Icon },
 	{ id: "models", icon: AiBrain03Icon },
-	{ id: "providers", icon: AiBrain03Icon },
-	{ id: "templates", icon: File02Icon },
-	{ id: "vocabulary", icon: BookOpen02Icon },
+	{ id: "dictionarySnippets", icon: BookOpen02Icon },
 	{ id: "media", icon: Film01Icon },
-	// Installed-plugin management. A day-to-day destination like the rest
-	// of this group (it browses what the app can run), not app settings.
-	// Gated: developer-only, so a shipped build renders no Plugins entry.
-	{ id: "plugins", icon: PuzzleIcon, badge: true, requiresPlugins: true },
+	{ id: "microphone", icon: Mic02Icon },
 ];
 
-// (General / AI & Audio / Appearance / Privacy) is gone: the Settings
-// page itself is now a HUB, one card whose rows open the focused
-// section pages (see SettingsHub + settingsSections.ts). Navigation to
-// a specific domain lives on the hub (and in search deep-links), not in
-// the sidebar, keeping the rail calm and consistent with the other
-// single-destination items.
-const SYSTEM_NAV_ITEMS: NavItem[] = [
-	{ id: "settings", icon: Settings01Icon },
-	// Microphone, input-device configuration (selection, quality,
-	// test). It is device setup rather than a day-to-day destination,
-	// so it lives in the System cluster directly under Settings.
-	{ id: "microphone", icon: Mic02Icon },
-	// Privacy pages merged): product identity (what the app is,
-	// version, platforms) plus the data-handling disclosure (how audio
-	// and data are processed and stored). The shield-user glyph
-	// communicates personal-data protection without any warning/error
-	// semantics.
-	{ id: "aboutAndPrivacy", icon: ShieldUserIcon },
-];
+// Bottom cluster: active model/plugin indicator + CPU/GPU switch, then
+// the single Settings leaf. Product identity lives in Settings → Privacy.
+const SYSTEM_NAV_ITEMS: NavItem[] = [{ id: "settings", icon: Settings01Icon }];
 
 interface NavGroup {
-	// i18n key (falls back to `fallback` literal when not yet translated).
 	labelKey: string;
-	// English literal used when `labelKey` is missing from the active
-	// locale AND from English. This keeps the UI readable in English
-	// until the i18n translations catch up, and gives
-	// `screen.getByText("Main")` a stable string to assert on.
 	fallback: string;
 	items: NavItem[];
-	// When true, the group is pinned to the bottom of the sidebar via
-	// `mt-auto` (flex auto margin), the System/low-priority cluster
-	// anchors to the rail's end edge in BOTH states without spacer
-	// elements or fixed heights, so the hierarchy stays stable across
-	// window sizes (on a short window the auto margin collapses to 0
-	// and the nav simply scrolls).
 	pinnedToBottom?: boolean;
 }
 
 const NAV_GROUPS: NavGroup[] = [
-	{
-		labelKey: "nav.group.main",
-		fallback: "Main",
-		items: MAIN_NAV_ITEMS,
-	},
+	{ labelKey: "nav.group.main", fallback: "Main", items: MAIN_NAV_ITEMS },
 	{
 		labelKey: "nav.group.system",
 		fallback: "System",
@@ -161,49 +79,8 @@ const NAV_GROUPS: NavGroup[] = [
 	},
 ];
 
-// Flattened list used for roving tabindex (the nav is a single
-// vertical composite: arrow keys move across group boundaries). For
-// Flattened list used for roving tabindex (the nav is a single
-// vertical composite: arrow keys move across group boundaries). Every
-// item is a leaf button, so the flat list IS the nav order.
 const ALL_NAV_ITEMS: NavItem[] = [...MAIN_NAV_ITEMS, ...SYSTEM_NAV_ITEMS];
 
-/**
- * Drop developer-gated items on installs that may not see them.
- *
- * Applied to BOTH the rendered groups and the flat roving-tabindex order:
- * filtering only the render would leave the hidden entry focusable by
- * keyboard, so it would still be reachable on a shipped build.
- */
-function visibleNavItems(
-	items: NavItem[],
-	pluginsAvailable: boolean,
-): NavItem[] {
-	return pluginsAvailable
-		? items
-		: items.filter((item) => !item.requiresPlugins);
-}
-
-function visibleNavGroups(pluginsAvailable: boolean): NavGroup[] {
-	return NAV_GROUPS.map((group) => ({
-		...group,
-		items: visibleNavItems(group.items, pluginsAvailable),
-	}));
-}
-
-// Per-page keyboard shortcuts surfaced ONLY for accessibility + the
-// collapsed-sidebar tooltip: the expanded nav items render NO visible
-// shortcut chips (clean, consistent with pages that don't display
-// shortcuts), but the shortcuts remain registered and functional.
-// `aria-keyshortcuts` exposes them to AT, and the collapsed icon-only
-// items show them as Kbd chips via HotkeyTooltip. Uses formatHotkey()
-// for platform-aware labels (e.g. "Ctrl+H" on Windows/Linux, "⌘H" on
-// macOS) instead of hardcoded English. Pages without a shortcut
-// return undefined (no chips rendered). The bindings come from the
-// SHORTCUTS catalog (single source of truth), same strings TitleBar
-// and the Help overlay render.
-// The shortcut for "settings" (Ctrl+,) opens the Settings hub, the
-// single leaf destination (its rows lead to the section pages).
 const NAV_KEYSHORTCUTS: Partial<Record<Page, string>> = {
 	home: SHORTCUTS.goHome.ariaKeyshortcuts,
 	settings: SHORTCUTS.openSettings.ariaKeyshortcuts,
@@ -221,32 +98,16 @@ function navShortcut(page: Page): string | undefined {
 	return undefined;
 }
 
-// Shared label motion, the STATE classes of the sidebar's ONE text
-// exit/enter model: opacity + inline-start X translate (RTL-mirrored)
-// + explicit blur endpoints. X-axis only, never any Y component.
-// The element owns its transition-property list (item labels include
-// max-width; group-header containers animate max-height separately),
-// so this helper deliberately declares NO transition classes.
+// ONE label motion model for the whole rail (opacity + inline-start
+// translate + explicit blur endpoints). X-axis only, never Y. The
+// element owns its transition-property list; here we only supply state
+// classes so a persistent node animates when `collapsed` flips.
 function navLabelMotion(collapsed: boolean): string {
 	return collapsed
 		? "-translate-x-3 opacity-0 blur-[4px] pointer-events-none rtl:translate-x-3"
 		: "translate-x-0 opacity-100 blur-[0px]";
 }
 
-// Shared label visibility transition for nav item text. ONE animation
-// model for the whole sidebar: the label's layout box (max-width)
-// collapses in sync with the aside's 200ms ease-out width transition
-// while the text itself exits toward the inline-start icon column
-// through the shared navLabelMotion state classes (translate + fade +
-// blur). Icons are flex siblings BEFORE the span, so this animation
-// can never shift the icon column.
-// For this transition to actually RUN, the element carrying it must
-// NOT be remounted when `collapsed` flips (CSS transitions only
-// animate computed-style changes on PERSISTENT DOM nodes, a freshly
-// mounted node jumps straight to its end state). That is why every
-// nav button renders through the SAME wrapper element type in both
-// states: leaves are always wrapped in HotkeyTooltip (content
-// suppressed when expanded via its `disabled` prop).
 function navTextClasses(collapsed: boolean): string {
 	return cn(
 		"overflow-hidden whitespace-nowrap text-sm font-medium dark:font-normal",
@@ -273,32 +134,12 @@ function SidebarInner({
 	collapsed = false,
 }: SidebarProps) {
 	const t = useT();
-	// (roving tabindex): the nav is a vertical composite
-	// widget. Only one item holds tabIndex=0 (the active page, or
-	// the first item if the active page isn't in the nav); all
-	// others hold tabIndex=-1. ArrowUp/ArrowDown/Home/End move focus
-	// between items without leaving the nav.
 	const navRef = useRef<HTMLElement>(null);
-
-	// Developer-gated destinations. False until the backend answers, so a
-	// shipped build never flashes the Plugins entry into view.
-	const pluginsAvailable = usePluginsAvailable();
-	// First-run pointer to the Plugins surface; latched off for good the first
-	// time that page is opened (usePluginsNewBadge owns the marker).
-	const showNewBadge = usePluginsNewBadge(currentPage);
-	const { badgeHue } = useDebugPrefs();
-	const navGroups = visibleNavGroups(pluginsAvailable);
-	const navItems = visibleNavItems(ALL_NAV_ITEMS, pluginsAvailable);
-
-	const activeFlatIdx = navItems.findIndex((i) => i.id === currentPage);
-	// Roving-tabindex fallback: when the active page is a Settings
-	// surface (hub or a section page, neither is a nav item), focus the
-	// Settings leaf so it carries tabIndex=0 + aria-current for the
-	// whole section. Without this fallback, the roving tabindex would
-	// jump to the first nav item (home) on any Settings page, breaking
-	// the "focus follows active" UX.
+	const activeFlatIdx = ALL_NAV_ITEMS.findIndex((i) => i.id === currentPage);
+	// Settings-section pages are not nav items: hand the roving tab stop
+	// to the Settings leaf so keyboard focus follows the active surface.
 	const rovingFallbackIdx = isSettingsSurface(currentPage)
-		? navItems.findIndex((i) => i.id === "settings")
+		? ALL_NAV_ITEMS.findIndex((i) => i.id === "settings")
 		: -1;
 	const rovingIdx =
 		activeFlatIdx >= 0
@@ -310,10 +151,6 @@ function SidebarInner({
 	const handleNavKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
 		const nav = navRef.current;
 		if (!nav) return;
-		// Only buttons marked as nav items participate in roving
-		// (defensive: the nav currently contains only nav-item
-		// buttons, but the marker keeps the selector tight if a
-		// future group header ever becomes a button).
 		const buttons = Array.from(
 			nav.querySelectorAll<HTMLButtonElement>("button[data-nav-item='true']"),
 		);
@@ -345,10 +182,8 @@ function SidebarInner({
 			default:
 				return;
 		}
-		if (nextIdx >= 0 && nextIdx < buttons.length) {
-			const target = buttons[nextIdx];
-			if (target !== undefined) target.focus();
-		}
+		const target = buttons[nextIdx];
+		if (target !== undefined) target.focus();
 	};
 
 	return (
@@ -356,116 +191,62 @@ function SidebarInner({
 			className={cn(
 				"flex shrink-0 flex-col",
 				"overflow-hidden",
-				// The rail: --sidebar is one step below the canvas in dark
-				// (gray-900 #0f0f0f against the gray-800 #131313 canvas),
-				// identical to it in light. See index.css.
 				"bg-sidebar",
 				"transition-[width] duration-200 ease-out",
-				// Rail geometry pins the icon column: every top-level nav
-				// button starts its icon at 16px from this edge (container
-				// p-2 + button px-2; the buttons carry the Button base's
-				// uniform 1px transparent border) in BOTH states. w-12
-				// (48px) centers the 16px icon inside the collapsed rail
-				// (16 + 16/2 = 24 = 48/2) without moving it, the icon
-				// column never re-centers on collapse.
 				collapsed ? "w-12" : "w-55",
 			)}
 		>
-			{/* Navigation. ``min-h-0`` + ``overflow-y-auto`` so a short
-			    window scrolls instead of clipping the bottom items. The
-			    nav is the sidebar's only content, it fills the full
-			    height now that the branding header and the ThemeSwitch
-			    row have moved out of the sidebar. */}
-			{/* The rail is left-pinned in every locale, so the nav FLOW must
-			    stay LTR or `justify-start` would right-anchor the icon column
-			    and make it jump on collapse. RTL applies to label text only. */}
+			{/* The rail is left-pinned in every locale: nav FLOW stays LTR
+			    so the icon column never jumps on collapse. RTL applies to
+			    label text only. */}
 			<div className="min-h-0 flex-1 overflow-y-auto p-2" dir="ltr">
 				<nav
 					ref={navRef}
 					aria-label={t("a11y.mainNavigation")}
 					onKeyDown={handleNavKeyDown}
 					className={cn(
-						// min-h-full lets the pinned System group's auto margin
-						// reach the rail's bottom edge when there is spare
-						// height, while still growing (and scrolling) on short
-						// windows.
 						"flex min-h-full flex-col",
-						// Deliberate vertical rhythm per state. Within a group,
-						// items breathe with gap-1 (the section's own flex gap);
-						// between groups the nav gap is the separator: wider
-						// (gap-5) when the group headings are visible expanded,
-						// tighter (gap-2) in the collapsed icon rail where the
-						// (zero-height, still-mounted) headings contribute their
-						// surrounding flex gaps, net cluster separation 16px
-						// vs the 4px item rhythm, so clusters read as designed
-						// groups instead of a vertically stretched sidebar.
 						collapsed ? "gap-2" : "gap-5",
 					)}
 				>
-					{navGroups.map((group) => {
-						const groupLabel = navGroupLabel(group.labelKey, group.fallback);
-						return (
-							<section
-								key={group.labelKey}
-								aria-label={groupLabel}
-								className={cn(
-									"flex flex-col gap-1",
-									// Low-priority System cluster anchors to the
-									// bottom edge through flex auto margin, layout
-									// structure, not spacer dividers or fixed
-									// heights.
-									group.pinnedToBottom && "mt-auto",
-								)}
-							>
-								{/* Active model + compute-device switch live at the
-								    top of the System cluster so they ride the same
-								    bottom pin: the running model is readable from
-								    every page, one quick toggle, no settings
-								    detour. Both null themselves when collapsed
-								    (or GPU-less / no model), keeping the icon
-								    column geometry untouched.
-
-								    ISOLATION: the model caption must never depend
-								    on the device switch. They are siblings with
-								    independent data (the caption reads only
-								    asr_backend / model_size / cloud_*, never
-								    `device` or `gpu_available`), and the switch is
-								    wrapped in its own boundary so a throw inside
-								    it degrades to "no switch" instead of reaching
-								    the root boundary and taking the whole sidebar
-								    (caption included) down with it. A laggy or
-								    broken CPU/GPU control is not a reason to lose
-								    the name of the model you are running. */}
-								{group.pinnedToBottom && (
-									<SidebarActiveModel collapsed={collapsed} />
-								)}
-								{group.pinnedToBottom && (
-									<ErrorBoundary fallback={null}>
-										<DeviceToggle collapsed={collapsed} />
-									</ErrorBoundary>
-								)}
-								{group.items.map((item) => {
-									return (
-										<NavLeaf
-											key={item.id}
-											item={item}
-											currentPage={currentPage}
-											collapsed={collapsed}
-											showNewBadge={showNewBadge}
-											badgeHue={badgeHue}
-											onNavigate={onNavigate}
-											tabIndex={
-												navItems.findIndex((i) => i.id === item.id) ===
-												rovingIdx
-													? 0
-													: -1
-											}
-										/>
-									);
-								})}
-							</section>
-						);
-					})}
+					{NAV_GROUPS.map((group) => (
+						<section
+							key={group.labelKey}
+							aria-label={navGroupLabel(group.labelKey, group.fallback)}
+							className={cn(
+								"flex flex-col gap-1",
+								group.pinnedToBottom && "mt-auto",
+							)}
+						>
+							{/* Bottom slot. The model caption reads only engine
+							    identity; the switch is isolated behind its own
+							    error boundary so a broken toggle cannot blank the
+							    caption or the whole rail (C-UI-10). */}
+							{group.pinnedToBottom && (
+								<SidebarActiveModel collapsed={collapsed} />
+							)}
+							{group.pinnedToBottom && (
+								<ErrorBoundary fallback={null}>
+									<DeviceToggle collapsed={collapsed} />
+								</ErrorBoundary>
+							)}
+							{group.items.map((item) => (
+								<NavLeaf
+									key={item.id}
+									item={item}
+									currentPage={currentPage}
+									collapsed={collapsed}
+									onNavigate={onNavigate}
+									tabIndex={
+										ALL_NAV_ITEMS.findIndex((i) => i.id === item.id) ===
+										rovingIdx
+											? 0
+											: -1
+									}
+								/>
+							))}
+						</section>
+					))}
 				</nav>
 			</div>
 		</aside>
@@ -478,29 +259,17 @@ interface NavLeafProps {
 	collapsed: boolean;
 	onNavigate: (page: Page) => void;
 	tabIndex: number;
-	/** Whether this leaf still shows the shared "new" marker. */
-	showNewBadge: boolean;
-	/** Owner-selectable hue from the Debug Panel. */
-	badgeHue: PluginsBadgeHue;
 }
 
-// A nav item with NO children. The roving-tabindex contract is owned
-// by the parent <nav> (single composite widget): the caller passes
-// tabIndex 0 for the active leaf (or first-item fallback), -1 for the
-// rest.
-// The button is ALWAYS wrapped in the same HotkeyTooltip element, in
-// the expanded state the tooltip CONTENT is suppressed via
-// `disabled`, because swapping the wrapper type between states would
-// remount the button and skip its label transition (CSS transitions
-// do not run on freshly mounted nodes).
+// Always wrapped in the same HotkeyTooltip element in both states:
+// swapping wrappers would remount the button and skip its label
+// transition. Content is suppressed while expanded.
 function NavLeaf({
 	item,
 	currentPage,
 	collapsed,
 	onNavigate,
 	tabIndex,
-	showNewBadge,
-	badgeHue,
 }: NavLeafProps) {
 	const isActive = currentPage === item.id;
 	const navLabel = t(`nav.${item.id}`);
@@ -519,33 +288,15 @@ function NavLeaf({
 				aria-current={isActive ? "page" : undefined}
 				className={cn(
 					"w-full justify-start gap-3 text-sm tracking-wide normal-case font-normal rounded-lg",
-					// Clip the row so the animating label never paints outside
-					// the button while the rail width transitions.
 					"overflow-hidden",
 					"transition-[background-color,border-color,color] duration-200 ease-out",
-					// Single icon column: px-2 in BOTH states anchors the icon
-					// at the same x-position (container p-2 + this padding =
-					// 16px from the aside edge) whether expanded or collapsed
-					//, the icon never shifts when the rail collapses.
 					"px-2",
 					isActive
 						? cn(
-								// Active page: the card surface plus a 1px border at
-								// 10% — #FFFFFF/10 in dark, its light-scheme
-								// counterpart #000000/10 in light (a literal
-								// white/10 would be invisible on the white
-								// sidebar). `border-border` carries both.
 								"border-border/10 bg-surface hover:bg-surface",
 								"text-foreground font-medium",
 							)
 						: cn(
-								// Inactive: border at 0% (#FFFFFF/0). Both
-								// schemes are stated explicitly — the Button
-								// base carries `dark:border-border/10`, so a
-								// bare `border-transparent` would leave a 10%
-								// white edge on every inactive row in dark.
-								// The 1px box stays reserved either way, so the
-								// rail geometry never shifts.
 								"border-transparent dark:border-transparent text-muted-foreground",
 								"hover:bg-foreground/5 hover:text-foreground",
 							),
@@ -565,25 +316,9 @@ function NavLeaf({
 				>
 					{navLabel}
 				</span>
-				{item.badge && showNewBadge && (
-					<PluginsNewBadge
-						label={t("nav.newBadge")}
-						collapsed={collapsed}
-						motionClass={navLabelMotion(collapsed)}
-						hue={badgeHue}
-					/>
-				)}
 			</Button>
 		</HotkeyTooltip>
 	);
 }
 
-// wrap in React.memo so stable callbacks from App.tsx can
-// short-circuit re-renders when no props have changed. All props
-// (`currentPage`, `onNavigate`, `collapsed`) are primitives or stable
-// `useCallback` refs from App.tsx (`navigate` from useNavigation), so
-// the default shallow-equal comparator (matching the TitleBar.tsx
-// pattern) skips re-renders on unrelated App state changes (e.g.
-// themeMode changes that only re-render the TitleBar, or recordingState
-// transitions).
 export const Sidebar = memo(SidebarInner);

@@ -204,6 +204,55 @@ describe("cloud-provider pending message key (all 8 locales)", () => {
 	}
 });
 
+// The Models title-bar switcher has a distinct Text-to-Speech destination;
+// guard the new label in every locale and prevent untranslated English copies.
+describe("Models Text-to-Speech tab label (all 8 locales)", () => {
+	for (const [locale, table] of Object.entries(allLocaleFlats)) {
+		it(`${locale}.json models.ttsModels exists and is genuinely translated`, () => {
+			const value = table.get("models.ttsModels");
+			expect(value, `${locale}.json is missing models.ttsModels`).toBeTruthy();
+			expect(value).not.toBe("");
+			if (locale !== "en") {
+				expect(value).not.toBe(enFlat.get("models.ttsModels"));
+			}
+		});
+	}
+});
+
+describe("Settings navigation labels (all 8 locales)", () => {
+	const keys = [
+		"nav.dictionarySnippets",
+		"settings.generalOverlayTitle",
+		"settings.generalOverlayDescription",
+		"settings.hotkeysRecordingTitle",
+		"settings.textEnhancementTitle",
+		"settings.privacyConsentTitle",
+		"settings.bubbleSettings",
+		"settings.hub.chatDescription",
+		"settings.hub.providersDescription",
+		"dictionarySnippets.title",
+		"dictionarySnippets.description",
+		"dictionarySnippets.dictionary",
+		"dictionarySnippets.snippets",
+		"dictionarySnippets.switcherAria",
+	] as const;
+
+	for (const [locale, table] of Object.entries(allLocaleFlats)) {
+		it(`${locale}.json defines and translates each new Settings navigation key`, () => {
+			for (const key of keys) {
+				const value = table.get(key);
+				expect(value, `${locale}.json is missing ${key}`).toBeTruthy();
+				expect(value).not.toBe("");
+				if (locale !== "en") {
+					expect(value, `${locale}.json ${key} must be translated`).not.toBe(
+						enFlat.get(key),
+					);
+				}
+			}
+		});
+	}
+});
+
 // Direct guard for the tray-label table in `i18n/push.ts`. The parity
 // loop above only proves en and each locale agree with each other; it
 // cannot catch a `labelKey` that is absent from EVERY catalog, which is

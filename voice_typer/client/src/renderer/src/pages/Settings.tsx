@@ -46,6 +46,7 @@ import { usePython, usePythonEvent } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { useTheme } from "@/hooks/useTheme";
 import { t } from "@/i18n/i18n";
+import AboutAndPrivacyPage from "@/pages/AboutAndPrivacy";
 import { useGlobalSearch } from "@/stores/useGlobalSearch";
 import type { LausuConfig } from "@/types/config";
 import type { Page } from "@/types/ipc";
@@ -278,15 +279,20 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 	) => {
 		switch (active) {
 			case "settingsGeneral":
-				return <GeneralSettingsSection {...props} />;
-			case "settingsOverlay":
-				return <OverlaySettingsSection {...props} />;
+				// General + Overlay are ONE page. The bubble card has no
+				// separate landing row; its controls persist as before.
+				return (
+					<>
+						<GeneralSettingsSection {...props} />
+						<OverlaySettingsSection {...props} />
+					</>
+				);
 			case "settingsHotkeys":
 				return <RecordingSettingsSection {...props} />;
 			case "settingsTranscription":
 				return (
 					<>
-						<PostProcessingSettingsSection {...props} onNavigate={navigate} />
+						<PostProcessingSettingsSection {...props} />
 						{/* Text Polish belongs with the text-enhancement controls it
 						    feeds (it is the AI pass after cleanup/punctuation), not
 						    on the troubleshooting page. */}
@@ -310,11 +316,17 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 					</>
 				);
 			case "settingsPrivacy":
+				// About & Privacy is a SECTION of Privacy & Consent, not
+				// a separate Settings destination. All of its content
+				// (version, notices, disclosures, links) stays reachable.
 				return (
-					<PrivacySettingsSection
-						{...props}
-						consentFocusField={focusedConsentField}
-					/>
+					<>
+						<PrivacySettingsSection
+							{...props}
+							consentFocusField={focusedConsentField}
+						/>
+						<AboutAndPrivacyPage embedded isVisible={props.isVisible} />
+					</>
 				);
 			case "settingsAdvanced":
 				return (
@@ -444,7 +456,6 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 								// reset action off the card's bottom edge.
 								<div className="flex w-full flex-1 flex-col gap-4">
 									<SettingsHub
-										config={cfg}
 										onNavigateSection={(sectionPage) => navigate(sectionPage)}
 									/>
 									{/* Settings-wide destructive action. It sits at the

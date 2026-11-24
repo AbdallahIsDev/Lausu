@@ -97,10 +97,9 @@ function removeDialogMock() {
 
 // ── Suite ─────────────────────────────────────────────────────────────
 
-// The page persists the active tab (Local / Cloud) in sessionStorage
-// via useFilterState, clear it before EVERY test so a test that
-// switches to the Cloud tab never leaks that state into a later test
-// that expects the default Local tab.
+// The page persists the active tab (Local / Cloud / Text-to-Speech) in
+// sessionStorage; clear it before EVERY test so tab choices never leak
+// into a later test that expects the default Local tab.
 beforeEach(() => {
 	sessionStorage.clear();
 	// Zustand store is module-level and survives cleanup(); reset so
@@ -980,7 +979,7 @@ describe("ModelsPage, Select buttons stay enabled during a download", () => {
 	});
 });
 
-describe("ModelsPage, title-bar Local/Cloud switcher matches the sidebar control (2026-10-11)", () => {
+describe("ModelsPage, title-bar model-section switcher", () => {
 	afterEach(() => {
 		cleanup();
 		vi.clearAllMocks();
@@ -1039,9 +1038,54 @@ describe("ModelsPage, title-bar Local/Cloud switcher matches the sidebar control
 		// `role="tabpanel"` with a dangling `aria-labelledby` would be an
 		// axe failure.
 		expect(screen.queryByRole("tabpanel")).toBeNull();
+		expect(screen.getAllByRole("radio")).toHaveLength(3);
 		expect(
 			screen.getByRole("region", { name: t("models.localModels") }),
 		).toBeInTheDocument();
+		expect(screen.queryByRole("region", { name: t("tts.title") })).toBeNull();
+	});
+
+	it("shows TTS only after selecting its dedicated title-bar option", async () => {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") return Promise.resolve(MOCK_CONFIG);
+			if (type === "get_model_status") return Promise.resolve({});
+			if (type === "get_model_catalog") return Promise.resolve({ models: [] });
+			if (type === "tts_status")
+				return Promise.resolve({
+					data: {
+						engine: "off",
+						enabled: false,
+						voice: "",
+						language: "",
+						engines: {},
+					},
+				});
+			return Promise.resolve(MOCK_CONFIG);
+		});
+		renderWithProviders(
+			<>
+				<ModelsTabSwitcher currentPage="models" />
+				<ModelsPage />
+			</>,
+		);
+		await waitFor(() => {
+			expect(
+				screen.queryByRole("heading", { level: 1, name: /Models/i }),
+			).toBeTruthy();
+		});
+
+		fireEvent.click(screen.getByRole("radio", { name: t("models.ttsModels") }));
+		expect(useModelsTab.getState().activeTab).toBe("tts");
+		expect(sessionStorage.getItem("vt:filters:models.activeTab")).toBe('"tts"');
+		await waitFor(() => {
+			expect(
+				screen.getByRole("region", { name: t("tts.title") }),
+			).toBeInTheDocument();
+		});
+		expect(
+			screen.queryByRole("region", { name: t("models.localModels") }),
+		).toBeNull();
+		expect(mockCall).toHaveBeenCalledWith("tts_status");
 	});
 });
 
@@ -1194,7 +1238,7 @@ describe("ModelsPage, context-aware tab + preserved accordion state", () => {
 		return screen.getByRole("button", { name: `${label} Configure` });
 	}
 
-	function setTab(tab: "local" | "cloud") {
+	function setTab(tab: "local" | "cloud" | "tts") {
 		act(() => {
 			useModelsTab.getState().setActiveTab(tab);
 		});
@@ -1244,5 +1288,15 @@ describe("ModelsPage, context-aware tab + preserved accordion state", () => {
 		await waitFor(() => {
 			expect(useModelsTab.getState().activeTab).toBe("local");
 		});
+	});
+
+	it("preserves an explicit TTS tab because it is independent of the active ASR model", async () => {
+		useModelsTab.setState({ activeTab: "tts" });
+		await renderWithConfig(MOCK_CONFIG);
+
+		expect(useModelsTab.getState().activeTab).toBe("tts");
+		expect(
+			screen.getByRole("region", { name: t("tts.title") }),
+		).toBeInTheDocument();
 	});
 });

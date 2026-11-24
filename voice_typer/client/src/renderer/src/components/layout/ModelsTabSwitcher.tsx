@@ -1,10 +1,10 @@
 /**
- * ModelsTabSwitcher — Local / Cloud segmented control in the title bar.
+ * ModelsTabSwitcher — Local / Cloud / Text-to-Speech selector in the title bar.
  *
  * Same pattern as GlobalSearchBar: the control lives in the title-bar
  * middle strip while `currentPage === "models"` and unmounts elsewhere.
- * Tab selection is shared via `useFilterState("models", "activeTab")` so
- * the Models page and the title bar stay in sync (sessionStorage).
+ * Tab selection is shared via `useModelsTab` so the Models page and the
+ * title bar stay in sync (sessionStorage).
  *
  * Wears the DEFAULT (recessed-track) variant, the same one the sidebar's
  * CPU/GPU switch renders (2026-10-11, user decision). It used to be the
@@ -28,6 +28,7 @@ import {
 	ToggleGroup,
 	type ToggleGroupOption,
 } from "@/components/ui/toggle-group";
+import { usePluginsUnlocked } from "@/hooks/usePluginCatalog";
 import { useT } from "@/i18n/i18n";
 import { type ModelsTab, useModelsTab } from "@/stores/useModelsTab";
 import type { Page } from "@/types/ipc";
@@ -42,13 +43,20 @@ export const ModelsTabSwitcher = memo(function ModelsTabSwitcher({
 	const t = useT();
 	const activeTab = useModelsTab((s) => s.activeTab);
 	const setActiveTab = useModelsTab((s) => s.setActiveTab);
+	// Both gates: the local reveal AND the backend's `get_plugins.available`.
+	// A frozen build answers false, so no option is rendered at all.
+	const pluginsUnlocked = usePluginsUnlocked();
 
 	if (currentPage !== "models") return null;
 
-	const tabOptions: ToggleGroupOption<string>[] = [
+	const tabOptions: ToggleGroupOption<ModelsTab>[] = [
 		{ value: "local", label: t("models.localModels") },
 		{ value: "cloud", label: t("models.cloudModels") },
+		{ value: "tts", label: t("models.ttsModels") },
 	];
+	if (pluginsUnlocked) {
+		tabOptions.push({ value: "plugins", label: t("plugins.title") });
+	}
 
 	return (
 		<ToggleGroup

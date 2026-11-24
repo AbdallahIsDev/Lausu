@@ -55,7 +55,13 @@ import {
 	type VocabRow,
 } from "./vocabulary/lib/transform";
 
-export default function VocabularyPage() {
+export default function VocabularyPage({
+	embedded = false,
+	active = true,
+}: {
+	embedded?: boolean;
+	active?: boolean;
+} = {}) {
 	const { call } = usePython();
 	const { showSnack } = useSnackbar();
 
@@ -99,9 +105,11 @@ export default function VocabularyPage() {
 	// "Search {count} corrections". Re-syncs whenever the list changes
 	// (load, add, edit, delete, clear-all, dedupe).
 	const setVocabEntryCount = useGlobalSearch((s) => s.setVocabEntryCount);
+	// On the merged page the count belongs to the ACTIVE tab; the hidden
+	// tab keeps its own state but must not overwrite the search hint.
 	useEffect(() => {
-		setVocabEntryCount(entries.length);
-	}, [entries.length, setVocabEntryCount]);
+		if (active) setVocabEntryCount(entries.length);
+	}, [active, entries.length, setVocabEntryCount]);
 
 	// Inline edit row, same VocabInlineForm treatment as Add, rendered
 	// in place of the row being edited (no modal; the list stays in
@@ -265,10 +273,12 @@ export default function VocabularyPage() {
 	if (loadError && entries.length === 0) {
 		return (
 			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
-				<PageHeading
-					title={t("vocabulary.title")}
-					description={t("vocabulary.description")}
-				/>
+				{!embedded && (
+					<PageHeading
+						title={t("vocabulary.title")}
+						description={t("vocabulary.description")}
+					/>
+				)}
 				<EmptyState
 					icon={AlertCircleIcon}
 					title={t("vocabulary.loadFailedTitle")}
@@ -310,10 +320,12 @@ export default function VocabularyPage() {
                                     As a direct child of the page column (max-w-4xl
                                     w-full) the toolbar spans the full header width and
                                     the left group / right Add Word separation is real. */}
-							<PageHeading
-								title={t("vocabulary.title")}
-								description={t("vocabulary.description")}
-							/>
+							{!embedded && (
+								<PageHeading
+									title={t("vocabulary.title")}
+									description={t("vocabulary.description")}
+								/>
+							)}
 							<div className="flex flex-col gap-4">
 								{/* Shared collection toolbar shell, the page injects
                                                 every label key + the two drift-decision values

@@ -1,15 +1,7 @@
-// PostProcessingSettingsSection, the Post-Processing section of the
-// Settings surface.
-// Post-Processing and LLM Polishing cards on one page) so each domain
-// gets its own focused section page (settingsTranscription for this
-// card). Renders one SettingsSection block: "Post-Processing"
-// (Transcription Language, Auto Punctuation, Text Cleanup, Text
-// Snippets, Vocabulary). Behaviour is identical to the previous combined
-// implementation, including the per-row search-filter visibility via the
-// `isVisible` prop and the section-level "hide if no items match" check.
+// PostProcessingSettingsSection, the text enhancement controls on the
+// Settings surface. Dictionary and snippet controls live on their own
+// Settings section page.
 
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
 import { Skeleton } from "skullet/react";
 import { SettingRow } from "@/components/common/SettingRow";
@@ -28,7 +20,6 @@ import { Switch } from "@/components/ui/switch";
 import { usePython } from "@/hooks/usePython";
 import { useT } from "@/i18n/i18n";
 import { LANGUAGE_OPTIONS } from "@/lib/utils/languages";
-import type { Page } from "@/types/ipc";
 import type { SettingsSectionSharedProps } from "./types";
 
 // ADR-0021 scope lock: the translator only supports the 8 core locales.
@@ -51,11 +42,7 @@ export const PostProcessingSettingsSection = memo(
 		updateConfig,
 		updateConfigDebounced,
 		isVisible,
-		onNavigate,
-	}: SettingsSectionSharedProps & {
-		/** Routes to the Text Snippets page (the "Open Text Snippets" button). */
-		onNavigate?: (page: Page) => void;
-	}) {
+	}: SettingsSectionSharedProps) {
 		const t = useT();
 		const { call } = usePython();
 
@@ -66,10 +53,6 @@ export const PostProcessingSettingsSection = memo(
 			updateConfig({ auto_punctuation: checked });
 		const handleTextCleanupChange = (checked: boolean) =>
 			updateConfig({ text_cleanup_enabled: checked });
-		const handleTextSnippetsChange = (checked: boolean) =>
-			updateConfig({ templates_enabled: checked });
-		const handleVocabAutomationChange = (checked: boolean) =>
-			updateConfig({ vocabulary_automation_enabled: checked });
 		const handleTranslationChange = (checked: boolean) =>
 			updateConfig({ translation_enabled: checked });
 		const handleTranslationTargetChange = (v: string) =>
@@ -116,18 +99,6 @@ export const PostProcessingSettingsSection = memo(
 			{
 				label: t("settings.textCleanupLabel"),
 				info: t("settings.textCleanupInfo"),
-			},
-			{
-				label: t("settings.textSnippets"),
-				info: t("settings.textSnippetsInfo"),
-			},
-			{
-				label: t("settings.vocabAutomation.title"),
-				info: t("settings.vocabAutomation.enableInfo"),
-			},
-			{
-				label: t("settings.openTemplates"),
-				info: t("settings.textSnippetsInfo"),
 			},
 		];
 		const postProcessingVisible = postProcessingItems.some((item) =>
@@ -321,59 +292,6 @@ export const PostProcessingSettingsSection = memo(
 									checked={cfg.text_cleanup_enabled}
 									onCheckedChange={handleTextCleanupChange}
 									aria-label={t("settings.textCleanupLabel")}
-								/>
-							</SettingRow>
-						)}
-
-						{isVisible(
-							t("settings.textSnippets"),
-							t("settings.textSnippetsInfo"),
-							postProcessingTitle,
-						) && (
-							<SettingRow
-								label={t("settings.textSnippets")}
-								info={t("settings.textSnippetsInfo")}
-							>
-								<div className="flex items-center gap-2">
-									<Button
-										variant="outline"
-										size="sm"
-										className="gap-1.5"
-										onClick={() => onNavigate?.("templates")}
-										aria-label={t("settings.openTemplates")}
-										title={t("settings.textSnippetsInfo")}
-										data-testid="open-templates-button"
-									>
-										<HugeiconsIcon
-											icon={ArrowRight01Icon}
-											strokeWidth={2}
-											className="size-4"
-											aria-hidden="true"
-										/>
-										{t("settings.openTemplates")}
-									</Button>
-									<Switch
-										checked={cfg.templates_enabled ?? true}
-										onCheckedChange={handleTextSnippetsChange}
-										aria-label={t("settings.textSnippets")}
-									/>
-								</div>
-							</SettingRow>
-						)}
-
-						{isVisible(
-							t("settings.vocabAutomation.title"),
-							t("settings.vocabAutomation.enableInfo"),
-							postProcessingTitle,
-						) && (
-							<SettingRow
-								label={t("settings.vocabAutomation.title")}
-								info={t("settings.vocabAutomation.enableInfo")}
-							>
-								<Switch
-									checked={cfg.vocabulary_automation_enabled ?? false}
-									onCheckedChange={handleVocabAutomationChange}
-									aria-label={t("settings.vocabAutomation.title")}
 								/>
 							</SettingRow>
 						)}

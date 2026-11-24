@@ -62,6 +62,13 @@ export interface TtsSpeakRequest {
 	data: { text?: string; engine?: string; voice?: string; sample?: boolean };
 }
 
+/** Remove one engine's downloaded pack. The backend clears `tts_engine`
+ *  when the deleted engine was active, so the UI never shows it selected. */
+export interface TtsDeleteRequest {
+	type: "tts_delete";
+	data: { engine: string };
+}
+
 /** Interrupt the clip that is playing (no payload). */
 export interface TtsStopRequest {
 	type: "tts_stop";
@@ -619,6 +626,7 @@ export type PythonRequest =
 	// Local text-to-speech (Models page engine rows + the icon-only control).
 	| TtsStatusRequest
 	| TtsPrepareRequest
+	| TtsDeleteRequest
 	| TtsSpeakRequest
 	| TtsStopRequest
 	// Push-to-talk voice conversation (Chat page).

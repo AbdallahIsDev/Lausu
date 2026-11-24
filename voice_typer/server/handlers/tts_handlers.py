@@ -86,6 +86,31 @@ class TtsHandlersMixin(HandlerBase):
             pre_coerce=False,
         )
 
+    def _handle_tts_delete(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
+        """Handle ``tts_delete``: remove one engine's downloaded pack."""
+
+        def body(d: dict) -> dict:
+            engine = str(d.get("engine", "") or "").strip()
+            if not engine:
+                return self._error_response(
+                    resp,
+                    "Missing 'engine' parameter",
+                    code=ErrorCodes.MISSING_FIELD,
+                    field="engine",
+                )
+            log.info("[IPC] tts_delete for '%s'", engine)
+            return {"type": "tts_delete_result", "data": self.service.tts_delete(engine)}
+
+        return self._wrap(
+            cmd_name="tts_delete",
+            resp_type="tts_delete_result",
+            data=data,
+            resp=resp,
+            body=body,
+            schema={"engine": {"type": str, "required": True}},
+            pre_coerce=False,
+        )
+
     def _handle_tts_speak(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
         """Handle ``tts_speak``: render and start playing one engine's sample."""
 

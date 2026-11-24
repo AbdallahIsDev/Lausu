@@ -170,7 +170,8 @@
 		"group": {
 			"system": "सिस्टम",
 			"main": "मुख्य"
-		}
+		},
+		"dictionarySnippets": "शब्दकोश और स्निपेट"
 	},
 	"home": {
 		"showMore": "और दिखाएँ",
@@ -812,6 +813,8 @@
 		"generalDescription": "कॉन्फ़िगर करें कि {appName} कैसे शुरू होता है, लॉगिन पर कैसे व्यवहार करता है, और आपके सिस्टम के साथ कैसे इंटरैक्ट करता है।",
 		"overlay": "ओवरले",
 		"overlayDescription": "फ्लोटिंग रिकॉर्डिंग बबल।",
+		"dictionarySnippets": "शब्दकोश और टेक्स्ट स्निपेट",
+		"dictionarySnippetsDescription": "अपना शब्दकोश और टेक्स्ट स्निपेट प्रबंधित करें, और तय करें कि डिक्टेशन के दौरान उनका उपयोग कैसे हो।",
 		"bubbleBehaviorLabel": "बबल व्यवहार",
 		"bubbleBehaviorInfo": "केवल रिकॉर्डिंग के दौरान बबल दिखाएं, या इसे हमेशा दृश्य रखें।",
 		"bubblePositionLabel": "बबल स्थिति",
@@ -829,6 +832,7 @@
 		"textSnippets": "टेक्स्ट स्निपेट",
 		"textSnippetsInfo": "आपके टेक्स्ट स्निपेट में विस्तारित होने वाले वॉयस कमांड। उन्हें प्रबंधित करने के लिए टेक्स्ट स्निपेट पृष्ठ खोलें।",
 		"openTemplates": "टेक्स्ट स्निपेट खोलें",
+		"openVocabulary": "शब्दकोश खोलें",
 		"llmPolishing": "पाठ पॉलिश (Beta)",
 		"llmPolishingDescription2": "पाठ को ऑनलाइन AI को भेजता है। इंटरनेट और API कुंजी आवश्यक। प्रति संदेश 10–25 सेकंड लगते हैं।",
 		"enable": "सक्षम करें",
@@ -854,11 +858,6 @@
 		"bubbleShowRecordingTimerInfo": "रिकॉर्डिंग के दौरान लाल बिंदु के बगल में रिकॉर्डिंग अवधि (mm:ss) दिखाएँ। डिफ़ॉल्ट रूप से बंद।",
 		"screenshotBeta": "स्क्रीनशॉट कैप्चर (बीटा)",
 		"screenshotBetaInfo": "प्रति रिकॉर्डिंग ट्रांसक्रिप्शन के साथ एक स्क्रीन क्षेत्र जोड़ें। केवल Windows। डिफ़ॉल्ट रूप से बंद; चयन के दौरान रिकॉर्डिंग जारी रहती है।",
-		"bubblePreview": "बबल पूर्वावलोकन",
-		"bubblePreviewInfo": "बबल प्रत्येक स्थिति में कैसा दिखता है। रिकॉर्डिंग टाइमर यहाँ लाइव चलता है।",
-		"bubblePreviewIdle": "निष्क्रिय",
-		"bubblePreviewRecording": "रिकॉर्डिंग",
-		"bubblePreviewTranscribing": "ट्रांसक्रिप्शन",
 		"loading": "सेटिंग्स लोड हो रही हैं…",
 		"saveFailedToast": "सेटिंग सहेजने में विफल",
 		"couldNotOpenLogFolder": "लॉग फ़ोल्डर नहीं खोला जा सका",
@@ -1313,7 +1312,10 @@
 			"advancedDescription": "ट्रबलशूटिंग, निदान, संसाधन, कैश, और अपडेट।",
 			"backToSettings": "सेटिंग्स पर वापस जाएँ",
 			"on": "चालू",
-			"off": "बंद"
+			"off": "बंद",
+			"dictionarySnippetsSummary": "स्निपेट {snippets} · शब्दावली स्वचालन {vocabulary}",
+			"chatDescription": "अंतर्निर्मित चैट के साथ वॉइस बातचीत।",
+			"providersDescription": "क्लाउड प्रदाता कुंजियाँ और मॉडल।"
 		},
 		"modelIdleUnload": "स्पीच मॉडल को मेमोरी में रखें",
 		"modelIdleUnloadDescription": "डिक्टेट करना बंद करने के बाद स्पीच मॉडल कितनी देर तक लोड रहता है। ज़्यादा समय का मतलब है कि डिक्टेशन हमेशा तुरंत होता है, और ऐप खुला रहने पर लगभग 2 GB मेमोरी उपयोग होती है। ऐप बंद करने पर मेमोरी तुरंत मुक्त हो जाती है।",
@@ -1322,7 +1324,17 @@
 		"modelIdleUnload.minutes60": "1 घंटा",
 		"modelIdleUnload.minutes90": "1 घंटा 30 मिनट",
 		"modelIdleUnload.minutes120": "2 घंटे",
-		"modelIdleUnload.never": "हमेशा (लोड रखें)"
+		"modelIdleUnload.never": "हमेशा (लोड रखें)",
+		"generalOverlayTitle": "सामान्य और ओवरले",
+		"generalOverlayDescription": "स्टार्टअप, भाषा, सूचनाएँ और फ़्लोटिंग बबल व्यवहार।",
+		"hotkeysRecordingTitle": "शॉर्टकट और रिकॉर्डिंग",
+		"hotkeysRecordingDescription": "डिक्टेशन कुंजी, रिकॉर्डिंग मोड और फीडबैक।",
+		"textEnhancementTitle": "टेक्स्ट सुधार",
+		"textEnhancementDescription": "भाषा, अनुवाद, सफाई और टेक्स्ट पॉलिशिंग।",
+		"privacyConsentTitle": "गोपनीयता और सहमति",
+		"privacyConsentDescription": "डेटा हैंडलिंग, क्लाउड सहमति और रिकवरी।",
+		"bubbleSettings": "बबल",
+		"bubbleSettingsDescription": "चुनें कि फ़्लोटिंग बबल कब दिखे।"
 	},
 	"plugins": {
 		"title": "प्लगइन",
@@ -1527,6 +1539,7 @@
 		},
 		"cloudModels": "क्लाउड मॉडल",
 		"cloudModelsDescription": "तेज़ ट्रांसक्रिप्शन के लिए क्लाउड-आधारित API का उपयोग करें। API कुंजी आवश्यक है।",
+		"ttsModels": "पाठ से वाणी",
 		"noModelBanner": "कोई वाक् मॉडल चयनित नहीं है। नीचे एक मॉडल चुनें।"
 	},
 	"tooltips": {
@@ -1736,7 +1749,16 @@
 			"badgeRecommended": "अनुशंसित",
 			"badgeFast": "तेज़"
 		},
-		"languageCountBadge": "{count} भाषाएँ"
+		"languageCountBadge": "{count} भाषाएँ",
+		"skip": "सेटअप छोड़ें",
+		"skipAria": "डिफ़ॉल्ट के साथ सेटअप छोड़ें",
+		"skipTitle": "सेटअप छोड़ें?",
+		"skipDescription": "सेटअप डिफ़ॉल्ट हॉटकी के साथ पूरा होगा, कोई स्पीच मॉडल चयनित नहीं होगा और कोई क्लाउड प्रदाता नहीं जुड़ेगा। आप बाद में सेटिंग्स में सब कुछ बदल सकते हैं।",
+		"skipConfirm": "सेटअप छोड़ें",
+		"microphoneReady": "{count} माइक्रोफ़ोन मिले।",
+		"microphoneMissing": "कोई माइक्रोफ़ोन नहीं मिला। OS इनपुट सेटिंग्स जाँचें या सेटिंग्स → माइक्रोफ़ोन खोलें।",
+		"microphoneCheck": "फिर जाँचें",
+		"orientation": "बस कुछ त्वरित विकल्प। आप बाद में सेटिंग्स में सब कुछ बदल सकते हैं।"
 	},
 	"titleBar": {
 		"minimize": "न्यूनतम करें",
@@ -2430,5 +2452,12 @@
 		"reset": "डिफ़ॉल्ट पर रीसेट",
 		"open": "डिबग पैनल खोलें",
 		"close": "डिबग पैनल बंद करें"
+	},
+	"dictionarySnippets": {
+		"title": "शब्दकोश और स्निपेट",
+		"description": "ऐप जो सुनता है उसे सुधारें और दोबारा इस्तेमाल होने वाले स्निपेट प्रबंधित करें।",
+		"dictionary": "शब्दकोश",
+		"snippets": "स्निपेट",
+		"switcherAria": "संग्रह प्रकार"
 	}
 }

@@ -42,7 +42,7 @@ host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (109 total: 104 renderer-reachable + 5 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack, bubble_host_hidden)
+## Commands (110 total: 105 renderer-reachable + 5 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack, bubble_host_hidden)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -133,7 +133,8 @@ runtime). Packs live under `<HF cache>/tts/{bin,models}/<engine>`.
 | Command | Handler | Allowlist | Notes |
 |---------|---------|-----------|-------|
 | `tts_status` | `_handle_tts_status` | ✓ | Models page TTS card: `{ engine, enabled, voice, language, voices, languages, sample_cached, engines }` where `sample_cached` is `engine → voice → language → bool` computed from the sample resolver without rendering. Read-only. |
-| `tts_prepare` | `_handle_tts_prepare` | ✓ | Downloads one engine's runtime + pack. Payload `{ engine }`; idempotent. |
+| `tts_prepare` | `_handle_tts_prepare` | ✓ | Downloads one engine's runtime + pack. Payload `{ engine }`; idempotent. Streams `tts_prepare_progress` push events (`percent` 0–100 over the whole pack) while bytes move. |
+| `tts_delete` | `_handle_tts_delete` | ✓ | Removes one engine's downloaded pack (runtime binaries are untouched) and clears `tts_engine` when that engine was active. Payload `{ engine }`; returns `{ engine, deleted, was_active, models_dir }`. |
 | `tts_speak` | `_handle_tts_speak` | ✓ | Renders a clip (or plays the cached sample) and starts playback, returning as soon as audio STARTS: `{ ok: true, engine, voice, duration_s, cached, ... }`. A failure is `{ ok: false, error }` where `error` ∈ `not_installed` / `no_output` / `generic` (the renderer maps it to plain-language copy; the raw engine message, HTTP status and body tail stay in the log). Payload `{ text?, engine?, voice?, sample? }`. |
 | `tts_stop` | `_handle_tts_stop` | ✓ | Interrupts the clip that is playing. No payload; response `{ stopped: bool }`. |
 
@@ -318,7 +319,7 @@ restored `get_prewarm_status` / `run_prewarm` (worker status file +
 in-process warm pass), not the old
 `sentinel` / `PID`-file probe.
 
-## Push events (73 typed)
+## Push events (74 typed)
 
 Push events flow server to renderer via `window.python.onEvent(callback)`.
 The `PythonPushEvent` union in `types/ipc/push_events.ts` is the canonical
@@ -389,6 +390,7 @@ list: events not in the union fall through to the `string` overload of
 | `cloud_fallback_used` | `CloudFallbackUsedEvent` | `{ provider: string, kind: "key" \| "provider" \| "network", reason: string }` A cloud ASR provider failed and the pipeline fell back (typed in the union; renderer consumer optional). |
 | `dictation_suppressed` | `DictationSuppressedEvent` | `{ duration: number, recorded_rms: number, reason: string }` A dictation was suppressed before transcription (typed in the union; renderer consumer optional). |
 | `tts_playback_state` | `TtsPlaybackStateEvent` | `{ engine: string, voice: string, state: "playing" \| "stopped" \| "finished", cached: boolean }` Local TTS playback transition, published by `server/tts/manager.py` on start, on `tts_stop`, and on natural end, so the icon-only control returns to play without polling. |
+| `tts_prepare_progress` | `TtsPrepareProgressEvent` | `{ engine: string, artifact: string, artifact_index: number, artifact_count: number, bytes_done: number, bytes_total: number, percent: number }` Byte counter for an in-flight `tts_prepare`, throttled to ~10 Hz; the Models row renders a determinate bar. Magpie's CLI gives no byte stream, so only start/end steps are emitted. |
 | `chat_turn` | `ChatTurnEvent` | `{ phase: "listening" \| "transcribing" \| "thinking" \| "speaking" \| "idle" \| "error", role?: "user" \| "assistant", text?: string, error_code?: string }` Push-to-talk conversation turn (`conversation/manager.py` → `service/chat.py`). `phase` drives the Chat page's indicator; `role`+`text` ride the `thinking` (user transcript) and `speaking` (assistant reply) phases; `error_code` is a namespaced IPC code (`no_speech`, `no_engine_loaded`, `transcription_failed`, `server.internal_error`, or a `ProviderError.code`), never a raw exception string. |
 | `cuda_progress` | `CudaProgressEvent` | `{ status: "idle" \| "downloading" \| "verifying" \| "installing" \| "completed" \| "failed" \| "cancelled", artifact: string \| null, artifact_index: number, artifact_count: number, bytes_done: number, bytes_total: number, percent: number, speed_bps: number, eta_seconds: number \| null, error: string \| null }` CUDA install job progress (`cuda_install/service.py`, state changes plus at most 10 Hz while bytes move). The renderer's sticky toast renders this snapshot and never polls; `error` is a namespaced job code (`insufficient_disk`, `unsupported_python`, `unsupported_platform`, `download_failed`, `checksum_mismatch`, `install_failed`, `internal`). |
 | `filter_collapse` | `FilterCollapseEvent` | `{ reason: "collapse" \| "silent_take" \| "monitor_collapse", raw_db: number, filtered_db: number, delta_db: number, preset: string, method: string }` The microphone filter chain provably removed the speech. `collapse` / `silent_take` (`recording/filter_divergence.py`, once per process per reason): that take is delivered UNFILTERED (`set_filter_bypass` + raw-shadow swap) instead of arriving blank. `monitor_collapse` (`level_monitor/divergence.py`, once per monitoring or test session): the level meter and mic test bypass the chain and read the raw device for the rest of the session. The renderer shows one toast naming the state and offering the Microphone page, while `preset` / `method` / the dB values stay in the log line. |

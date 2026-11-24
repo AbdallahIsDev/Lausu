@@ -139,7 +139,7 @@ export default function App() {
 	// not keep the hidden surface reachable once the flag is off. The nav item
 	// is hidden separately; this covers the route itself.
 	useEffect(() => {
-		if (!pluginsAvailable && currentPage === "plugins") replace("home");
+		if (!pluginsAvailable && currentPage === "plugins") replace("models");
 	}, [currentPage, pluginsAvailable, replace]);
 
 	const {
@@ -197,7 +197,7 @@ export default function App() {
 	useHistoryIntegrityToast(t);
 	usePasteDeferredToast(t);
 	useLastResortUnloadedToast(t, () => navigate("models"));
-	usePackUpdateToast(t, () => navigate("aboutAndPrivacy"));
+	usePackUpdateToast(t, () => navigate("settingsPrivacy"));
 	// GPU switch: the sticky CUDA-install toast plus the automatic respawn
 	// and GPU confirmation that follows a finished download.
 	useCudaInstallToast(t);

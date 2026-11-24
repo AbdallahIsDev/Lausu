@@ -1,4 +1,5 @@
 import type { Ref } from "react";
+import { Button } from "@/components/ui/button";
 import {
 	Select,
 	SelectContent,
@@ -24,9 +25,17 @@ const LOCALE_OPTIONS = SUPPORTED_LOCALES.map((locale) => ({
 
 export interface WelcomeStepProps {
 	headingRef: Ref<HTMLHeadingElement>;
+	/** Number of input devices from the existing onboarding IPC. */
+	microphoneCount?: number;
+	/** Re-run the read-only microphone probe. */
+	onCheckMicrophones?: () => void;
 }
 
-export function WelcomeStep({ headingRef }: WelcomeStepProps) {
+export function WelcomeStep({
+	headingRef,
+	microphoneCount = 0,
+	onCheckMicrophones,
+}: WelcomeStepProps) {
 	useT();
 	const currentLocale = getLocale();
 
@@ -37,6 +46,9 @@ export function WelcomeStep({ headingRef }: WelcomeStepProps) {
 			</h2>
 			<p className="text-sm text-muted-foreground">
 				{t("onboarding.welcomeDescription")}
+			</p>
+			<p className="text-xs text-muted-foreground">
+				{t("onboarding.orientation")}
 			</p>
 			<div
 				className="flex flex-col gap-2"
@@ -67,6 +79,33 @@ export function WelcomeStep({ headingRef }: WelcomeStepProps) {
 						))}
 					</SelectContent>
 				</Select>
+			</div>
+			{/* Read-only mic check on the Welcome step. No OS permission
+			    prompt here: the check reports what the OS already exposes
+			    and points at Settings → Microphone when nothing is found. */}
+			<div
+				className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/8 bg-surface-subtle px-3.5 py-3"
+				data-testid="onboarding-microphone-check"
+			>
+				<p
+					className={`text-xs ${microphoneCount > 0 ? "text-muted-foreground" : "text-foreground"}`}
+				>
+					{microphoneCount > 0
+						? t("onboarding.microphoneReady", {
+								count: String(microphoneCount),
+							})
+						: t("onboarding.microphoneMissing")}
+				</p>
+				{onCheckMicrophones ? (
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onClick={onCheckMicrophones}
+					>
+						{t("onboarding.microphoneCheck")}
+					</Button>
+				) : null}
 			</div>
 		</>
 	);

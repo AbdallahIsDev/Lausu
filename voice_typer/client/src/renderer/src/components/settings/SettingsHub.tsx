@@ -1,152 +1,57 @@
-// SettingsHub, the Settings landing page.
-// ONE card whose rows are the Settings section pages (see
-// `settingsSections.ts`). Each row shows the section title, a muted
-// description, the row's CURRENT VALUE summary (iOS-Settings-style, so
-// the state is scannable without entering), and a forward chevron;
-// activating the row navigates to the focused section page.
-// Search integration: when the global title-bar query is non-empty, rows
-// whose section (title, description, or any row label) matches stay
-// visible and the matched row labels render under the description, the
-// user can see WHY a section matched without entering it. Rows for
-// sections with no match are hidden; if nothing matches anywhere the
-// caller-supplied empty state renders instead.
+// The Settings landing page: ONE card of rows, each with an icon, a
+// title and a chevron. Current values and descriptions are deliberately
+// NOT rendered; their translated text stays in the search label set so
+// "Search settings…" still finds every row.
 
 import { ArrowRight01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo } from "react";
+import { APP_NAME } from "@/branding";
 import { EmptyState } from "@/components/feedback/EmptyState";
-import { formatHotkey } from "@/components/hotkey/hotkey-format";
 import {
-	SETTINGS_SECTIONS,
-	type SettingsSectionPage,
+	SETTINGS_HUB_ROWS,
+	type SettingsHubPage,
 } from "@/components/settings/settingsSections";
 import { getSectionLabels } from "@/components/settings/settingsTabLabels";
 import { fuzzyContains } from "@/hooks/useFuzzySearch";
-import { getLocale, getLocaleLabel, t, useT } from "@/i18n/i18n";
+import { useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
-import { LANGUAGE_OPTIONS } from "@/lib/utils/languages";
 import { useGlobalSearch } from "@/stores/useGlobalSearch";
-import type { LausuConfig } from "@/types/config";
-
-/** Current-value label for an audio filter-chain preset. */
-const AUDIO_PRESET_SUMMARY_KEYS: Record<LausuConfig["audio_preset"], string> = {
-	auto: "settings.audioEnhancement.presetAuto",
-	studio: "settings.audioEnhancement.presetStudio",
-	noisy_room: "settings.audioEnhancement.presetNoisyRoom",
-	off: "settings.audioEnhancement.presetOff",
-	custom: "settings.audioEnhancement.presetCustom",
-};
-
-/** Current-value label for the color scheme. */
-const THEME_MODE_SUMMARY_KEYS: Record<LausuConfig["theme_mode"], string> = {
-	system: "settings.appearance.systemDefault",
-	light: "settings.appearance.light",
-	dark: "settings.appearance.dark",
-};
-
-function sectionSummary(
-	page: SettingsSectionPage,
-	config: LausuConfig,
-): string | null {
-	switch (page) {
-		case "settingsGeneral":
-			// The UI language itself, mirrors the App Language select.
-			return getLocaleLabel(getLocale());
-		case "settingsOverlay":
-			return t(
-				config.bubble_behavior === "always_visible"
-					? "settings.bubbleBehaviorAlwaysVisible"
-					: config.bubble_behavior === "hidden"
-						? "settings.bubbleBehaviorHidden"
-						: "settings.bubbleBehaviorShowOnRecord",
-			);
-		case "settingsHotkeys":
-			return formatHotkey(config.hotkey);
-		case "settingsTranscription": {
-			const lang = config.language;
-			if (!lang) return t("settings.languageAutoDetect");
-			const option = LANGUAGE_OPTIONS.find((l) => l.value === lang);
-			return option ? t(option.labelKey) : lang;
-		}
-		case "settingsAudio":
-			return t(
-				AUDIO_PRESET_SUMMARY_KEYS[config.audio_preset] ??
-					"settings.audioEnhancement.presetAuto",
-			);
-		case "settingsAppearance":
-			return t(
-				THEME_MODE_SUMMARY_KEYS[config.theme_mode] ??
-					"settings.appearance.systemDefault",
-			);
-		case "settingsPrivacy":
-			return null;
-		case "settingsAdvanced":
-			// Text Polish moved to the Text Enhancement page; nothing on this
-			// page has a one-value summary.
-			return null;
-	}
-}
 
 export interface SettingsHubProps {
-	/** Loaded config, the hub only renders once Settings has it. */
-	config: LausuConfig;
-	/** Navigate to a section page (wired to the nav store by Settings). */
-	onNavigateSection: (page: SettingsSectionPage) => void;
+	/** Navigate to a section page or an appended page (Chat/Providers). */
+	onNavigateSection: (page: SettingsHubPage) => void;
 }
 
-export function SettingsHub({ config, onNavigateSection }: SettingsHubProps) {
+export function SettingsHub({ onNavigateSection }: SettingsHubProps) {
 	const t = useT();
 	const query = useGlobalSearch((s) => s.query);
 	const clearQuery = useGlobalSearch((s) => s.clearQuery);
 	const q = query.trim();
 
-	// One row model per section: title/description/summary plus, when a
-	// query is active, the matched row labels (deduped, two section
-	// titles can translate to the same word). Sections with no match at
-	// all drop out of the list entirely.
 	const rows = useMemo(() => {
-		const labelsBySection = getSectionLabels();
-		return SETTINGS_SECTIONS.flatMap((def) => {
-			const title = t(def.titleKey);
-			const description = t(def.descriptionKey);
-			if (!q) {
-				return [
-					{
-						def,
-						title,
-						description,
-						summary: sectionSummary(def.page, config),
-						matchedLabels: [] as string[],
-					},
-				];
-			}
-			const matchedLabels = [...new Set(labelsBySection[def.page])].filter(
-				(label) => fuzzyContains(label, q),
-			);
-			const sectionItselfMatches =
-				fuzzyContains(title, q) || fuzzyContains(description, q);
-			if (matchedLabels.length === 0 && !sectionItselfMatches) return [];
-			return [
-				{
-					def,
-					title,
-					description,
-					summary: sectionSummary(def.page, config),
-					matchedLabels,
-				},
+		const labelsByPage = getSectionLabels();
+		return SETTINGS_HUB_ROWS.flatMap((row) => {
+			const title = t(row.titleKey);
+			const keywords = [
+				title,
+				t(row.descriptionKey, { appName: APP_NAME }),
+				...(labelsByPage[row.page] ?? []),
 			];
+			if (!q) return [{ row, title }];
+			const matched = [...new Set(keywords)].filter((label) =>
+				fuzzyContains(label, q),
+			);
+			return matched.length > 0 ? [{ row, title }] : [];
 		});
-		// `q` and `config` drive everything; `t` is a stable module
-		// function but included for lint honesty since the labels resolve
-		// through the reactive locale subscription.
-	}, [q, config, t]);
+	}, [q, t]);
 
 	if (q && rows.length === 0) {
 		return (
 			<EmptyState
 				variant="info"
 				icon={Search01Icon}
-				title={t("settings.searchNoMatch", { query: query.trim() })}
+				title={t("settings.searchNoMatch", { query: q })}
 				description={t("settings.noResultsMessage")}
 				actionLabel={t("a11y.clearSearch")}
 				onAction={clearQuery}
@@ -156,66 +61,34 @@ export function SettingsHub({ config, onNavigateSection }: SettingsHubProps) {
 
 	return (
 		<section aria-label={t("settings.title")}>
-			{/* THE single hub card, same surface treatment as every
-			    SettingsSection card in the app (border + subtle bg + row
-			    dividers), rows as full-width buttons. overflow-hidden keeps
-			    the hover highlight inside the rounded corners. */}
 			<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle divide-y divide-border/8">
-				{rows.map((row) => (
+				{rows.map(({ row, title }) => (
 					<button
-						key={row.def.page}
+						key={row.page}
 						type="button"
-						data-testid={`settings-hub-row-${row.def.page}`}
+						data-testid={`settings-hub-row-${row.page}`}
 						className={cn(
 							"flex w-full items-center gap-4 p-4 text-start",
 							"transition-colors duration-150 hover:bg-foreground/5",
-							// Focus contract (C-FOCUS-2/5): full-opacity ring token,
-							// 3px, keyboard focus is always clearly visible.
 							"focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none",
 						)}
-						onClick={() => onNavigateSection(row.def.page)}
+						onClick={() => onNavigateSection(row.page)}
 					>
 						<HugeiconsIcon
-							icon={row.def.icon}
+							icon={row.icon}
 							strokeWidth={2}
 							aria-hidden="true"
 							className="h-5 w-5 shrink-0 text-muted-foreground"
 						/>
-						<span className="flex min-w-0 flex-1 flex-col gap-2">
-							<span className="flex flex-col gap-0.5">
-								<span className="block text-sm font-medium text-foreground">
-									{row.title}
-								</span>
-								<span className="block truncate text-sm text-muted-foreground">
-									{row.description}
-								</span>
-							</span>
-							{row.matchedLabels.length > 0 && (
-								<span className="flex flex-wrap gap-2">
-									{row.matchedLabels.map((label) => (
-										<span
-											key={label}
-											className="rounded-lg border border-border/10 bg-surface px-1.5 py-0.5 text-xs text-muted-foreground"
-										>
-											{label}
-										</span>
-									))}
-								</span>
-							)}
+						<span className="min-w-0 flex-1 text-sm font-medium text-foreground">
+							{title}
 						</span>
-						<span className="flex shrink-0 items-center gap-2">
-							{row.summary !== null && (
-								<span className="max-w-45 truncate text-sm text-muted-foreground">
-									{row.summary}
-								</span>
-							)}
-							<HugeiconsIcon
-								icon={ArrowRight01Icon}
-								strokeWidth={2}
-								aria-hidden="true"
-								className="nav-directional-icon h-4 w-4 text-muted-foreground"
-							/>
-						</span>
+						<HugeiconsIcon
+							icon={ArrowRight01Icon}
+							strokeWidth={2}
+							aria-hidden="true"
+							className="nav-directional-icon h-4 w-4 shrink-0 text-muted-foreground"
+						/>
 					</button>
 				))}
 			</div>

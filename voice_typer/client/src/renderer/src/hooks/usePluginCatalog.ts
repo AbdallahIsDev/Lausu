@@ -6,7 +6,9 @@
 // never import from a page, so the shell's consumer sits on the neutral
 // side of that boundary and the page reads the same cache.
 
-import type { PythonCall } from "@/hooks/usePython";
+import { useEffect, useState } from "react";
+import { useLatestRef } from "@/hooks/useLatestRef";
+import { type PythonCall, usePython } from "@/hooks/usePython";
 import { useAppStore } from "@/stores/appStore";
 import { type PluginCatalog, toPluginCatalog } from "@/types/plugins";
 
@@ -55,4 +57,36 @@ export function loadPluginCatalog(call: PythonCall): Promise<PluginCatalog> {
  */
 export function usePluginsAvailable(): boolean {
 	return useAppStore((s) => s.config?.developer_mode === true);
+}
+
+/**
+ * The two-factor gate for the developer-only Plugins tab on Models.
+ *
+ * `developer_mode` is the local reveal (Ctrl+Shift+Alt+D ×3); the
+ * `available` flag comes from the `get_plugins` payload, which the
+ * frozen/build backend refuses to set. Both must be true — neither
+ * alone is enough to render or activate the tab. A failed probe resolves
+ * `{available: false}` and hides the tab; there is no cached fallback.
+ */
+export function usePluginsUnlocked(): boolean {
+	const developerMode = usePluginsAvailable();
+	const [serverAvailable, setServerAvailable] = useState(false);
+	const { call } = usePython();
+	const callRef = useLatestRef(call);
+
+	useEffect(() => {
+		if (!developerMode) {
+			setServerAvailable(false);
+			return undefined;
+		}
+		let active = true;
+		void loadPluginCatalog(callRef.current).then((catalog) => {
+			if (active) setServerAvailable(catalog.available);
+		});
+		return () => {
+			active = false;
+		};
+	}, [callRef, developerMode]);
+
+	return developerMode && serverAvailable;
 }

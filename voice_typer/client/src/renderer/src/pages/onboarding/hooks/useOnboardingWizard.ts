@@ -11,7 +11,11 @@ import { usePython, usePythonEvent } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
 import { consentBodyKey, openConsentGate } from "@/lib/consentGate";
-import { cloudDefaultModel } from "@/lib/utils/models";
+import {
+	CLOUD_PROVIDERS,
+	type CloudProviderKey,
+	cloudDefaultModel,
+} from "@/lib/utils/cloudCatalog";
 import type { LausuConfig } from "@/types/config";
 import { HOTKEY_DEFAULT, MODEL_DEFAULT } from "../lib/constants";
 import type { ModelOption, StepInfo } from "../lib/types";
@@ -53,6 +57,10 @@ function cloudApiKeyField(
 	if (provider === "groq") return "groq_api_key";
 	if (provider === "gemini") return "gemini_api_key";
 	return "deepgram_api_key";
+}
+
+function isCloudProvider(provider: string): provider is CloudProviderKey {
+	return CLOUD_PROVIDERS.some((entry) => entry.key === provider);
 }
 
 /** The ``asr_backend`` a local model selection activates: the entry's own
@@ -114,6 +122,13 @@ export interface UseOnboardingWizardResult {
 	downloadingModel: string | null;
 	downloadProgress: number;
 	downloadFailed: boolean;
+	/** Per-model disk truth from `get_model_status` (shared is-installed logic). */
+	modelStatus: Record<string, { downloaded: boolean }>;
+	/** Input devices from `onboarding_get_microphones` (0 = show recovery). */
+	microphoneCount: number;
+	checkMicrophones: () => Promise<void>;
+	/** Finish with backend defaults through the existing skip completion path. */
+	handleSkip: () => Promise<void>;
 	/** Request a per-model download. Opens the point-of-use
 	 * HuggingFace consent gate when the consent isn't granted yet; the
 	 * gate's Allow continues the download. Returns immediately (the
@@ -165,11 +180,24 @@ export function useOnboardingWizard(
 	const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
 	const [downloadProgress, setDownloadProgress] = useState(0);
 	const [downloadFailed, setDownloadFailed] = useState(false);
+	const [modelStatus, setModelStatus] = useState<
+		Record<string, { downloaded: boolean }>
+	>({});
+	const [microphoneCount, setMicrophoneCount] = useState(0);
 	// Cloud panel: the provider + its API key. Consent is not stored here,
 	// it lives in `consents` under the provider's own field (see
 	// `guardCloudConsent`), so the wizard has exactly ONE source for every
 	// consent flag.
 	const [cloudProvider, setCloudProvider] = useState("openai");
+	// This step doesn't offer cloud-model selection, so retain an existing
+	// model for the same provider rather than resetting it on resume.
+	const [savedCloudConfig, setSavedCloudConfig] = useState<{
+		provider: CloudProviderKey;
+		model: string;
+	} | null>(null);
+	// Keep secrets out of renderer state: get_config replaces configured API
+	// keys with <redacted>. An empty field is omitted from set_config below,
+	// preserving any key already stored in the backend.
 	const [cloudApiKey, setCloudApiKey] = useState("");
 
 	// Consent step: the six consent flags shown on the consolidated
@@ -216,6 +244,21 @@ export function useOnboardingWizard(
 	}, [call]);
 
 	const headingRef = useRef<HTMLHeadingElement | null>(null);
+
+	/** Re-probe input devices from the existing onboarding IPC. Read-only;
+	 *  a failure means "unknown", never a claim that a mic is missing. */
+	const checkMicrophones = useCallback(async () => {
+		try {
+			const reply = await call<{ microphones?: unknown[] }>(
+				"onboarding_get_microphones",
+			);
+			setMicrophoneCount(
+				Array.isArray(reply?.microphones) ? reply.microphones.length : 0,
+			);
+		} catch (err) {
+			console.warn("[renderer:useOnboardingWizard] mic probe failed:", err);
+		}
+	}, [call]);
 
 	const retryInit = useCallback(() => {
 		setInitError(null);
@@ -264,23 +307,39 @@ export function useOnboardingWizard(
 				// is unwrapped in the original apply order
 				// below, re-throwing its reason into the outer
 				// catch.
-				const [cfgOutcome, presetsOutcome, modelsOutcome, catalogOutcome] =
-					await Promise.allSettled([
-						callRef.current<LausuConfig>("get_config").catch((e) => {
-							console.warn(
-								"[renderer:useOnboardingWizard] get_config probe failed:",
-								e,
-							);
-							return null;
-						}),
-						callRef.current<{ presets: string[] }>(
-							"onboarding_get_hotkey_presets",
-						),
-						callRef.current<{ models: ModelOption[] }>(
-							"onboarding_get_model_options",
-						),
-						callRef.current<{ models: ModelOption[] }>("get_model_catalog"),
-					]);
+				const [
+					cfgOutcome,
+					presetsOutcome,
+					modelsOutcome,
+					catalogOutcome,
+					statusOutcome,
+					micOutcome,
+				] = await Promise.allSettled([
+					callRef.current<LausuConfig>("get_config").catch((e) => {
+						console.warn(
+							"[renderer:useOnboardingWizard] get_config probe failed:",
+							e,
+						);
+						return null;
+					}),
+					callRef.current<{ presets: string[] }>(
+						"onboarding_get_hotkey_presets",
+					),
+					callRef.current<{ models: ModelOption[] }>(
+						"onboarding_get_model_options",
+					),
+					callRef.current<{ models: ModelOption[] }>("get_model_catalog"),
+					// Disk truth + input devices are advisory: a failure must
+					// not block the wizard (the error surface owns outages).
+					callRef
+						.current<Record<string, { downloaded: boolean }>>(
+							"get_model_status",
+						)
+						.catch(() => ({})),
+					callRef
+						.current<{ microphones?: unknown[] }>("onboarding_get_microphones")
+						.catch(() => ({ microphones: [] })),
+				]);
 				if (cancelled) return;
 				// `get_config` never rejects (its inline .catch
 				// resolves to `null`), the ternary only
@@ -294,6 +353,29 @@ export function useOnboardingWizard(
 					if (cfgHotkey) setSelectedHotkey(cfgHotkey);
 					const cfgModel = cfg.model_size ?? MODEL_DEFAULT;
 					if (cfgModel) setSelectedModel(cfgModel);
+					// Resume the saved backend/provider instead of silently
+					// switching a cloud setup back to local/OpenAI when the
+					// user continues the wizard. API keys remain blank because
+					// get_config redacts their values; blank keys are omitted
+					// from the later set_config payload.
+					const savedCloudProvider = isCloudProvider(cfg.cloud_provider)
+						? cfg.cloud_provider
+						: null;
+					setCloudProvider(savedCloudProvider ?? "openai");
+					setSavedCloudConfig(
+						savedCloudProvider === null
+							? null
+							: {
+									provider: savedCloudProvider,
+									model:
+										typeof cfg.cloud_model === "string" ? cfg.cloud_model : "",
+								},
+					);
+					setSelectedBackend(
+						cfg.asr_backend === "cloud" && savedCloudProvider !== null
+							? "cloud"
+							: "local",
+					);
 					// Pre-fill the consolidated consent step from the
 					// saved config (re-run / already-granted users).
 					const savedConsents: Record<string, boolean> = {};
@@ -324,6 +406,16 @@ export function useOnboardingWizard(
 				const catalog = unwrapContent(catalogOutcome);
 				setModelOptions(
 					mergeModelOptions(models.models || [], catalog.models || []),
+				);
+				const modelState =
+					statusOutcome.status === "fulfilled" ? statusOutcome.value : {};
+				setModelStatus(modelState ?? {});
+				const micReply =
+					micOutcome.status === "fulfilled" ? micOutcome.value : null;
+				setMicrophoneCount(
+					Array.isArray(micReply?.microphones)
+						? micReply.microphones.length
+						: 0,
 				);
 			} catch (err) {
 				if (cancelled) return;
@@ -463,16 +555,20 @@ export function useOnboardingWizard(
 			// still ran locally, with no API key), and a parakeet/qwen
 			// choice left `asr_backend` pointing at Whisper.
 			if (selectedBackend === "cloud") {
+				const savedModel =
+					savedCloudConfig?.provider === cloudProvider
+						? savedCloudConfig.model.trim()
+						: "";
 				const updates: Partial<LausuConfig> = {
 					asr_backend: "cloud",
 					cloud_provider: cloudProvider,
-					// The provider's catalogue default, so the wizard leaves
-					// the config in the state the Cloud tab already marks as
-					// active (`isCloudModelActive` treats an empty
-					// `cloud_model` as the default). Kept in step with the
-					// backend's `_PROVIDER_DEFAULTS` by
+					// This step selects a provider, not a cloud model. Keep a
+					// configured model for that same provider; use the
+					// catalogue default for a newly selected provider. Both
+					// defaults stay pinned to the backend's
+					// `_PROVIDER_DEFAULTS` by
 					// `tests/test_cloud_provider_catalogue_parity.py`.
-					cloud_model: cloudDefaultModel(cloudProvider),
+					cloud_model: savedModel || cloudDefaultModel(cloudProvider),
 				};
 				if (cloudApiKey.trim()) {
 					updates[cloudApiKeyField(cloudProvider)] = cloudApiKey.trim();
@@ -493,6 +589,7 @@ export function useOnboardingWizard(
 		selectedBackend,
 		modelOptions,
 		cloudProvider,
+		savedCloudConfig,
 		cloudApiKey,
 		consents,
 	]);
@@ -607,6 +704,24 @@ export function useOnboardingWizard(
 		}
 	}, [call, showSnack]);
 
+	// Skip is a SECOND VALID COMPLETION PATH on the backend (onboarding.skip
+	// marks the status document complete). We deliberately do NOT persist the
+	// current step's half-finished selections first: skipping means "use the
+	// defaults", and first-run state must stay exactly what the backend wrote.
+	const handleSkip = useCallback(async () => {
+		setSubmitting(true);
+		try {
+			await call("onboarding_skip");
+			showSnack(t("onboarding.setupCompleteSnack"), "success");
+			if (onComplete) onComplete();
+		} catch (err) {
+			console.error("[renderer:useOnboardingWizard] Skip failed:", err);
+			showSnack(t("onboarding.saveFailedSnack"), "error");
+		} finally {
+			setSubmitting(false);
+		}
+	}, [call, onComplete, showSnack]);
+
 	return {
 		loading,
 		initError,
@@ -633,6 +748,10 @@ export function useOnboardingWizard(
 		downloadProgress,
 		downloadFailed,
 		handleDownload,
+		modelStatus,
+		microphoneCount,
+		checkMicrophones,
+		handleSkip,
 		cloudProvider,
 		setCloudProvider,
 		cloudApiKey,
@@ -702,6 +821,9 @@ function normalizeCatalogEntry(raw: RawCatalogEntry): ModelOption | null {
 	return {
 		name: raw.name,
 		size,
+		...(typeof raw.download_size_mb === "number"
+			? { download_size_mb: raw.download_size_mb }
+			: {}),
 		speed,
 		description: typeof raw.description === "string" ? raw.description : "",
 		...(typeof raw.display_name === "string" && raw.display_name.length > 0
@@ -716,15 +838,13 @@ function normalizeCatalogEntry(raw: RawCatalogEntry): ModelOption | null {
 	};
 }
 
-/** Merge the curated option list with the full rich-metadata catalog.
- *  The curated list (``onboarding_get_model_options``) defines the
- *  visible option set; the catalog only ENRICHES entries with fields
- *  the curated list lacks (vram_gb / languages / speed overrides).
- *  Catalog-only names are appended so a newly registered family
- *  (e.g. Qwen) shows up without a curated-list change, and duplicate
- *  names are dropped (catalog-first so rich metadata wins). Catalog
- *  entries are NORMALIZED to ModelOption shape first (see
- *  RawCatalogEntry): raw ModelMetadata dicts lack `speed`/`size`. */
+/** Merge the registry-derived option list with the rich catalog.
+ *  `onboarding_get_model_options` defines the VISIBLE set (the five
+ *  production models, sizes derived from the registry). The catalog only
+ *  enriches those entries; catalog-only names are NOT appended, because a
+ *  source build's catalog still contains the dev-only `tiny` model. For
+ *  fields both sides carry (notably `size`), the catalog wins — it is
+ *  generated straight from `GgufModelSpec.size_bytes`. */
 function mergeModelOptions(
 	curated: ModelOption[],
 	catalog: RawCatalogEntry[],
@@ -734,13 +854,8 @@ function mergeModelOptions(
 		const m = normalizeCatalogEntry(raw);
 		if (m) byName.set(m.name, m);
 	}
-	// When the server answered, its catalogue is authoritative: a frozen
-	// build omits dev-only models, so the curated fallback must not
-	// reintroduce one. An empty catalog keeps the curated fallback.
-	for (const m of curated) {
-		if (catalog.length > 0 && !byName.has(m.name)) continue;
-		const existing = byName.get(m.name);
-		byName.set(m.name, existing ? { ...existing, ...m } : m);
-	}
-	return Array.from(byName.values());
+	return curated.map((m) => {
+		const fromCatalog = byName.get(m.name);
+		return fromCatalog ? { ...m, ...fromCatalog } : m;
+	});
 }

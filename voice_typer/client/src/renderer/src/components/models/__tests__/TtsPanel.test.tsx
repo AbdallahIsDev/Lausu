@@ -392,6 +392,85 @@ describe("TtsPanel test control", () => {
 	});
 });
 
+describe("TtsPanel download progress and pack removal", () => {
+	it("renders a real determinate progress bar from tts_prepare_progress", async () => {
+		await renderPanel("off", { audio8: false, magpie: false });
+		let resolvePrepare: (value: unknown) => void = () => {};
+		const pending = new Promise((resolve) => {
+			resolvePrepare = resolve;
+		});
+		mockCall.mockImplementation((command: string) => {
+			if (command === "tts_status") {
+				return Promise.resolve(
+					statusPayload("off", {
+						audio8: false,
+						magpie: false,
+					}),
+				);
+			}
+			if (command === "tts_prepare") return pending;
+			return Promise.resolve({ success: true });
+		});
+
+		const download = screen.getAllByRole("button", {
+			name: /^Download \(/,
+		})[0];
+		if (!download) throw new Error("missing download button");
+		await userEvent.click(download);
+		expect(mockCall).toHaveBeenCalledWith("tts_prepare", {
+			engine: "audio8",
+		});
+
+		act(() => {
+			pythonEventHandlers.tts_prepare_progress?.({
+				engine: "audio8",
+				artifact: "audio8-tts-realistic-0.6b-bf16.gguf",
+				artifact_index: 1,
+				artifact_count: 1,
+				bytes_done: 420,
+				bytes_total: 1000,
+				percent: 42,
+			});
+		});
+
+		const bar = screen.getByRole("progressbar", { name: /^Download \(/ });
+		expect(bar.getAttribute("aria-valuenow")).toBe("42");
+		expect(bar.getAttribute("aria-valuetext")).toBe("42%");
+		expect(
+			screen.getByText(/audio8-tts-realistic-0.6b-bf16.gguf/),
+		).toBeTruthy();
+
+		await act(async () => {
+			resolvePrepare({ data: { engine: "audio8" } });
+			await pending;
+		});
+	});
+
+	it("sends tts_delete for an installed, non-active engine", async () => {
+		await renderPanel("audio8", BOTH);
+
+		await userEvent.click(
+			screen.getByRole("button", {
+				name: "Delete MagpieTTS Multilingual 357M",
+			}),
+		);
+
+		expect(mockCall).toHaveBeenCalledWith("tts_delete", {
+			engine: "magpie",
+		});
+	});
+
+	it("never offers Delete on the active engine", async () => {
+		await renderPanel("audio8", BOTH);
+
+		expect(
+			screen.queryByRole("button", {
+				name: "Delete Audio8 TTS Realistic 0.6B",
+			}),
+		).toBeNull();
+	});
+});
+
 describe("TtsPanel errors", () => {
 	it("shows plain-language copy with a retry action, never engine text", async () => {
 		await renderPanel("audio8", BOTH);

@@ -233,9 +233,7 @@ class TestSharedPluginSettings:
         assert "plugin_visible" in IPC_CONFIG_ALLOWLIST
         assert "plugin_notify" in IPC_CONFIG_ALLOWLIST
 
-    def test_projection_writes_both_plugins_without_touching_daemon_keys(
-        self, workspace: Path
-    ) -> None:
+    def test_projection_writes_both_plugins_without_touching_daemon_keys(self, workspace: Path) -> None:
         from voice_typer.server.config import Config
         from voice_typer.server.plugins import shared_settings
 
@@ -258,9 +256,7 @@ class TestSharedPluginSettings:
                 "notify": False,
             }
 
-    def test_projection_preserves_a_plugin_file_without_settings(
-        self, workspace: Path
-    ) -> None:
+    def test_projection_preserves_a_plugin_file_without_settings(self, workspace: Path) -> None:
         from voice_typer.server.config import Config
         from voice_typer.server.plugins import shared_settings
 
@@ -319,6 +315,21 @@ class TestGetPluginsEndToEnd:
         monkeypatch.setenv("VOICE_TYPER_PLUGINS_DIR", str(tmp_path / "absent"))
         monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
         ipc, _app, _service = make_ipc_server_with_fakes()
+        resp = ipc._dispatch({"type": "get_plugins"})
+        assert resp is not None
+        assert resp["data"] == {"available": False, "plugins": []}
+
+    def test_locked_workspace_does_not_leak_plugin_inventory(
+        self, workspace: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Developer mode, not the mere presence of source, unlocks discovery."""
+        from tests.fixtures.ipc_test_helpers import make_ipc_server_with_fakes
+
+        _write_manifest(workspace / "acme_stt")
+        monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
+        ipc, _app, _service = make_ipc_server_with_fakes()
+        _app.config.developer_mode = False
+
         resp = ipc._dispatch({"type": "get_plugins"})
         assert resp is not None
         assert resp["data"] == {"available": False, "plugins": []}

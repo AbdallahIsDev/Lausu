@@ -68,6 +68,8 @@ const COMMAND_TIMEOUTS: Record<string, number> = {
 	// budget. Speak adds a cold runtime start (~15s) before the first
 	// render, which a 30s default would cut off.
 	tts_prepare: 3_595_000,
+	// Deleting a pack removes up to ~2 GB; stay above a slow-disk rmtree.
+	tts_delete: 115_000,
 	tts_speak: 115_000,
 	media_transcribe_start: 115_000,
 };

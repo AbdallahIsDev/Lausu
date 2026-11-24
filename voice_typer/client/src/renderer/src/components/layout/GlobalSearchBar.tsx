@@ -10,6 +10,7 @@ import type { Page } from "@/types/ipc";
 
 const SEARCHABLE_PAGES: ReadonlySet<Page> = new Set<Page>([
 	"history",
+	"dictionarySnippets",
 	"templates",
 	"vocabulary",
 	"settings",
@@ -33,6 +34,9 @@ function placeholderFor(page: Page, vocabEntryCount: number): string {
 			return t("history.searchPlaceholder");
 		case "templates":
 			return t("templates.searchPlaceholder");
+		// The count follows the active tab (the embedded collection page
+		// publishes it), so the placeholder stays "Search N corrections".
+		case "dictionarySnippets":
 		case "vocabulary":
 			return t("vocabulary.searchPlaceholderCount", {
 				count: String(vocabEntryCount),

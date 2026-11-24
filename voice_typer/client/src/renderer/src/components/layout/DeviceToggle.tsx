@@ -4,13 +4,13 @@ import { ToggleGroup } from "@/components/ui/toggle-group";
 import { isRunningStatus } from "@/hooks/useCudaInstallToast";
 import { usePython, usePythonEvent } from "@/hooks/usePython";
 import { t } from "@/i18n/i18n";
+import { asComputeDevice, isGpuDevice } from "@/lib/computeDevices";
 import { useAppStore } from "@/stores/appStore";
 
-type ComputeDevice = "cpu" | "cuda";
-
-function asComputeDevice(value: unknown): ComputeDevice | null {
-	return value === "cpu" || value === "cuda" ? value : null;
-}
+// The pill has two positions, but the persisted/effective value can be
+// cpu / vulkan / cuda. `cuda` stays the request for older sidecars; the
+// switch must RECOGNISE a Vulkan-backed engine as GPU (C-UI-15).
+type SwitchPosition = "cpu" | "cuda";
 
 /**
  * Sidebar CPU/GPU switch. Renders only when expanded AND the machine has
@@ -88,7 +88,7 @@ export function DeviceToggle({ collapsed = false }: { collapsed?: boolean }) {
 	const needsCuda = activeCapable && !activeReady;
 
 	const handleChange = useCallback(
-		(next: ComputeDevice) => {
+		(next: SwitchPosition) => {
 			if (next === "cuda") {
 				// A job in flight owns the device: the sticky toast reports
 				// progress, and the switch happens on activation, not now.
@@ -104,8 +104,14 @@ export function DeviceToggle({ collapsed = false }: { collapsed?: boolean }) {
 			}
 			// Clicking the pill that is both requested and running is a no-op;
 			// any other click is a request, including re-requesting the GPU
-			// while a CPU fallback serves the current engine.
-			if (next === requested && next === (active ?? requested)) return;
+			// while a CPU fallback serves the current engine. A Vulkan
+			// engine counts as the GPU position (runner backends are
+			// cpu/vulkan/cuda, not cpu/cuda).
+			const nextGpu = isGpuDevice(next);
+			const alreadyGpu = isGpuDevice(asComputeDevice(requested));
+			const activeGpu = isGpuDevice(asComputeDevice(active));
+			if (nextGpu === alreadyGpu && (active === null || nextGpu === activeGpu))
+				return;
 			useAppStore.getState().mergeConfig({ device: next });
 			call("set_config", { device: next }).catch((err) => {
 				console.warn("[renderer:DeviceToggle] set_config device failed:", err);
@@ -118,11 +124,12 @@ export function DeviceToggle({ collapsed = false }: { collapsed?: boolean }) {
 	if (collapsed || pluginActive || !visible) return null;
 	const requestedDevice = asComputeDevice(requested);
 	if (requestedDevice === null) return null;
-	const value = asComputeDevice(active) ?? requestedDevice;
+	const effective = asComputeDevice(active) ?? requestedDevice;
+	const value: SwitchPosition = isGpuDevice(effective) ? "cuda" : "cpu";
 
 	return (
 		<>
-			<ToggleGroup<ComputeDevice>
+			<ToggleGroup<SwitchPosition>
 				options={[
 					{ value: "cpu", label: t("computeDevice.cpu") },
 					{ value: "cuda", label: t("computeDevice.gpu") },

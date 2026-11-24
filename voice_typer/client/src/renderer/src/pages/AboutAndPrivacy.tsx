@@ -1,9 +1,6 @@
 // About & Privacy page, merged product identity + data-handling
-// disclosure.
-// page (audio/data disclosure) were combined into ONE sidebar
-// destination: both surfaces are short, read as a single "what this
-// app is + how it treats your data" story, and the merge removes a
-// low-traffic second navigation entry.
+// disclosure. The combined content is available as a Settings hub
+// section and through the retained `aboutAndPrivacy` deep-link route.
 // The page stays static AT LOAD, the only dynamic values are:
 //   - the installed version, read directly from package.json at build
 //     time (VERSION-SOURCE-FIX) so it never drifts from the canonical
@@ -77,7 +74,19 @@ const PRIVACY_TOPICS = [
 	},
 ] as const;
 
-export default function AboutAndPrivacyPage() {
+type AboutVisibilityFilter = (
+	label: string,
+	info?: string,
+	sectionTitle?: string,
+) => boolean;
+
+export default function AboutAndPrivacyPage({
+	embedded = false,
+	isVisible = () => true,
+}: {
+	embedded?: boolean;
+	isVisible?: AboutVisibilityFilter;
+} = {}) {
 	// Re-render on locale switch so all t() calls re-resolve.
 	useT();
 
@@ -153,161 +162,210 @@ export default function AboutAndPrivacyPage() {
 		};
 	}, []);
 
+	const sectionTitle = t("aboutAndPrivacy.title");
+	const sectionDescription = t("aboutAndPrivacy.description", {
+		appName: APP_NAME,
+	});
+	const sectionMatches = isVisible(sectionTitle, sectionDescription);
+	const identityLabels = [
+		t("about.productTagline"),
+		t("about.localTitle"),
+		t("about.cloudTitle"),
+		t("about.version"),
+		t("about.checkForUpdates"),
+	];
+	const showIdentity =
+		sectionMatches ||
+		identityLabels.some((label) => isVisible(label, undefined, sectionTitle));
+	const visibleTopics = PRIVACY_TOPICS.filter(
+		(topic) =>
+			sectionMatches || isVisible(t(topic.title), undefined, sectionTitle),
+	);
+	const thirdPartyLabels = [
+		t("about.thirdPartyTitle"),
+		t("about.viewThirdPartyNotices"),
+	];
+	const showThirdParty =
+		sectionMatches ||
+		thirdPartyLabels.some((label) => isVisible(label, undefined, sectionTitle));
+
 	return (
-		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
-			<PageHeading
-				title={t("aboutAndPrivacy.title")}
-				description={t("aboutAndPrivacy.description")}
-			/>
+		<div
+			className={
+				embedded
+					? "flex w-full flex-col gap-4"
+					: "mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6"
+			}
+		>
+			<div data-settings-row-label={sectionTitle}>
+				<PageHeading title={sectionTitle} description={sectionDescription} />
+			</div>
 
 			{/* Product identity card, compact, native-app About block.
 			    No marketing copy, no hero section: identity, capability
 			    split, version + update check. */}
-			<div className="rounded-lg border border-border/8 bg-surface-subtle">
-				{/* Identity row: logo + name + capability summary. */}
-				<div className="flex items-center gap-3 px-4 pt-4">
-					<Logo size={40} className="shrink-0" />
-					<div className="min-w-0">
-						<h2 className="text-lg font-medium tracking-tight text-foreground">
-							{APP_NAME}
-						</h2>
-						<p className="truncate text-xs text-muted-foreground">
-							{t("about.productTagline")}
-						</p>
+			{showIdentity && (
+				<div
+					data-settings-row-label={t("about.productTagline")}
+					className="rounded-lg border border-border/8 bg-surface-subtle"
+				>
+					{/* Identity row: logo + name + capability summary. */}
+					<div className="flex items-center gap-3 px-4 pt-4">
+						<Logo size={40} className="shrink-0" />
+						<div className="min-w-0">
+							<h2 className="text-lg font-medium tracking-tight text-foreground">
+								{APP_NAME}
+							</h2>
+							<p className="truncate text-xs text-muted-foreground">
+								{t("about.productTagline")}
+							</p>
+						</div>
 					</div>
-				</div>
 
-				<p className="p-4 text-sm leading-relaxed text-muted-foreground">
-					{t("about.productDesc")}
-				</p>
+					<p className="p-4 text-sm leading-relaxed text-muted-foreground">
+						{t("about.productDesc", { appName: APP_NAME })}
+					</p>
 
-				{/* Local vs Cloud, the capability split made visually
+					{/* Local vs Cloud, the capability split made visually
 				    obvious: two side-by-side blocks with their own icon
 				    + title + one-line description. */}
-				<div className="grid sm:grid-cols-2">
-					<div className="flex flex-col gap-2 border border-border/8 border-b-0 border-l-0 p-4 sm:border-r-0">
-						<div className="flex items-center gap-2">
-							<HugeiconsIcon
-								icon={Mic02Icon}
-								strokeWidth={1.75}
-								aria-hidden="true"
-								className="size-4 shrink-0 text-muted-foreground"
-							/>
-							<p className="text-sm font-medium text-foreground">
-								{t("about.localTitle")}
+					<div className="grid sm:grid-cols-2">
+						<div className="flex flex-col gap-2 border border-border/8 border-b-0 border-l-0 p-4 sm:border-r-0">
+							<div className="flex items-center gap-2">
+								<HugeiconsIcon
+									icon={Mic02Icon}
+									strokeWidth={1.75}
+									aria-hidden="true"
+									className="size-4 shrink-0 text-muted-foreground"
+								/>
+								<p className="text-sm font-medium text-foreground">
+									{t("about.localTitle")}
+								</p>
+							</div>
+							<p className="text-xs leading-relaxed text-muted-foreground">
+								{t("about.localDesc", { appName: APP_NAME })}
 							</p>
 						</div>
-						<p className="text-xs leading-relaxed text-muted-foreground">
-							{t("about.localDesc")}
-						</p>
-					</div>
-					<div className="flex flex-col gap-2 border border-border/8 border-b-0 border-r-0 p-4">
-						<div className="flex items-center gap-2">
-							<HugeiconsIcon
-								icon={CloudIcon}
-								strokeWidth={1.75}
-								aria-hidden="true"
-								className="size-4 shrink-0 text-muted-foreground"
-							/>
-							<p className="text-sm font-medium text-foreground">
-								{t("about.cloudTitle")}
+						<div className="flex flex-col gap-2 border border-border/8 border-b-0 border-r-0 p-4">
+							<div className="flex items-center gap-2">
+								<HugeiconsIcon
+									icon={CloudIcon}
+									strokeWidth={1.75}
+									aria-hidden="true"
+									className="size-4 shrink-0 text-muted-foreground"
+								/>
+								<p className="text-sm font-medium text-foreground">
+									{t("about.cloudTitle")}
+								</p>
+							</div>
+							<p className="text-xs leading-relaxed text-muted-foreground">
+								{t("about.cloudDesc", { appName: APP_NAME })}
 							</p>
 						</div>
-						<p className="text-xs leading-relaxed text-muted-foreground">
-							{t("about.cloudDesc")}
-						</p>
 					</div>
-				</div>
 
-				{/* Version + update check, the card's single meta row: the
+					{/* Version + update check, the card's single meta row: the
 			    version pair (label + value, visually bound as one unit)
 			    on the left, the update-check action pushed to the row's
 			    right edge via justify-between. The check is user-initiated
 			    against the release manifest (C-DATA-1 category-2 allowed
 			    update check; fires ONLY on button click, never on mount). */}
-				<div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/8 p-4">
-					<div className="flex items-baseline gap-2">
-						<span className="text-sm font-medium text-foreground">
-							{t("about.version")}
-						</span>
-						<span className="text-sm text-muted-foreground">
-							{t("about.versionValue", { version: APP_VERSION })}
-						</span>
+					<div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/8 p-4">
+						<div className="flex items-baseline gap-2">
+							<span className="text-sm font-medium text-foreground">
+								{t("about.version")}
+							</span>
+							<span className="text-sm text-muted-foreground">
+								{t("about.versionValue", { version: APP_VERSION })}
+							</span>
+						</div>
+						<Button
+							variant="outline"
+							size="xs"
+							onClick={handleCheckPackUpdate}
+							disabled={packChecking}
+						>
+							{packChecking ? t("about.checking") : t("about.checkForUpdates")}
+						</Button>
 					</div>
-					<Button
-						variant="outline"
-						size="xs"
-						onClick={handleCheckPackUpdate}
-						disabled={packChecking}
-					>
-						{packChecking ? t("about.checking") : t("about.checkForUpdates")}
-					</Button>
-				</div>
-				{/* Outcome readout: without it the user cannot tell "no update",
+					{/* Outcome readout: without it the user cannot tell "no update",
 				    "download started" and "the check failed" apart. */}
-				{packOutcome && (
-					<p
-						role="status"
-						aria-live="polite"
-						data-testid="update-check-outcome"
-						className={`border-t border-border/8 px-4 py-2.5 text-xs ${
-							packOutcome === "failed"
-								? "text-destructive"
-								: "text-muted-foreground"
-						}`}
-					>
-						{t(`about.updateOutcome.${packOutcome}`)}
-					</p>
-				)}
-			</div>
+					{packOutcome && (
+						<p
+							role="status"
+							aria-live="polite"
+							data-testid="update-check-outcome"
+							className={`border-t border-border/8 px-4 py-2.5 text-xs ${
+								packOutcome === "failed"
+									? "text-destructive"
+									: "text-muted-foreground"
+							}`}
+						>
+							{t(`about.updateOutcome.${packOutcome}`)}
+						</p>
+					)}
+				</div>
+			)}
 
 			{/* The privacy disclosure, five topic rows with thin dividers (the
                             section card's divide-y supplies them). Icons render
                             directly (no chip), in the standard muted icon tone. */}
-			<div className="divide-y divide-border/8 rounded-lg border border-border/8 bg-surface-subtle">
-				{PRIVACY_TOPICS.map((topic) => (
-					<div key={topic.title} className="flex gap-3 px-4 py-4">
-						<HugeiconsIcon
-							icon={topic.icon}
-							strokeWidth={1.75}
-							aria-hidden="true"
-							className="mt-0.5 size-5 shrink-0 text-muted-foreground"
-						/>
-						<div className="flex min-w-0 flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
-							<p className="font-medium text-foreground">{t(topic.title)}</p>
-							{/* max-w-prose: keep paragraph line length
+			{visibleTopics.length > 0 && (
+				<div className="divide-y divide-border/8 rounded-lg border border-border/8 bg-surface-subtle">
+					{visibleTopics.map((topic) => (
+						<div
+							key={topic.title}
+							data-settings-row-label={t(topic.title)}
+							className="flex gap-3 px-4 py-4"
+						>
+							<HugeiconsIcon
+								icon={topic.icon}
+								strokeWidth={1.75}
+								aria-hidden="true"
+								className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+							/>
+							<div className="flex min-w-0 flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
+								<p className="font-medium text-foreground">{t(topic.title)}</p>
+								{/* max-w-prose: keep paragraph line length
 							    readable; the rows can stay full width.
 							    text-balance: even out the final line of
 							    the description when it wraps. */}
-							<p className="max-w-prose text-balance">
-								{t(topic.desc, {
-									configDir: configDir || t("about.unknown"),
-								})}
-							</p>
+								<p className="max-w-prose text-balance">
+									{t(topic.desc, {
+										appName: APP_NAME,
+										configDir: configDir || t("about.unknown"),
+									})}
+								</p>
+							</div>
 						</div>
-					</div>
-				))}
-			</div>
+					))}
+				</div>
+			)}
 
 			{/* Third-party notices ship as an application resource; this row is
 		    the in-app entry point to the hosted copy. */}
-			<div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border/8 bg-surface-subtle p-4">
-				<div className="flex min-w-0 flex-col gap-1">
-					<p className="text-sm font-medium text-foreground">
-						{t("about.thirdPartyTitle")}
-					</p>
-					<p className="max-w-prose text-xs leading-relaxed text-muted-foreground">
-						{t("about.thirdPartyDesc")}
-					</p>
-				</div>
-				<Button
-					variant="outline"
-					size="xs"
-					onClick={() => void openExternalUrl(THIRD_PARTY_NOTICES_URL)}
+			{showThirdParty && (
+				<div
+					data-settings-row-label={t("about.thirdPartyTitle")}
+					className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border/8 bg-surface-subtle p-4"
 				>
-					{t("about.viewThirdPartyNotices")}
-				</Button>
-			</div>
+					<div className="flex min-w-0 flex-col gap-1">
+						<p className="text-sm font-medium text-foreground">
+							{t("about.thirdPartyTitle")}
+						</p>
+						<p className="max-w-prose text-xs leading-relaxed text-muted-foreground">
+							{t("about.thirdPartyDesc")}
+						</p>
+					</div>
+					<Button
+						variant="outline"
+						size="xs"
+						onClick={() => void openExternalUrl(THIRD_PARTY_NOTICES_URL)}
+					>
+						{t("about.viewThirdPartyNotices")}
+					</Button>
+				</div>
+			)}
 		</div>
 	);
 }

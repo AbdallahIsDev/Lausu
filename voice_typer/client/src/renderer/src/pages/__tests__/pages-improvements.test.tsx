@@ -651,6 +651,21 @@ describe("Settings.tsx, hub + section pages render model", () => {
 				'[data-testid="settings-hub-row-settingsAdvanced"]',
 			),
 		).toBeTruthy();
+		expect(
+			document.querySelector(
+				'[data-testid="settings-hub-row-settingsPrivacy"]',
+			),
+		).toBeTruthy();
+		expect(
+			document.querySelector('[data-testid="settings-hub-row-chat"]'),
+		).toBeTruthy();
+		expect(
+			document.querySelector('[data-testid="settings-hub-row-providers"]'),
+		).toBeTruthy();
+		const privacyRow = document.querySelector<HTMLElement>(
+			'[data-testid="settings-hub-row-settingsPrivacy"]',
+		);
+		expect(privacyRow?.textContent).not.toContain("{appName}");
 	});
 
 	it("keeps the 4px heading tier and gives the section cards their own 12px stack", async () => {

@@ -1,7 +1,12 @@
 import { ChevronDownIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { type Ref, useState } from "react";
+import { LevelBar } from "@/components/feedback/LevelBar";
 import { FamilyLogo } from "@/components/models/FamilyLogo";
+import {
+	ActiveActionButton,
+	SelectActionButton,
+} from "@/components/models/ModelActionButtons";
 import {
 	DOWNLOAD_CONTENT_ALIGNMENT,
 	DOWNLOAD_SIZE_BUTTON_WIDTH,
@@ -66,6 +71,8 @@ export interface ModelStepProps {
 	downloadProgress: number;
 	downloadFailed: boolean;
 	onDownload: (model: string) => void;
+	/** Disk truth from `get_model_status`; missing entries read as not installed. */
+	modelStatus?: Record<string, { downloaded: boolean }>;
 	// Cloud branch: provider + API key (persisted on Continue). The
 	// provider's audio-transmission CONSENT is deliberately not a checkbox
 	// here — leaving the step opens the shared consent gate for the chosen
@@ -129,6 +136,7 @@ export function ModelStep({
 	downloadProgress,
 	downloadFailed,
 	onDownload,
+	modelStatus = {},
 	cloudProvider,
 	setCloudProvider,
 	cloudApiKey,
@@ -163,6 +171,64 @@ export function ModelStep({
 		{ value: "local", label: t("onboarding.backendLocalLabel") },
 		{ value: "cloud", label: t("onboarding.backendCloudLabel") },
 	];
+
+	/** One action slot per row, mirroring the Models page: Download when the
+	 *  pack is missing, Select when it is installed, Active when it is both
+	 *  installed and chosen. The DOM test id on Download is preserved. */
+	const renderAction = (
+		m: ModelOption,
+		displayName: string,
+		isSelected: boolean,
+		isDownloadingThis: boolean,
+	) => {
+		const installed = modelStatus[m.name]?.downloaded === true;
+		if (installed && isSelected) {
+			return (
+				<span data-testid={`onboarding-active-button-${m.name}`}>
+					<ActiveActionButton
+						ariaLabel={t("models.card.activeAria", { name: displayName })}
+					/>
+				</span>
+			);
+		}
+		if (installed) {
+			return (
+				<span data-testid={`onboarding-select-button-${m.name}`}>
+					<SelectActionButton
+						ariaLabel={t("onboarding.modelSelectAria", { name: displayName })}
+						onClick={() => setSelectedModel(m.name)}
+					/>
+				</span>
+			);
+		}
+		return (
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				className={`gap-2 text-xs whitespace-nowrap ${DOWNLOAD_SIZE_BUTTON_WIDTH} ${DOWNLOAD_CONTENT_ALIGNMENT}`}
+				onClick={() => onDownload(m.name)}
+				disabled={isDownloading}
+				aria-busy={isDownloadingThis}
+				aria-label={t("onboarding.modelSizeDownloadAria", {
+					name: displayName,
+				})}
+				data-testid={`onboarding-download-button-${m.name}`}
+			>
+				{isDownloadingThis ? (
+					<>
+						<span
+							className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
+							role="presentation"
+						/>
+						{progressPct}%
+					</>
+				) : (
+					t("onboarding.downloadModel")
+				)}
+			</Button>
+		);
+	};
 
 	const renderModelRow = (m: ModelOption) => {
 		const langText = languageBadgeText(m.languages, t);
@@ -218,34 +284,7 @@ export function ModelStep({
 						{langText != null && <ModelBadge>{langText}</ModelBadge>}
 					</span>
 				</button>
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					// Same fixed-width, left-aligned, compact-icon
-					// tokens as the Models page download buttons
-					// (C-MODELS-2), imported (no duplication).
-					className={`gap-2 text-xs whitespace-nowrap ${DOWNLOAD_SIZE_BUTTON_WIDTH} ${DOWNLOAD_CONTENT_ALIGNMENT}`}
-					onClick={() => onDownload(m.name)}
-					disabled={isDownloading}
-					aria-busy={isDownloadingThis}
-					aria-label={t("onboarding.modelSizeDownloadAria", {
-						name: displayName,
-					})}
-					data-testid={`onboarding-download-button-${m.name}`}
-				>
-					{isDownloadingThis ? (
-						<>
-							<span
-								className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-								role="presentation"
-							/>
-							{progressPct}%
-						</>
-					) : (
-						t("onboarding.downloadModel")
-					)}
-				</Button>
+				{renderAction(m, displayName, isSelected, isDownloadingThis)}
 			</div>
 		);
 	};
@@ -352,31 +391,12 @@ export function ModelStep({
 										</span>
 									)}
 								</button>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									className={`gap-2 text-xs whitespace-nowrap ${DOWNLOAD_SIZE_BUTTON_WIDTH} ${DOWNLOAD_CONTENT_ALIGNMENT}`}
-									onClick={() => onDownload(recommended.name)}
-									disabled={isDownloading}
-									aria-busy={recommendedIsDownloadingThis}
-									aria-label={t("onboarding.modelSizeDownloadAria", {
-										name: recommendedDisplayName,
-									})}
-									data-testid={`onboarding-download-button-${recommended.name}`}
-								>
-									{recommendedIsDownloadingThis ? (
-										<>
-											<span
-												className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-												role="presentation"
-											/>
-											{progressPct}%
-										</>
-									) : (
-										t("onboarding.downloadModel")
-									)}
-								</Button>
+								{renderAction(
+									recommended,
+									recommendedDisplayName,
+									recommendedIsSelected,
+									recommendedIsDownloadingThis,
+								)}
 							</div>
 						</div>
 					) : null}
@@ -400,7 +420,7 @@ export function ModelStep({
 									icon={ChevronDownIcon}
 									strokeWidth={1.8}
 									aria-hidden="true"
-									className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${allModelsOpen ? "rotate-180" : ""}`}
+									className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none ${allModelsOpen ? "rotate-180" : ""}`}
 								/>
 							</Button>
 							<div className="collapse-root" data-open={allModelsOpen}>
@@ -483,32 +503,23 @@ export function ModelStep({
 					    flow, driven by download_progress push events). */}
 					{isDownloading && (
 						<div
-							role="progressbar"
-							aria-valuenow={progressPct}
-							aria-valuemin={0}
-							aria-valuemax={100}
-							aria-label={t("onboarding.downloadProgressAria", {
-								percent: String(progressPct),
-							})}
-							className="flex flex-col gap-2 rounded-lg border border-accent/40 bg-accent/5 p-3"
+							className="flex flex-col gap-2 rounded-lg border border-border/8 bg-surface-subtle p-3"
 							data-testid="onboarding-download-progress"
 						>
-							<div className="flex items-center justify-between text-xs text-(--text-secondary)">
-								<span className="flex items-center gap-2">
-									<span
-										className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-										role="presentation"
-									/>
-									{t("onboarding.downloadingModel")}
-								</span>
+							<div className="flex items-center justify-between text-xs text-muted-foreground">
+								<span>{t("onboarding.downloadingModel")}</span>
 								<span>{progressPct}%</span>
 							</div>
-							<div className="h-1.5 w-full rounded-full bg-surface-subtle">
-								<div
-									className="h-1.5 rounded-full bg-accent transition-all duration-300"
-									style={{ width: `${Math.min(100, downloadProgress)}%` }}
-								/>
-							</div>
+							{/* Shared bar (C-UI-12): neutral track, solid primary
+							    fill, compositor-only transform + scoped motion. */}
+							<LevelBar
+								level={Math.max(0, Math.min(100, downloadProgress)) / 100}
+								playing={false}
+								ariaLabel={t("onboarding.downloadProgressAria", {
+									percent: String(progressPct),
+								})}
+								ariaValueText={`${progressPct}%`}
+							/>
 						</div>
 					)}
 				</div>

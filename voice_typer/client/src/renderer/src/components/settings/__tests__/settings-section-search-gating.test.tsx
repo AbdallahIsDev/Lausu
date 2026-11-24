@@ -12,7 +12,7 @@
  *
  * Sections covered: Recording, AI Enhancement (+ Vocabulary Automation).
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeConfig } from "@/__tests__/helpers/fixtures";
 
@@ -49,6 +49,7 @@ vi.mock("@/lib/sound-manager", () => ({
 	playSoundCue: vi.fn(),
 }));
 
+import { DictionaryAutomationSettings } from "@/components/settings/DictionaryAutomationSettings";
 import { PostProcessingSettingsSection } from "@/components/settings/PostProcessingSettingsSection";
 import { RecordingSettingsSection } from "@/components/settings/RecordingSettingsSection";
 import {
@@ -157,16 +158,16 @@ describe("RecordingSettingsSection, in-section search filtering", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────
-// Post-Processing: vocabulary row lives in the shared card
+// Dictionary & Snippets owns its saved state and links
 // ─────────────────────────────────────────────────────────────────────
-describe("PostProcessingSettingsSection, in-section search filtering", () => {
+describe("DictionaryAutomationSettings, in-section search and persistence", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		cleanup();
 	});
 
-	it("still renders the matching vocabulary row while filtering", () => {
-		renderWithProviders(
+	it("moves dictionary and snippet controls out of Text Enhancement", () => {
+		const { container } = renderWithProviders(
 			<PostProcessingSettingsSection
 				config={makeConfig()}
 				updateConfig={noopUpdate}
@@ -174,10 +175,52 @@ describe("PostProcessingSettingsSection, in-section search filtering", () => {
 				isVisible={filterByLabel("vocabulary")}
 			/>,
 		);
-		expect(screen.getByText("Text Enhancement")).toBeTruthy();
+		expect(container.firstChild).toBeNull();
+	});
+
+	it("shows only the matching stateful row and preserves its saved value", () => {
+		renderWithProviders(
+			<DictionaryAutomationSettings
+				config={makeConfig({ vocabulary_automation_enabled: true })}
+				updateConfig={noopUpdate}
+				updateConfigDebounced={noopDebounced}
+				isVisible={filterByLabel("vocabulary")}
+			/>,
+		);
 		expect(
 			screen.getByRole("switch", { name: "Vocabulary Automation" }),
-		).toBeTruthy();
+		).toBeChecked();
+		expect(screen.queryByRole("switch", { name: "Text Snippets" })).toBeNull();
+	});
+
+	it("writes the existing config fields without leaving the merged page", () => {
+		const updateConfig = vi.fn();
+		renderWithProviders(
+			<DictionaryAutomationSettings
+				config={makeConfig()}
+				updateConfig={updateConfig}
+				updateConfigDebounced={noopDebounced}
+				isVisible={alwaysVisible}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("switch", { name: "Text Snippets" }));
+		expect(updateConfig).toHaveBeenCalledWith({ templates_enabled: false });
+		fireEvent.click(
+			screen.getByRole("switch", { name: "Vocabulary Automation" }),
+		);
+		expect(updateConfig).toHaveBeenCalledWith({
+			vocabulary_automation_enabled: true,
+		});
+
+		// The collection halves are switched in-page by the header toggle,
+		// so there are no "Open …" buttons to navigate away any more.
+		expect(
+			screen.queryByRole("button", { name: "Open Text Snippets" }),
+		).toBeNull();
+		expect(
+			screen.queryByRole("button", { name: "Open Vocabulary" }),
+		).toBeNull();
 	});
 });
 

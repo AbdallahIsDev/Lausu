@@ -68,19 +68,20 @@ describe("samples never leak into role queries", () => {
 		// answers []), so the list skeleton measures the empty state rather
 		// than inventing cards the page would never render.
 		expect(SAMPLE_PLUGINS).toEqual([]);
-		// `OnboardingController.MODEL_OPTIONS`: the curated four, in order,
-		// with parakeet as the single recommended pick.
+		// Skeleton sample for the five registry production models; dev-only
+		// `tiny` is never offered, and the registry default is recommended.
 		expect(SAMPLE_MODEL_OPTIONS.map((option) => option.name)).toEqual([
-			"tiny",
-			"large-v3",
-			"large-v3-turbo",
 			"parakeet",
+			"large-v3-turbo",
+			"large-v3",
+			"qwen3-1.7b",
+			"qwen3-0.6b",
 		]);
 		expect(
 			SAMPLE_MODEL_OPTIONS.filter((option) => option.recommended).map(
 				(option) => option.name,
 			),
-		).toEqual(["parakeet"]);
+		).toEqual(["large-v3-turbo"]);
 	});
 
 	it("model sample covers the bundled catalogue", () => {

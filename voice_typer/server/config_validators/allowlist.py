@@ -90,9 +90,7 @@ STREAMING_RIGHT_GUARD_SECONDS_MIN: float = 1.5
 
 # ALLOWED_USER_MODELS is DERIVED from the single catalogue: a frozen build
 # never advertises a dev-only model to the renderer.
-ALLOWED_USER_MODELS: frozenset[str] = frozenset(
-    (_production_models() if _is_frozen() else _available_models()).keys()
-)
+ALLOWED_USER_MODELS: frozenset[str] = frozenset((_production_models() if _is_frozen() else _available_models()).keys())
 
 
 def _validate_model_size(value: object) -> str | None:
@@ -166,7 +164,9 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "translation_gpu_enabled": (bool, _bool_validator),
     "translation_model_path": (str, _VALIDATOR_LOCAL_DIR),
     "translation_runtime_path": (str, _VALIDATOR_LOCAL_DIR),
-    "device": (str, _make_enum_validator(frozenset({"cuda", "cpu"}))),
+    # ADR-0031: the native runner advertises cpu/vulkan/cuda; `cuda` is
+    # still accepted for configs written by older builds.
+    "device": (str, _make_enum_validator(frozenset({"cpu", "vulkan", "cuda"}))),
     "beam_size": (int, _make_int_validator(lo=1, hi=10)),
     "best_of": (int, _make_int_validator(lo=1, hi=10)),
     # Whisper-specific beam width (preferred over the legacy

@@ -119,6 +119,93 @@ describe("useSettingsSearch, auto-switch navigation", () => {
 		expect(aliasPage).toBe("settingsTranscription");
 	});
 
+	it("prefers Settings section titles over longer matching disclosure copy", () => {
+		const { rerender } = renderHook(
+			(props: { query: string; activeSection: "settingsGeneral" | null }) =>
+				useSettingsSearch({
+					query: props.query,
+					activeSection: props.activeSection,
+					navigate: nav,
+				}),
+			{ initialProps: { query: "", activeSection: "settingsGeneral" } },
+		);
+
+		rerender({ query: "privacy", activeSection: "settingsGeneral" });
+		expect(nav).toHaveBeenCalledWith(
+			"settingsPrivacy",
+			expect.objectContaining({
+				settingsScrollTarget: {
+					rowHint: "Privacy & Consent",
+				},
+			}),
+		);
+	});
+
+	it("routes an About & Privacy description query to that section", () => {
+		const { rerender } = renderHook(
+			(props: { query: string; activeSection: "settingsGeneral" | null }) =>
+				useSettingsSearch({
+					query: props.query,
+					activeSection: props.activeSection,
+					navigate: nav,
+				}),
+			{ initialProps: { query: "", activeSection: "settingsGeneral" } },
+		);
+
+		rerender({
+			query: "what Lausu is, and how your audio and data are handled",
+			activeSection: "settingsGeneral",
+		});
+		expect(nav).toHaveBeenCalledWith(
+			"settingsPrivacy",
+			expect.objectContaining({
+				settingsScrollTarget: expect.objectContaining({
+					rowHint: expect.any(String),
+				}),
+			}),
+		);
+	});
+
+	it("keeps removed hub text searchable as section keywords", () => {
+		const { result } = renderHook(() =>
+			useSettingsSearch({
+				query: "",
+				activeSection: null,
+				navigate: nav,
+			}),
+		);
+		// Descriptions and control labels no longer render on the hub rows
+		// but stay in the label universe so search still finds them.
+		expect(result.current.sectionLabelsByPage.settingsGeneral).toContain(
+			"Bubble Position",
+		);
+		expect(result.current.sectionLabelsByPage.settingsPrivacy).toContain(
+			"About & Privacy",
+		);
+	});
+
+	it("prefers the Audio section title over the About description for an audio query", () => {
+		const { rerender } = renderHook(
+			(props: { query: string; activeSection: "settingsGeneral" | null }) =>
+				useSettingsSearch({
+					query: props.query,
+					activeSection: props.activeSection,
+					navigate: nav,
+				}),
+			{ initialProps: { query: "", activeSection: "settingsGeneral" } },
+		);
+
+		rerender({ query: "audio", activeSection: "settingsGeneral" });
+		expect(nav).toHaveBeenCalledWith(
+			"settingsAudio",
+			expect.objectContaining({
+				settingsScrollTarget: expect.objectContaining({
+					rowHint: expect.any(String),
+				}),
+			}),
+		);
+	});
+
 	it("does NOT navigate when the query is shorter than 2 characters", () => {
 		const { rerender } = renderHook(
 			(props: { query: string; activeSection: "settingsGeneral" | null }) =>

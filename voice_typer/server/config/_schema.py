@@ -74,7 +74,7 @@ class _ConfigSchema:
     # resolve from the app data dir or the LAUSU_TRANSLATION_* env vars.
     translation_model_path: str = ""
     translation_runtime_path: str = ""
-    device: str = "cpu"  # cuda, cpu
+    device: str = "cpu"  # cpu, vulkan, cuda (vulkan/cuda = GPU request)
     beam_size: int = 1  # 1 = fastest greedy decoding; higher values trade speed for accuracy
     best_of: int = 1
     condition_on_previous_text: bool = False

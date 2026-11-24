@@ -170,7 +170,8 @@
 		"group": {
 			"system": "系统",
 			"main": "主要"
-		}
+		},
+		"dictionarySnippets": "词典与片段"
 	},
 	"home": {
 		"showMore": "展开更多",
@@ -812,6 +813,8 @@
 		"generalDescription": "配置 {appName} 如何启动、登录时的行为以及与系统的交互方式。",
 		"overlay": "叠加层",
 		"overlayDescription": "浮动录音气泡。",
+		"dictionarySnippets": "词典与文本片段",
+		"dictionarySnippetsDescription": "管理词典和文本片段，并设置它们在听写时的使用方式。",
 		"bubbleBehaviorLabel": "气泡行为",
 		"bubbleBehaviorInfo": "仅在录音时显示气泡，或始终显示气泡。",
 		"bubblePositionLabel": "气泡位置",
@@ -829,6 +832,7 @@
 		"textSnippets": "文本片段",
 		"textSnippetsInfo": "展开为文本片段的语音命令。在文本片段页面管理它们。",
 		"openTemplates": "打开文本片段",
+		"openVocabulary": "打开词典",
 		"llmPolishing": "文本润色 (Beta)",
 		"llmPolishingDescription2": "将文本发送到在线 AI。需要联网和 API 密钥。每条消息耗时 10–25 秒。",
 		"enable": "启用",
@@ -854,11 +858,6 @@
 		"bubbleShowRecordingTimerInfo": "在录音时于红点旁显示录音时长（mm:ss）。默认关闭。",
 		"screenshotBeta": "截图捕获（测试版）",
 		"screenshotBetaInfo": "每次录音可为转录附加一个屏幕区域。仅限 Windows。默认关闭；选择时录音继续。",
-		"bubblePreview": "气泡预览",
-		"bubblePreviewInfo": "气泡在每种状态下的外观。录音计时器在此实时跳动。",
-		"bubblePreviewIdle": "空闲",
-		"bubblePreviewRecording": "录音中",
-		"bubblePreviewTranscribing": "转写中",
 		"loading": "正在加载设置…",
 		"saveFailedToast": "保存设置失败",
 		"couldNotOpenLogFolder": "无法打开日志文件夹",
@@ -1313,7 +1312,10 @@
 			"advancedDescription": "故障排除、诊断、资源、缓存与更新。",
 			"backToSettings": "返回设置",
 			"on": "开",
-			"off": "关"
+			"off": "关",
+			"dictionarySnippetsSummary": "文本片段 {snippets} · 词汇自动化 {vocabulary}",
+			"chatDescription": "使用内置聊天进行语音对话。",
+			"providersDescription": "云端提供商密钥和模型。"
 		},
 		"modelIdleUnload": "将语音模型保留在内存中",
 		"modelIdleUnloadDescription": "停止听写后，语音模型在内存中保留多长时间。时间越长，听写始终即时可用，并且在应用打开期间会占用约 2 GB 内存。关闭应用会立即释放该内存。",
@@ -1322,7 +1324,17 @@
 		"modelIdleUnload.minutes60": "1 小时",
 		"modelIdleUnload.minutes90": "1 小时 30 分钟",
 		"modelIdleUnload.minutes120": "2 小时",
-		"modelIdleUnload.never": "始终（保持加载）"
+		"modelIdleUnload.never": "始终（保持加载）",
+		"generalOverlayTitle": "常规与浮层",
+		"generalOverlayDescription": "启动、语言、通知和浮动气泡行为。",
+		"hotkeysRecordingTitle": "快捷键与录音",
+		"hotkeysRecordingDescription": "听写键、录音模式和反馈。",
+		"textEnhancementTitle": "文本增强",
+		"textEnhancementDescription": "语言、翻译、清理和文本润色。",
+		"privacyConsentTitle": "隐私与同意",
+		"privacyConsentDescription": "数据处理、云端同意与恢复。",
+		"bubbleSettings": "气泡",
+		"bubbleSettingsDescription": "选择浮动气泡何时出现。"
 	},
 	"plugins": {
 		"title": "插件",
@@ -1527,6 +1539,7 @@
 		},
 		"cloudModels": "云端模型",
 		"cloudModelsDescription": "使用云端 API 进行更快的转录。需要 API 密钥。",
+		"ttsModels": "文本转语音",
 		"noModelBanner": "未选择语音模型。请在下方选择一个模型。"
 	},
 	"tooltips": {
@@ -1736,7 +1749,16 @@
 			"badgeRecommended": "推荐",
 			"badgeFast": "快速"
 		},
-		"languageCountBadge": "{count} 种语言"
+		"languageCountBadge": "{count} 种语言",
+		"skip": "跳过设置",
+		"skipAria": "跳过设置并使用默认值",
+		"skipTitle": "跳过设置？",
+		"skipDescription": "设置将以默认热键完成，不选择语音模型，也不连接云服务。之后可在“设置”中更改所有选项。",
+		"skipConfirm": "跳过设置",
+		"microphoneReady": "找到 {count} 个麦克风。",
+		"microphoneMissing": "未找到麦克风。请检查系统输入设置或打开“设置 → 麦克风”。",
+		"microphoneCheck": "重新检查",
+		"orientation": "只需做几个选择。之后可在“设置”中随时更改。"
 	},
 	"titleBar": {
 		"minimize": "最小化",
@@ -2430,5 +2452,12 @@
 		"reset": "恢复默认",
 		"open": "打开调试面板",
 		"close": "收起调试面板"
+	},
+	"dictionarySnippets": {
+		"title": "词典与片段",
+		"description": "更正应用听到的内容并管理可复用片段。",
+		"dictionary": "词典",
+		"snippets": "片段",
+		"switcherAria": "集合类型"
 	}
 }

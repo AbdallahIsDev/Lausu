@@ -256,9 +256,10 @@ const _SERVER_REGISTRY_MINUS_PYTHON_ONLY = {
 	open_data_folder: true, // Models storage card + Diagnostics button (config dir)
 	open_mic_settings: true, // Mic-permission refusal toast action (OS privacy page)
 	run_prewarm: true, // RESTORED 2026-08-14 (§6.3 addendum 2nd half, in-process warm pass)
-	// Local TTS surface (ADR-0027 amendment): status/prepare/speak/stop.
+	// Local TTS surface (ADR-0027 amendment): status/prepare/delete/speak/stop.
 	tts_status: true,
 	tts_prepare: true,
+	tts_delete: true,
 	tts_speak: true,
 	tts_stop: true,
 	// Push-to-talk voice conversation (Chat page).

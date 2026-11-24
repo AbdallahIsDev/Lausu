@@ -170,7 +170,8 @@
 		"group": {
 			"system": "النظام",
 			"main": "الرئيسية"
-		}
+		},
+		"dictionarySnippets": "القاموس والمقتطفات"
 	},
 	"home": {
 		"showMore": "عرض المزيد",
@@ -818,6 +819,8 @@
 		"generalDescription": "قم بتكوين كيفية بدء تشغيل {appName} وسلوكه عند تسجيل الدخول وتفاعله مع نظامك.",
 		"overlay": "التراكب",
 		"overlayDescription": "فقاعة التسجيل العائمة.",
+		"dictionarySnippets": "القاموس والمقتطفات النصية",
+		"dictionarySnippetsDescription": "أدِر مفرداتك ومقتطفاتك النصية وحدد كيفية استخدامها أثناء الإملاء.",
 		"bubbleBehaviorLabel": "سلوك الفقاعة",
 		"bubbleBehaviorInfo": "إظهار الفقاعة فقط أثناء التسجيل، أو إبقائها مرئية في جميع الأوقات.",
 		"bubblePositionLabel": "موضع الفقاعة",
@@ -835,6 +838,7 @@
 		"textSnippets": "مقتطفات النص",
 		"textSnippetsInfo": "أوامر صوتية تتوسع في مقتطفات النص الخاصة بك. افتح صفحة مقتطفات النص لإدارتها.",
 		"openTemplates": "فتح مقتطفات النص",
+		"openVocabulary": "فتح القاموس",
 		"llmPolishing": "تنقيح النص (Beta)",
 		"llmPolishingDescription2": "يرسل النص إلى ذكاء اصطناعي عبر الإنترنت. يتطلب اتصالاً بالإنترنت ومفتاح API. يستغرق 10–25 ثانية لكل رسالة.",
 		"enable": "تمكين",
@@ -860,11 +864,6 @@
 		"bubbleShowRecordingTimerInfo": "يعرض مدة التسجيل (mm:ss) بجانب النقطة الحمراء أثناء التسجيل. متوقف افتراضيًا.",
 		"screenshotBeta": "لقطة شاشة (تجريبية)",
 		"screenshotBetaInfo": "أرفق منطقة من الشاشة بالنص مرة واحدة لكل تسجيل. لنظام Windows فقط. متوقف افتراضيًا؛ يستمر التسجيل أثناء التحديد.",
-		"bubblePreview": "معاينة الفقاعة",
-		"bubblePreviewInfo": "هكذا تبدو الفقاعة في كل حالة. مؤقت التسجيل يعمل مباشرة هنا.",
-		"bubblePreviewIdle": "خامل",
-		"bubblePreviewRecording": "تسجيل",
-		"bubblePreviewTranscribing": "تدوين",
 		"loading": "جارٍ تحميل الإعدادات…",
 		"saveFailedToast": "فشل حفظ الإعداد",
 		"couldNotOpenLogFolder": "تعذّر فتح مجلد السجلات",
@@ -1313,7 +1312,10 @@
 			"advancedDescription": "استكشاف الأخطاء وإصلاحها، والتشخيصات، والموارد، وذاكرة التخزين المؤقت، والتحديثات.",
 			"backToSettings": "العودة إلى الإعدادات",
 			"on": "تشغيل",
-			"off": "إيقاف"
+			"off": "إيقاف",
+			"dictionarySnippetsSummary": "المقتطفات {snippets} · أتمتة المفردات {vocabulary}",
+			"chatDescription": "محادثة صوتية مع المحادثة المدمجة.",
+			"providersDescription": "مفاتيح ونماذج مزودي السحابة."
 		},
 		"modelIdleUnload": "إبقاء نموذج الصوت في الذاكرة",
 		"modelIdleUnloadDescription": "المدة التي يبقى فيها نموذج الصوت محمَّلاً بعد التوقف عن الإملاء. مدة أطول تجعل الإملاء فوريًا دائمًا وتستهلك نحو 2 غيغابايت من الذاكرة ما دام التطبيق مفتوحًا. إغلاق التطبيق يحرّر الذاكرة فورًا.",
@@ -1322,7 +1324,17 @@
 		"modelIdleUnload.minutes60": "ساعة واحدة",
 		"modelIdleUnload.minutes90": "ساعة ونصف",
 		"modelIdleUnload.minutes120": "ساعتان",
-		"modelIdleUnload.never": "دائمًا (إبقاء التحميل)"
+		"modelIdleUnload.never": "دائمًا (إبقاء التحميل)",
+		"generalOverlayTitle": "عام والطبقة العائمة",
+		"generalOverlayDescription": "بدء التشغيل واللغة والإشعارات وسلوك الفقاعة العائمة.",
+		"hotkeysRecordingTitle": "الاختصارات والتسجيل",
+		"hotkeysRecordingDescription": "مفتاح الإملاء ووضع التسجيل والملاحظات.",
+		"textEnhancementTitle": "تحسين النص",
+		"textEnhancementDescription": "اللغة والترجمة والتنظيف وتحسين النص.",
+		"privacyConsentTitle": "الخصوصية والموافقة",
+		"privacyConsentDescription": "معالجة البيانات والموافقة السحابية والاستعادة.",
+		"bubbleSettings": "الفقاعة",
+		"bubbleSettingsDescription": "اختر متى تظهر الفقاعة العائمة."
 	},
 	"plugins": {
 		"title": "الإضافات",
@@ -1527,6 +1539,7 @@
 		},
 		"cloudModels": "نماذج سحابية",
 		"cloudModelsDescription": "استخدم واجهات API السحابية للحصول على تفريغ أسرع. يتطلب مفتاح API.",
+		"ttsModels": "تحويل النص إلى كلام",
 		"noModelBanner": "لم يتم تحديد نموذج كلام. حدد نموذجا أدناه."
 	},
 	"tooltips": {
@@ -1736,7 +1749,16 @@
 			"badgeRecommended": "موصى به",
 			"badgeFast": "سريع"
 		},
-		"languageCountBadge": "{count} لغة"
+		"languageCountBadge": "{count} لغة",
+		"skip": "تخطي الإعداد",
+		"skipAria": "تخطي الإعداد واستخدام الإعدادات الافتراضية",
+		"skipTitle": "تخطي الإعداد؟",
+		"skipDescription": "سيكتمل الإعداد باختصار المفاتيح الافتراضي، وبدون نموذج صوتي محدد، وبدون موفر سحابي. يمكنك تغيير كل شيء لاحقًا في الإعدادات.",
+		"skipConfirm": "تخطي الإعداد",
+		"microphoneReady": "تم العثور على {count} ميكروفون.",
+		"microphoneMissing": "لم يتم العثور على ميكروفون. تحقق من إعدادات الإدخال في النظام أو افتح الإعدادات ← الميكروفون.",
+		"microphoneCheck": "إعادة التحقق",
+		"orientation": "بعض الخيارات السريعة. يمكنك تغيير كل شيء لاحقًا في الإعدادات."
 	},
 	"titleBar": {
 		"minimize": "تصغير",
@@ -2430,5 +2452,12 @@
 		"reset": "إعادة الضبط",
 		"open": "فتح لوحة التصحيح",
 		"close": "طي لوحة التصحيح"
+	},
+	"dictionarySnippets": {
+		"title": "القاموس والمقتطفات",
+		"description": "صحح ما يسمعه التطبيق وأدر المقتطفات القابلة لإعادة الاستخدام.",
+		"dictionary": "القاموس",
+		"snippets": "المقتطفات",
+		"switcherAria": "نوع المجموعة"
 	}
 }

@@ -261,6 +261,7 @@ KNOWN_UNDOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         # still owned by that feature; recorded here as an explicit gap
         # rather than blessed into the frozen table.
         "tts_prepare",
+        "tts_delete",
         "tts_speak",
         "tts_status",
         # Owned by the same TTS feature: ``tts_stop`` backs the model row's

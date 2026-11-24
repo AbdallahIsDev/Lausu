@@ -170,7 +170,8 @@
 		"group": {
 			"system": "System",
 			"main": "Haupt"
-		}
+		},
+		"dictionarySnippets": "Wörterbuch und Snippets"
 	},
 	"home": {
 		"showMore": "Mehr anzeigen",
@@ -818,6 +819,8 @@
 		"generalDescription": "Konfigurieren Sie, wie {appName} startet, sich beim Anmelden verhält und mit Ihrem System interagiert.",
 		"overlay": "Overlay",
 		"overlayDescription": "Schwebende Aufnahmeblase.",
+		"dictionarySnippets": "Wörterbuch & Textbausteine",
+		"dictionarySnippetsDescription": "Verwalten Sie Ihr Wörterbuch und Ihre Textbausteine und legen Sie fest, wie sie beim Diktieren verwendet werden.",
 		"bubbleBehaviorLabel": "Verhalten der Blase",
 		"bubbleBehaviorInfo": "Blase nur während der Aufnahme anzeigen oder jederzeit sichtbar halten.",
 		"bubblePositionLabel": "Position der Blase",
@@ -835,6 +838,7 @@
 		"textSnippets": "Textschnipsel",
 		"textSnippetsInfo": "Sprachbefehle, die zu deinen Textschnipseln erweitert werden. Öffne die Seite Textschnipsel, um sie zu verwalten.",
 		"openTemplates": "Textschnipsel öffnen",
+		"openVocabulary": "Wörterbuch öffnen",
 		"llmPolishing": "Textpolitur (Beta)",
 		"llmPolishingDescription2": "Sendet Text an eine Online-KI. Benötigt Internet und einen API-Schlüssel. Dauert 10–25 Sekunden pro Nachricht.",
 		"enable": "Aktivieren",
@@ -860,11 +864,6 @@
 		"bubbleShowRecordingTimerInfo": "Zeigt die Aufnahmedauer (mm:ss) neben dem roten Punkt während der Aufnahme. Standardmäßig aus.",
 		"screenshotBeta": "Screenshot-Aufnahme (Beta)",
 		"screenshotBetaInfo": "Einen Bildschirmbereich pro Aufnahme an die Transkription anhängen. Nur Windows. Standardmäßig aus; die Aufnahme läuft während der Auswahl weiter.",
-		"bubblePreview": "Blasen-Vorschau",
-		"bubblePreviewInfo": "So sieht die Blase in jedem Zustand aus. Der Aufnahme-Timer läuft hier live.",
-		"bubblePreviewIdle": "Inaktiv",
-		"bubblePreviewRecording": "Aufnahme",
-		"bubblePreviewTranscribing": "Transkription",
 		"loading": "Einstellungen werden geladen…",
 		"saveFailedToast": "Einstellung konnte nicht gespeichert werden",
 		"couldNotOpenLogFolder": "Protokollordner konnte nicht geöffnet werden",
@@ -1313,7 +1312,10 @@
 			"advancedDescription": "Fehlerbehebung, Diagnose, Ressourcen, Cache und Updates.",
 			"backToSettings": "Zurück zu den Einstellungen",
 			"on": "Ein",
-			"off": "Aus"
+			"off": "Aus",
+			"dictionarySnippetsSummary": "Textbausteine {snippets} · Wortschatz-Automatik {vocabulary}",
+			"chatDescription": "Sprachgespräch mit dem integrierten Chat.",
+			"providersDescription": "Cloud-Schlüssel und -Modelle der Anbieter."
 		},
 		"modelIdleUnload": "Sprachmodell im Speicher halten",
 		"modelIdleUnloadDescription": "Wie lange das Sprachmodell nach dem Diktieren geladen bleibt. Eine längere Zeit bedeutet, dass Diktieren immer sofort funktioniert und etwa 2 GB Arbeitsspeicher belegt, solange die App geöffnet ist. Beim Schließen der App wird der Speicher sofort freigegeben.",
@@ -1322,7 +1324,17 @@
 		"modelIdleUnload.minutes60": "1 Stunde",
 		"modelIdleUnload.minutes90": "1 Stunde 30 Minuten",
 		"modelIdleUnload.minutes120": "2 Stunden",
-		"modelIdleUnload.never": "Immer (geladen lassen)"
+		"modelIdleUnload.never": "Immer (geladen lassen)",
+		"generalOverlayTitle": "Allgemein & Overlay",
+		"generalOverlayDescription": "Start, Sprache, Benachrichtigungen und Verhalten der schwebenden Blase.",
+		"hotkeysRecordingTitle": "Tastenkürzel & Aufnahme",
+		"hotkeysRecordingDescription": "Diktiertaste, Aufnahmemodus und Rückmeldung.",
+		"textEnhancementTitle": "Textverbesserung",
+		"textEnhancementDescription": "Sprache, Übersetzung, Bereinigung und Textverfeinerung.",
+		"privacyConsentTitle": "Datenschutz & Einwilligung",
+		"privacyConsentDescription": "Datenverarbeitung, Cloud-Einwilligung und Wiederherstellung.",
+		"bubbleSettings": "Blase",
+		"bubbleSettingsDescription": "Wählen Sie, wann die schwebende Blase erscheint."
 	},
 	"plugins": {
 		"title": "Plugins",
@@ -1527,6 +1539,7 @@
 		},
 		"cloudModels": "Cloud-Modelle",
 		"cloudModelsDescription": "Verwenden Sie cloudbasierte APIs für schnellere Transkription. Erfordert einen API-Schlüssel.",
+		"ttsModels": "Sprachausgabe",
 		"noModelBanner": "Kein Sprachmodell ist ausgewählt. Wählen Sie unten ein Modell aus."
 	},
 	"tooltips": {
@@ -1736,7 +1749,16 @@
 			"badgeRecommended": "Empfohlen",
 			"badgeFast": "Schnell"
 		},
-		"languageCountBadge": "{count} Sprachen"
+		"languageCountBadge": "{count} Sprachen",
+		"skip": "Einrichtung überspringen",
+		"skipAria": "Einrichtung überspringen und Standardwerte verwenden",
+		"skipTitle": "Einrichtung überspringen?",
+		"skipDescription": "Die Einrichtung wird mit der Standard-Taste abgeschlossen, ohne Sprachmodell und ohne Cloud-Anbieter. Alles lässt sich später in den Einstellungen ändern.",
+		"skipConfirm": "Einrichtung überspringen",
+		"microphoneReady": "{count} Mikrofon(e) gefunden.",
+		"microphoneMissing": "Kein Mikrofon gefunden. Prüfen Sie die Eingabeeinstellungen des Systems oder öffnen Sie Einstellungen → Mikrofon.",
+		"microphoneCheck": "Erneut prüfen",
+		"orientation": "Nur ein paar schnelle Entscheidungen. Alles lässt sich später in den Einstellungen ändern."
 	},
 	"titleBar": {
 		"minimize": "Minimieren",
@@ -2430,5 +2452,12 @@
 		"reset": "Auf Standard zurücksetzen",
 		"open": "Debug-Bereich öffnen",
 		"close": "Debug-Bereich einklappen"
+	},
+	"dictionarySnippets": {
+		"title": "Wörterbuch und Snippets",
+		"description": "Korrigieren Sie, was die App hört, und verwalten Sie wiederverwendbare Snippets.",
+		"dictionary": "Wörterbuch",
+		"snippets": "Schnipsel",
+		"switcherAria": "Sammlungstyp"
 	}
 }

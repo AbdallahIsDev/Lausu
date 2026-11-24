@@ -65,8 +65,8 @@ def test_event_bus_count_matches_doc_and_code():
 
     from voice_typer.server.event_bus import EVENT_TYPES
 
-    assert len(EVENT_TYPES) == 61, (
-        f"EVENT_TYPES in voice_typer/server/event_bus.py must have 61 "
+    assert len(EVENT_TYPES) == 62, (
+        f"EVENT_TYPES in voice_typer/server/event_bus.py must have 62 "
         f"entries (actual: {len(EVENT_TYPES)}). Update doc + test together."
     )
 

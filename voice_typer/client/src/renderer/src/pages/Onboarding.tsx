@@ -13,9 +13,10 @@
 //     Microphone), the OS-permissions step (keyboard monitoring is
 //     standard app behavior, not a consent gate) and the "You are all
 //     set" summary step were removed.
-//   - MANDATORY: the Skip button and its confirmation dialog are
-//     removed entirely (ONB-3). Init failures use the shared themed
-//     failure screen.
+//   - Skip was removed in ONB-3 and is now back as a CONFIRMED action:
+//     `onboarding_skip` is the backend's second valid completion path, so
+//     a user can finish with defaults without half-applying a step. Init
+//     failures still use the shared themed failure screen.
 //   - Header (ONB-1): the Back button is hidden on step 1 (nowhere to
 //     go back to) and appears from step 2 onward; the top-right step
 //     title above the progress bar is removed (it duplicated the card
@@ -28,9 +29,11 @@
 // wizard follows the canonical guard pattern so no setState lands after
 // unmount. The init effect lives in `./onboarding/hooks/useOnboardingWizard.ts`.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Skeleton } from "skullet/react";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { ErrorState } from "@/components/feedback/ErrorState";
+import { LevelBar } from "@/components/feedback/LevelBar";
 import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { formatHotkey } from "@/components/hotkey/hotkey-format";
 import { Button } from "@/components/ui/button";
@@ -81,6 +84,10 @@ export default function OnboardingPage({
 		downloadProgress,
 		downloadFailed,
 		handleDownload,
+		modelStatus,
+		microphoneCount,
+		checkMicrophones,
+		handleSkip,
 		cloudProvider,
 		setCloudProvider,
 		cloudApiKey,
@@ -98,6 +105,9 @@ export default function OnboardingPage({
 	// Must be declared before any early return so the hooks are
 	// called unconditionally (React Rules of Hooks).
 	const initErrorRef = useRef<HTMLButtonElement | null>(null);
+	// Skip is a confirmed action: it completes setup with backend defaults,
+	// so the dialog must say that before the click can take effect.
+	const [skipConfirmOpen, setSkipConfirmOpen] = useState(false);
 	useEffect(() => {
 		if (initError && initErrorRef.current) {
 			initErrorRef.current.focus();
@@ -123,24 +133,18 @@ export default function OnboardingPage({
 										total: String(s.total_steps),
 									})}
 								</div>
-								<div
-									className="h-1.5 w-full rounded-full bg-surface-subtle"
-									role="progressbar"
-									aria-valuenow={s.step + 1}
-									aria-valuemin={1}
-									aria-valuemax={s.total_steps}
-									aria-label={t("onboarding.progressAria", {
+								<LevelBar
+									level={(s.step + 1) / s.total_steps}
+									playing={false}
+									ariaLabel={t("onboarding.progressAria", {
 										current: String(s.step + 1),
 										total: String(s.total_steps),
 									})}
-								>
-									<div
-										className="h-1.5 rounded-full bg-accent transition-all duration-300"
-										style={{
-											width: `${((s.step + 1) / s.total_steps) * 100}%`,
-										}}
-									/>
-								</div>
+									ariaValueText={t("onboarding.stepProgress", {
+										current: String(s.step + 1),
+										total: String(s.total_steps),
+									})}
+								/>
 							</div>
 							<ModelStep
 								headingRef={headingRef}
@@ -153,6 +157,7 @@ export default function OnboardingPage({
 								downloadProgress={0}
 								downloadFailed={false}
 								onDownload={handleDownload}
+								modelStatus={{}}
 								cloudProvider="openai"
 								setCloudProvider={setCloudProvider}
 								cloudApiKey=""
@@ -213,8 +218,8 @@ export default function OnboardingPage({
 	// the canonical formatter so the label is localized ("Caps Lock").
 	const showDefaultHotkeyHint =
 		isFinalStep && selectedHotkey === HOTKEY_DEFAULT;
-	//block the final step's Finish button until the wizard collected
-	// every mandatory selection (no Skip exists to bypass them).
+	// Block the Finish button until a model is chosen. The confirmed Skip
+	// action is the explicit "use defaults instead" escape hatch.
 	const isModelStepBlocked = step.step_name === "Model" && !selectedModel;
 
 	return (
@@ -231,22 +236,18 @@ export default function OnboardingPage({
 						})}
 					</span>
 				</div>
-				<div
-					className="h-1.5 w-full rounded-full bg-surface-subtle"
-					role="progressbar"
-					aria-valuenow={step.step + 1}
-					aria-valuemin={1}
-					aria-valuemax={step.total_steps}
-					aria-label={t("onboarding.progressAria", {
+				<LevelBar
+					level={progress / 100}
+					playing={false}
+					ariaLabel={t("onboarding.progressAria", {
 						current: String(step.step + 1),
 						total: String(step.total_steps),
 					})}
-				>
-					<div
-						className="h-1.5 rounded-full bg-accent transition-all duration-300"
-						style={{ width: `${progress}%` }}
-					/>
-				</div>
+					ariaValueText={t("onboarding.stepProgress", {
+						current: String(step.step + 1),
+						total: String(step.total_steps),
+					})}
+				/>
 			</div>
 
 			{/* sr-only page heading + aria-live step-change announcements
@@ -271,7 +272,11 @@ export default function OnboardingPage({
 			    accordion. */}
 			<div className="flex w-full flex-col gap-4 rounded-lg border border-border/8 bg-surface p-8">
 				{step.step_name === "Welcome" && (
-					<WelcomeStep headingRef={headingRef} />
+					<WelcomeStep
+						headingRef={headingRef}
+						microphoneCount={microphoneCount}
+						onCheckMicrophones={() => void checkMicrophones()}
+					/>
 				)}
 				{step.step_name === "Consent" && (
 					<ConsentStep
@@ -293,6 +298,7 @@ export default function OnboardingPage({
 						downloadProgress={downloadProgress}
 						downloadFailed={downloadFailed}
 						onDownload={handleDownload}
+						modelStatus={modelStatus}
 						cloudProvider={cloudProvider}
 						setCloudProvider={setCloudProvider}
 						cloudApiKey={cloudApiKey}
@@ -314,8 +320,8 @@ export default function OnboardingPage({
 				    `handleApply` awaits `onboarding_apply`; when it rejects,
 				    applyError flips and this alert explains why setup didn't
 				    finish while Get Started stays available as the retry
-				    affordance. There is no Skip escape hatch (ONB-3): the
-				    user retries the apply. */}
+				    affordance; the user can also choose the confirmed Skip
+				    action to finish with defaults. */}
 				{isFinalStep && applyError && (
 					<div
 						role="alert"
@@ -357,9 +363,19 @@ export default function OnboardingPage({
 							</span>
 						)}
 						<div className="flex items-center gap-2">
-							{/* No Skip button anywhere (ONB-3): onboarding is
-							    mandatory; the only exits are completing the flow
-							    or the init-error Retry. */}
+							{/* Confirmed Skip: a second valid completion path
+							    on the backend, which marks setup complete with
+							    defaults and preserves first-run semantics. */}
+							<Button
+								type="button"
+								variant="ghost"
+								onClick={() => setSkipConfirmOpen(true)}
+								disabled={submitting}
+								aria-label={t("onboarding.skipAria")}
+								data-testid="onboarding-skip"
+							>
+								{t("onboarding.skip")}
+							</Button>
 							<Button
 								type="button"
 								variant="default"
@@ -379,6 +395,18 @@ export default function OnboardingPage({
 					</div>
 				</div>
 			</div>
+			<ConfirmDialog
+				open={skipConfirmOpen}
+				title={t("onboarding.skipTitle")}
+				message={t("onboarding.skipDescription")}
+				confirmLabel={t("onboarding.skipConfirm")}
+				cancelLabel={t("common.cancel")}
+				onConfirm={() => {
+					setSkipConfirmOpen(false);
+					void handleSkip();
+				}}
+				onCancel={() => setSkipConfirmOpen(false)}
+			/>
 		</div>
 	);
 }

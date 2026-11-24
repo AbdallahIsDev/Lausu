@@ -101,6 +101,10 @@ Events emitted via ``event_bus.publish`` (the modern path):
   ``stopped`` / ``finished``) published by ``tts/manager.py`` on start, on
   a stop request, and on natural end so the icon-only control returns to
   play without polling.
+* Local TTS pack download: ``tts_prepare_progress``
+  (``{engine, artifact, artifact_index, artifact_count, bytes_done,
+  bytes_total, percent}``) published by ``tts/manager.py`` while a pack is
+  fetched, so the Models row shows real progress instead of a bare spinner.
 
 Master plan §7.4, runtime-pack / worker IPC events (13 event
 types introduced by the slim-core / runtime-pack split, plus the PK-1
@@ -164,7 +168,7 @@ server):
   former is a per-transition signal with just ``status``; the latter
   is the connect-time snapshot with a ``message`` field.
 
-Total: 61 events, the live count is ``len(EVENT_TYPES)`` and this
+Total: 62 events, the live count is ``len(EVENT_TYPES)`` and this
 sentence is kept in lockstep with it by
 ``tests/test_event_bus.py::TestCanonicalCatalogue
 ::test_catalogue_total_count_updated``. Update this docstring whenever
@@ -217,6 +221,8 @@ EVENT_TYPES: frozenset[str] = frozenset(
         "microphones_changed",
         # Local TTS playback transitions (start / stop / natural end).
         "tts_playback_state",
+        # Local TTS pack download progress (byte counter → Models row).
+        "tts_prepare_progress",
         "audio_clip",
         "recording_started",
         "recording_stopped",

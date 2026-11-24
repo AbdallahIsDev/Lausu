@@ -52,13 +52,13 @@ vi.mock("@/components/common/RangeSlider", () => ({
 }));
 
 import { makeConfig } from "@/__tests__/helpers/fixtures";
+import { DictionaryAutomationSettings } from "@/components/settings/DictionaryAutomationSettings";
 import { LlmPolishingSettingsSection } from "@/components/settings/LlmPolishingSettingsSection";
-import { PostProcessingSettingsSection } from "@/components/settings/PostProcessingSettingsSection";
 
 const alwaysVisible = () => true;
 const noopUpdate = () => {};
 
-describe("PostProcessingSettingsSection, vocab automation row", () => {
+describe("DictionaryAutomationSettings", () => {
 	beforeEach(() => {
 		sliderInstances.length = 0;
 	});
@@ -69,7 +69,7 @@ describe("PostProcessingSettingsSection, vocab automation row", () => {
 
 	it("renders the Vocabulary Automation toggle with zero sliders", () => {
 		render(
-			<PostProcessingSettingsSection
+			<DictionaryAutomationSettings
 				config={makeConfig({
 					vocabulary_automation_enabled: true,
 				})}
@@ -84,20 +84,17 @@ describe("PostProcessingSettingsSection, vocab automation row", () => {
 		).toBeTruthy();
 	});
 
-	it("renders the Text Snippets row with toggle and Open Text Snippets button", () => {
-		const navigate = vi.fn();
+	it("renders the Text Snippets row with its toggle and no leave-page button", () => {
 		render(
-			<PostProcessingSettingsSection
+			<DictionaryAutomationSettings
 				config={makeConfig({ templates_enabled: true })}
 				updateConfig={noopUpdate}
 				updateConfigDebounced={noopUpdate}
 				isVisible={alwaysVisible}
-				onNavigate={navigate}
 			/>,
 		);
-		expect(screen.getByTestId("open-templates-button")).toBeTruthy();
-		fireEvent.click(screen.getByTestId("open-templates-button"));
-		expect(navigate).toHaveBeenCalledWith("templates");
+		expect(screen.getByRole("switch", { name: "Text Snippets" })).toBeTruthy();
+		expect(screen.queryByTestId("open-templates-button")).toBeNull();
 	});
 });
 

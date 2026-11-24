@@ -101,6 +101,8 @@ pub(super) const ALLOWED_EVENT_TYPES: &[&str] = &[
     "provider_local_onnx_state",
     // Local TTS playback transitions (playing / stopped / finished).
     "tts_playback_state",
+    // Local TTS pack download byte counter (Models row progress).
+    "tts_prepare_progress",
     // Push-to-talk voice conversation turn (phase + user/assistant text).
     "chat_turn",
     // CUDA install job progress for the device-switch flow.

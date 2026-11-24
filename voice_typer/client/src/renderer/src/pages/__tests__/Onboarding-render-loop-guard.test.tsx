@@ -12,15 +12,18 @@ const commands: GuardCommand[] = [
 		response: { step: 0, total_steps: 4, step_name: "Welcome" },
 	},
 	{ name: "get_config", response: makeConfig({}) },
-	// NOT probe microphones anymore (expected 0 pins the removal).
+	// The Welcome step shows a read-only mic check, so this probe is back
+	// (once per init, never in a render loop).
 	{
 		name: "onboarding_get_microphones",
-		response: { microphones: [] },
-		expected: 0,
+		response: { microphones: [{ id: "default" }] },
+		expected: 1,
 	},
 	{ name: "onboarding_get_hotkey_presets", response: { presets: ["F2"] } },
 	{ name: "onboarding_get_model_options", response: { models: [] } },
 	{ name: "get_model_catalog", response: { models: [] } },
+	// Installed/Select states read the shared disk-status IPC once.
+	{ name: "get_model_status", response: {}, expected: 1 },
 ];
 
 renderLoopGuard({

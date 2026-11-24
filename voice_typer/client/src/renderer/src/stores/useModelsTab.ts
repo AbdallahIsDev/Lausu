@@ -1,7 +1,8 @@
 import { create } from "zustand";
 
-/** Local / Cloud tab on Models — shared by the page + title-bar switcher. */
-export type ModelsTab = "local" | "cloud";
+/** Local / Cloud / Text-to-Speech tab on Models — shared by the page + title-bar switcher.
+ *  `plugins` is developer-only: gated in both the switcher and the page. */
+export type ModelsTab = "local" | "cloud" | "tts" | "plugins";
 
 export interface ModelsTabState {
 	activeTab: ModelsTab;
@@ -12,7 +13,9 @@ function readPersisted(): ModelsTab {
 	try {
 		const raw = sessionStorage.getItem("vt:filters:models.activeTab");
 		const parsed = raw ? (JSON.parse(raw) as ModelsTab) : "local";
-		return parsed === "cloud" ? "cloud" : "local";
+		return parsed === "cloud" || parsed === "tts" || parsed === "plugins"
+			? parsed
+			: "local";
 	} catch {
 		return "local";
 	}

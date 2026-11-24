@@ -151,6 +151,7 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             // download, and speak.
             "tts_status",
             "tts_prepare",
+            "tts_delete",
             "tts_speak",
             // Stops the clip the icon-only Test control is playing.
             "tts_stop",

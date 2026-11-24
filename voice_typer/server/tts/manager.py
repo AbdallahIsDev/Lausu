@@ -11,6 +11,7 @@ import atexit
 import json
 import logging
 import os
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -69,6 +70,7 @@ class TtsManager:
 
     config: Any
     _service: TtsService | None = field(default=None, init=False, repr=False)
+    _last_prepare_progress: tuple | None = field(default=None, init=False, repr=False)
 
     # ------------------------------------------------------------------ paths
 
@@ -185,20 +187,72 @@ class TtsManager:
 
     # -------------------------------------------------------------- preparing
 
+    def _publish_prepare_progress(
+        self,
+        engine: str,
+        artifact: str,
+        index: int,
+        count: int,
+        done: int,
+        total: int,
+    ) -> None:
+        """Stream one throttled byte counter to the Models row (best effort)."""
+        if total <= 0:
+            return
+        percent = max(0, min(100, int(done * 100 / total)))
+        now = time.monotonic()
+        last = self._last_prepare_progress
+        if last is not None and last[0] == (engine, index) and now - last[1] < 0.1 and percent < 100:
+            return
+        self._last_prepare_progress = ((engine, index), now)
+        try:
+            from voice_typer.server import event_bus
+
+            event_bus.publish(
+                {
+                    "type": "tts_prepare_progress",
+                    "data": {
+                        "engine": engine,
+                        "artifact": artifact,
+                        "artifact_index": index,
+                        "artifact_count": count,
+                        "bytes_done": done,
+                        "bytes_total": total,
+                        "percent": percent,
+                    },
+                }
+            )
+        except Exception:
+            log.debug("[TTS] prepare-progress publish failed", exc_info=True)
+
     def prepare(self, engine: str) -> dict[str, object]:
         """Download one engine's pack into the HF folder."""
         if engine == "audio8":
             self._runtime_for("audio8")
             target = model_dir("audio8")
-            for artifact in packs.AUDIO8_ARTIFACTS:
-                artifact.download(target)
+            artifacts = packs.AUDIO8_ARTIFACTS
+            for index, artifact in enumerate(artifacts, start=1):
+                self._publish_prepare_progress(engine, artifact.filename, index, len(artifacts), 0, artifact.size_bytes)
+
+                def progress(done: int, total: int, *, item=artifact, at=index) -> None:
+                    self._publish_prepare_progress(engine, item.filename, at, len(artifacts), done, total)
+
+                # `Artifact.download` verifies exact pinned size + GGUF magic
+                # before the atomic rename, so a truncated transfer never
+                # becomes an installed row.
+                artifact.download(target, progress=progress)
             return {"engine": engine, "downloaded": [a.filename for a in packs.AUDIO8_ARTIFACTS]}
         if engine == "magpie":
             # Magpie's tokenizer lives inside its .nemo archive; the runtime's
-            # own `pull` is the documented, verified way to fetch all three.
+            # own `pull` is the documented, verified way to fetch all three
+            # (it checks size + publisher SHA itself). The CLI gives no byte
+            # stream, so the row shows determinate start/end steps, not a
+            # fabricated percentage curve.
             binary = self._runtime_for("magpie")
             target = model_dir("magpie")
             target.mkdir(parents=True, exist_ok=True)
+            total = packs.total_bytes(packs.MAGPIE_ARTIFACTS)
+            self._publish_prepare_progress(engine, "magpie pull", 1, 1, 0, total)
             env = {**os.environ, "NEMO_SPEECH_MODEL_DIR": str(target)}
             completed = subprocess.run(  # noqa: S603 - fixed argv
                 [str(binary), "pull", "magpie"],
@@ -210,8 +264,34 @@ class TtsManager:
             )
             if completed.returncode != 0:
                 raise TtsError(f"magpie pull failed: {(completed.stderr or completed.stdout)[-500:]}")
+            self._publish_prepare_progress(engine, "magpie pull", 1, 1, total, total)
             return {"engine": engine, "models_dir": str(target)}
         raise TtsError(f"unknown tts engine: {engine}")
+
+    # ---------------------------------------------------------------- deleting
+
+    def delete(self, engine: str) -> dict[str, object]:
+        """Remove one engine's downloaded model pack from the HF folder."""
+        if engine not in ENGINES:
+            raise TtsError(f"unknown tts engine: {engine}")
+        was_active = str(getattr(self.config, "tts_engine", "off") or "off") == engine
+        installed = self._installed(engine)
+        service = getattr(self, "_service", None)
+        if service is not None:
+            service.stop()
+            self._service = None
+        if was_active:
+            self.stop_playback()
+        root = model_dir(engine)
+        if root.is_dir():
+            shutil.rmtree(root)
+        log.info("[TTS] deleted pack engine=%s was_active=%s", engine, was_active)
+        return {
+            "engine": engine,
+            "deleted": installed,
+            "was_active": was_active,
+            "models_dir": str(root),
+        }
 
     # ---------------------------------------------------------------- speaking
 

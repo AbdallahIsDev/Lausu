@@ -2010,3 +2010,71 @@ Known Limitations:
 - ChatGPT's selectors are NOT measured live: the control SEMANTICS come from two independent working implementations (herrkaefer/micpipe, bibryam/chatgpt-dictate) and the layout anchors from public DOM reports. A signed-in `probe.js` run is still required to confirm the idle-slot anchor and the live applicability of every fallback.
 - No browser is available in this environment, so start / commit / delivery / clearing / cancellation were verified against the DOM harness, not against the real page.
 - The corpus comparison + automatic field report (`xerj`) could not run: `xerj` is not installed here.
+
+## 2026-11-24 — Models TTS destination, Plugins route gate, onboarding resume
+
+- Added a dedicated Text-to-Speech choice to the Models title-bar selector. Local and Cloud remain context-synced to the active ASR backend; an explicit TTS selection persists across navigation, and only the selected TTS panel renders. Added translated labels and locale-parity coverage in all eight catalogs.
+- Added a renderer-side Plugins route gate using `developer_mode`, alongside the existing stale-route redirect and server-side inventory gate. Added route coverage and a locked-workspace server test.
+- Onboarding now resumes a valid saved cloud provider/backend and retains its configured cloud model when continuing. The API-key input stays blank (`get_config` redacts secrets), and blank secrets are omitted from `set_config`.
+- About & Privacy now lives as a Settings hub row and dedicated section page, as explicitly selected by the owner. Its disclosures and legacy `aboutAndPrivacy` deep-link route remain; consent controls still live in Settings → Privacy.
+
+## Validation Performed
+
+- Targeted renderer Vitest: **140 passed across 5 files** (`ModelsPage`, `PageSwitch`, locale parity, `Onboarding`, onboarding overhaul). Re-ran the onboarding file after making its loading-sample test release its pending request cleanly: **10 passed**.
+- Biome: **18 client files clean** before the About move; after integration, a fresh check of **34 modified client files** passed. `npm run typecheck` and `git diff --check` passed.
+- About & Privacy integration validation: focused renderer Vitest passed **192 tests across 14 files**, covering the Settings section, search/title routing, sidebar removal and accessibility order, the retained `aboutAndPrivacy` route, and consent navigation/controls in Settings → Privacy. Additional source-guard, Skullet, and document-title tests passed; the Settings-section axe scan passed.
+- Optional full axe-core file: **18 passed, 1 failed**. The Models accordion emits an `h3` heading-order violation (`AccordionTrigger`/`ModelGroupTrigger`); this is separate from the About & Privacy move and remains open.
+- Selected Python checks recorded earlier in this branch: plugin registry **50 passed**; translation **25 passed** with `PYTHONPATH=.`. No full Python suite or complete frontend suite was run.
+
+## Known Limitations
+
+- No GUI/manual browser walkthrough was performed. Vitest still emits the existing invalid nested-button warning from `ModelGroupTrigger` actions, plus non-fatal Vite config and expected mocked-error logs; the nested-button issue is outside this patch's scope and remains for separate review.
+- Node 22.22.3 is below the client package's declared Node >=24 engine.
+- The six-case translation detector classification test remains absent; translation behavior was not changed in this patch.
+- About & Privacy is now a Settings hub section. The legacy `aboutAndPrivacy` route and privacy disclosures are preserved; consent controls remain in Settings → Privacy.
+
+## 2026-11-24 — A–E continuation: pre-implementation audit
+
+### Verified before edits
+
+- Settings has a canonical section registry and one search-label map. Bubble controls already live on `settingsOverlay` and persist through the existing config update path; the hub summary reads `bubble_behavior`.
+- `settingsTranscription` currently owns transcription language/translation/text cleanup plus `templates_enabled` and `vocabulary_automation_enabled`. Those two settings already persist through the typed config allowlist; this reorganization can move their controls without introducing new config fields or changing backend behavior. Templates and Vocabulary are separate collection pages with their own routes.
+- Models already has Local, Cloud, and TTS choices. Plugins is gated in the sidebar, app redirect, PageSwitch, and backend inventory handler; any new Models entry must retain `developer_mode` as the renderer visibility condition and keep the backend gate authoritative.
+- Translation remains the existing local `TranslationService`/llama-server pipeline; the current tests cover prompt, preservation, detection, pipeline and failure paths, but no repeatable latency harness or distribution report was found. The benchmark must be opt-in, use already-installed local assets only, and never download a model/runtime.
+- The native bubble is already a dedicated Tauri window plus a restricted renderer bridge; inspected GPUI examples are Linux/Wayland-specific. A document-only platform assessment is safer than implying a cross-platform implementation or adding a second window system.
+- Onboarding resume changes and cloud-secret redaction tests already exist in the dirty tree. Preserve them; verify them after A/B rather than rewrite the backend config contract.
+
+### Search / ruled out
+
+- GitHub web search returned examples of grouped Settings hubs, but no reusable pattern that supersedes Lausu's existing typed registry/search/hub; use the current abstraction.
+- Xerj is not installed in this environment (checked earlier in this session); source tracing and focused tests remain the available local-reference path.
+- No translation, GPUI, Tauri-window, config-schema, or IPC implementation has been changed in this continuation at this point.
+
+## 2026-11-25 — Sub-agent B: Models tabs (TTS + dual-gated Plugins) + axe heading order
+
+- Axe fix (root cause, no rule filtering): Radix `AccordionPrimitive.Header` rendered `<h3>` directly under the Models page `<h1>`. `components/ui/accordion.tsx` now accepts `headingLevel={2}` via `asChild`; `ModelGroupList.tsx` uses it and `ModelVariantRow` rows default to `<h3>`. `axe-core.test.tsx` "Models page (stub lifecycle)" passes.
+- B1 TTS: engine ids now come only from `tts_status.engines` (no renderer id literal). Added `tts_delete` end-to-end (manager → service canonical `apply_config` → handler → Python registry/rate limiter → Rust allowlist/dispatch → TS request type → docs + all count pins). Added dedicated `tts_prepare_progress` push event (Python event bus, Rust WS allowlist, TS union + known-event set), wired `Artifact.download(progress=...)` with ~10 Hz throttle; Audio8 gets real byte progress, Magpie's opaque CLI reports start/end only — no fabricated curve. The Models row renders the shared `LevelBar` with `aria-valuenow`/`aria-valuetext`; installed non-active rows get a Delete button. Verification stays publisher-pinned size + GGUF magic (Audio8) and runtime SHA (Magpie); no hash invented.
+- B2 Plugins: content moved into `components/models/PluginsPanel.tsx` mounted on a fourth Models tab; dual gate `developer_mode` AND `get_plugins.available` via `usePluginsUnlocked`. Old `plugins` route is now an alias to Models and App redirects there. Backend plugin gates untouched. Frozen-build test proves the tab is absent when the server flag is false; panel tests use fake plugins with no network.
+- B3 doc: `docs/design/models-page-tabs.md` (tab model, gating evidence, TTS states/verification, license notes).
+- Rule added: C-PLUGIN-4 (developer-only surfaces need the backend availability flag too; local reveal alone is not enough).
+- Validation: targeted vitest 9 files / 110 passed; extra TitleBar + consent behavior tests 47 passed; client `npm run typecheck:ci` exit 0; `npx biome check` clean on 19 touched files; Python focused `test_tts_wiring`, `test_ipc_command_parity`, `test_security_doc_command_count`, `test_event_bus`, `test_event_types_parity`, `tests/tauri/mig19/test_phase4_validation`, `test_ipc_server` → 351 passed; full vitest in flight at report time.
+- Final validation: full Vitest **423 files / 4874 passed, 7 skipped, 0 failed** on the delivered state; `tests/test_architecture_doc_accuracy.py` 15 passed after the event-count pin was bumped 61→62. `cargo check` is GREEN with MSYS2 `dlltool.exe` on PATH and a fresh `--target-dir` (the shared target dir is locked by two pre-existing cargo processes + a running `lausu-tauri` from another session — os error 32, not a code failure). No full pytest run (worker-session rule).
+
+## 2026-11-25 — Sub-agent B, wave 2: TASK E onboarding UX
+
+- E1 audit + plan: `docs/design/onboarding-ux-plan.md` (plain-English summary first, per-area file:line audit, prioritized plan, ruled-out options, owner visual checklist, license notes).
+- E2 implemented: `server/onboarding_selections.py::visible_model_options` now derives the five production models + sizes from `gguf_model_registry` (no `tiny`, no curated sizes; legacy `MODEL_OPTIONS` untouched for existing callers). Renderer hook fetches `get_model_status` + `onboarding_get_microphones`, makes the catalog enrich only the visible set (catalog-only rows, including source-build `tiny`, are never appended), and exposes `handleSkip` via the existing `onboarding_skip` completion path. ModelStep now shows Download/Select/Active from real disk state; Welcome shows a mic check with re-probe; Onboarding has confirmed Skip, shared `LevelBar` progress (no hand-rolled bars / `transition-all`), and `motion-reduce` overrides. Added short orientation copy + all new keys in all 8 locales (additive).
+- E3 tests: new `pages/onboarding/__tests__/onboarding-ux-improvements.test.tsx` (model states, consent-before-download ordering, mic check, skip confirm, Back, i18n completeness) + `tests/test_onboarding_registry_options.py` (five production models, registry-derived sizes, registry default). Updated `onboarding-overhaul.test.tsx` for the new catalog merge contract.
+- Validation: focused Vitest 7 files / 153 passed; two contract-pin suites (render-loop guard 1 probe, skeleton sample list) fixed and green; Python onboarding suites 147 + 3 new + i18n parity 45 passed/1 skipped; typecheck exit 0; biome clean on touched TS + all 8 locale JSONs; ruff clean on touched Python. Final full Vitest: **424 files / 4889 passed, 7 skipped, 0 failed**. No full pytest run (worker-session rule).
+- Rule notes: no conflict with C-PLUGIN-4 (no plugin surface touched). No IPC contract change; reused existing commands only.
+
+
+## 2026-11-25 - Orchestrator final validation (single-branch delivery)
+
+- Full renderer suite: Vitest 424 files / 4889 passed, 7 skipped, 0 failed. `npm run typecheck:ci` exit 0; `npm run build` exit 0; `npx biome check` clean on touched client files.
+- Full backend suite: `pytest tests/ -n auto --dist=loadgroup -q --no-cov --tb=short` with TEMP/TMP redirected to D:\pytest-temp (C: was down to ~3 GB and 7 CUDA-install tests failed with `insufficient_disk`; with roomy temp those 7 pass): **19419 passed, 886 skipped, 6 failed**.
+- The 6 remaining failures are OTHER / pre-existing from the already-merged service/model split, not touched by this program's agents: `test_gguf_model_registry.py::test_only_the_registry_module_reads_raw_gguf_models` (raw GGUF_MODELS read in `service/model/_download_dispatch.py:303`), `test_model_download_precheck.py::TestIsActiveModelDownloaded::test_parakeet_missing_false`, two `test_module_split_reexports_wave9.py::TestDownloadsComposite` pins, `test_protocol_payload_typeddicts.py::TestHistoryEntry::test_projected_row_keys_match_typeddict` (`has_original` projection gap), `test_split_mixin_declarations.py::test_mixin_type_checking_stubs_present`. Owned files in this diff are unrelated (`providers.py` only gained the `tts_delete` protocol stub). Not fixed here to avoid editing another session's in-flight contract.
+- Other gates: `cargo check --all-targets` exit 0 (MSYS2 mingw64 `dlltool.exe` on PATH, fresh `CARGO_TARGET_DIR=D:\lausu-cargo-check-final`); ruff check + format --check clean on 21 touched Python files (4 were reformatted for line length); `check_branding.py` OK; `sync_versions.py --check` OK; `generate_third_party_notices.py --check` OK; `generate_beeps.py --check` OK; event/IPC/device parity 46 passed; doc-count and no-legacy-ASR guards 23 passed after updating CONTRIBUTING.md, SECURITY.md, FEATURES.md and docs/ipc-reference.md to 110 Python / 105 Rust commands and 74 typed push events.
+- Pyrefly 1.1.1 reports 2553 repo-wide raw errors (baseline file has 352; baseline-accuracy test 19 passed); zero errors in files touched by this program. Environment/baseline discrepancy, recorded as such, not claimed green.
+- C-PLUGIN-4 was added to AGENTS.md and announced in worklog.md by sub-agent B; owner may veto.
+- UNVERIFIED: no GUI walkthrough/screenshots, no Windows frozen build, no GPUI link/run on a real desktop, no translation benchmark with the real model (see bench/README.md for the exact command). All such claims stay UNVERIFIED.

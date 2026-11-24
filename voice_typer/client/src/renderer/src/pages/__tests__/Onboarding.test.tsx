@@ -1,4 +1,5 @@
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -184,6 +185,53 @@ describe("Onboarding 4-step flow (server lockstep)", () => {
 	});
 });
 
+describe("Onboarding loading sample visibility", () => {
+	it("keeps the measured sample inert and hidden from assistive technology", async () => {
+		let resolveHotkeyPresets:
+			| ((value: { presets: string[] }) => void)
+			| undefined;
+		mockCall.mockImplementation((type: string) => {
+			if (type === "onboarding_start") {
+				return Promise.resolve({ step: 2, total_steps: 4, step_name: "Model" });
+			}
+			if (type === "onboarding_get_hotkey_presets") {
+				return new Promise<{ presets: string[] }>((resolve) => {
+					resolveHotkeyPresets = resolve;
+				});
+			}
+			if (type === "get_config") return Promise.resolve({});
+			if (type === "onboarding_get_model_options") {
+				return Promise.resolve({ models: [] });
+			}
+			if (type === "get_model_catalog") {
+				return Promise.resolve({ models: [] });
+			}
+			return Promise.resolve({});
+		});
+
+		renderWithProviders(<OnboardingPage onComplete={() => {}} />);
+
+		await waitFor(() => {
+			expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
+		});
+		const loadingRoot = document.querySelector('[aria-busy="true"]');
+		expect(
+			loadingRoot?.querySelector('[aria-hidden="true"][inert]'),
+		).not.toBeNull();
+		expect(screen.queryByRole("button", { name: /tiny/i })).toBeNull();
+
+		// Release the intentionally pending request inside the test act cycle
+		// and wait for initialization to finish before cleanup unmounts the page.
+		await act(async () => {
+			resolveHotkeyPresets?.({ presets: ["<f4>"] });
+		});
+		await screen.findByRole("heading", {
+			level: 2,
+			name: "Choose Your Model",
+		});
+	});
+});
+
 describe("Model step gating + selection", () => {
 	it("Continue is DISABLED when no model is selected (no default model)", async () => {
 		mockWizard({ startStep: 2, cfg: { model_size: "" } });
@@ -215,6 +263,49 @@ describe("Model step gating + selection", () => {
 			name: "Continue",
 		});
 		expect(continueBtn.hasAttribute("disabled")).toBe(false);
+	});
+
+	it("resumes the saved cloud provider/model without exposing or overwriting its API key", async () => {
+		mockWizard({
+			startStep: 2,
+			cfg: {
+				asr_backend: "cloud",
+				cloud_provider: "groq",
+				cloud_model: "whisper-large-v3-turbo",
+				groq_api_key: "<redacted>",
+				cloud_groq_consent: true,
+			},
+		});
+
+		renderWithProviders(<OnboardingPage onComplete={() => {}} />);
+
+		await screen.findByText("Step 3 of 4");
+		const cloudTab = screen.getByRole("tab", { name: "Cloud API" });
+		expect(cloudTab.getAttribute("aria-selected")).toBe("true");
+		const provider = screen.getByTestId(
+			"onboarding-cloud-provider",
+		) as HTMLSelectElement;
+		expect(provider.value).toBe("groq");
+		const apiKey = screen.getByTestId(
+			"onboarding-cloud-api-key",
+		) as HTMLInputElement;
+		expect(apiKey.value).toBe("");
+
+		fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+		await waitFor(() => {
+			const activation = mockCall.mock.calls.find(
+				(c: unknown[]) =>
+					c[0] === "set_config" &&
+					(c[1] as { asr_backend?: string } | undefined)?.asr_backend ===
+						"cloud",
+			);
+			expect(activation?.[1]).toMatchObject({
+				asr_backend: "cloud",
+				cloud_provider: "groq",
+				cloud_model: "whisper-large-v3-turbo",
+			});
+			expect(activation?.[1]).not.toHaveProperty("groq_api_key");
+		});
 	});
 
 	it("selecting an accordion row fires onboarding_set_model + onboarding_set_backend on Continue", async () => {

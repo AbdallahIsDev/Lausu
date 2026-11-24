@@ -16,13 +16,17 @@ log = logging.getLogger(__name__)
 
 
 def normalize_device(info: object) -> str | None:
-    """Map an engine ``device_info`` string to ``"cpu"`` / ``"cuda"``.
+    """Map an engine ``device_info`` string to the runner's device names.
 
-    Engines speak the user-facing words (``"GPU"``/``"CPU"``) while config
-    values stay ``"cuda"``/``"cpu"``; anything else (``"pack worker"``,
-    ``"cloud/openai"``) says nothing about local compute and stays unknown.
+    The runner advertises ``cpu``/``vulkan``/``cuda`` (ADR-0031). An
+    unqualified "GPU" keeps its historical ``cuda`` mapping so older
+    builds and engines stay compatible; an explicit Vulkan report is
+    preserved so the sidebar still shows the GPU position. Everything
+    else (``"pack worker"``, ``"cloud/openai"``) stays unknown.
     """
     text = str(info or "").strip().lower()
+    if "vulkan" in text:
+        return "vulkan"
     if text.startswith("gpu") or text.startswith("cuda"):
         return "cuda"
     if text == "cpu":
@@ -53,7 +57,7 @@ def resolve_active_device(app: Any) -> str | None:
 
 def publish_active_device(device: str | None) -> None:
     """Push the effective device onto the shared config snapshot."""
-    if device not in ("cpu", "cuda"):
+    if device not in ("cpu", "vulkan", "cuda"):
         return
     try:
         from voice_typer.server import event_bus

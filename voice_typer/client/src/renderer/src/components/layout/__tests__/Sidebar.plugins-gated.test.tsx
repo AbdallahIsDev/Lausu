@@ -22,7 +22,6 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 	return createHugeiconsMock();
 });
 
-// Gating is driven by the backend's `available` flag. Mocked per test.
 const mockPluginsAvailable = vi.fn<() => boolean>();
 vi.mock("@/hooks/usePluginCatalog", () => ({
 	usePluginsAvailable: () => mockPluginsAvailable(),
@@ -40,7 +39,6 @@ function renderSidebar() {
 	);
 }
 
-/** Nav leaf buttons, excluding the submenu flyout. */
 function navButtons(): HTMLElement[] {
 	return Array.from(
 		document.querySelectorAll<HTMLElement>(
@@ -49,49 +47,40 @@ function navButtons(): HTMLElement[] {
 	);
 }
 
-describe("Sidebar, developer-gated Plugins entry", () => {
+describe("Sidebar, Plugins is no longer a sidebar destination", () => {
 	afterEach(() => {
 		cleanup();
 		vi.clearAllMocks();
 	});
 
-	it("shows the Plugins destination on a developer install", () => {
+	it("never shows Plugins, even on a developer install", () => {
 		mockPluginsAvailable.mockReturnValue(true);
-		renderSidebar();
-		expect(screen.getByText(t("nav.plugins"))).toBeTruthy();
-	});
-
-	it("hides the Plugins destination on a shipped install", () => {
-		mockPluginsAvailable.mockReturnValue(false);
 		renderSidebar();
 		expect(screen.queryByText(t("nav.plugins"))).toBeNull();
 	});
 
-	it("keeps the rest of the nav intact when Plugins is hidden", () => {
+	it("shows the same nav on shipped installs", () => {
 		mockPluginsAvailable.mockReturnValue(false);
 		renderSidebar();
-		// Home / History / Settings must survive the filter.
 		expect(screen.getByText(t("nav.home"))).toBeTruthy();
 		expect(screen.getByText(t("nav.history"))).toBeTruthy();
+		expect(screen.getByText(t("nav.settings"))).toBeTruthy();
 	});
 
-	it("drops the gated item from keyboard order, not just the paint", () => {
-		// A hidden-but-focusable entry would still be reachable by Tab on a
-		// shipped build, so the roving-tabindex order must be filtered too.
-		mockPluginsAvailable.mockReturnValue(false);
+	it("keeps the gated nav item out of paint and keyboard order", () => {
+		mockPluginsAvailable.mockReturnValue(true);
 		renderSidebar();
 		const labels = navButtons().map((b) => b.textContent ?? "");
 		expect(labels.some((l) => l.includes(t("nav.plugins")))).toBe(false);
 	});
 
-	it("adds exactly one entry when the surface is available", () => {
+	it("does not change the nav length with the developer flag", () => {
 		mockPluginsAvailable.mockReturnValue(true);
 		renderSidebar();
 		const withGate = navButtons().length;
 		cleanup();
 		mockPluginsAvailable.mockReturnValue(false);
 		renderSidebar();
-		const withoutGate = navButtons().length;
-		expect(withGate - withoutGate).toBe(1);
+		expect(navButtons().length).toBe(withGate);
 	});
 });

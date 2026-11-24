@@ -6,12 +6,17 @@
 import { useEffect } from "react";
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import { isKnownPage } from "@/router/routes";
+import type { DictionaryTab } from "@/router/routes";
+import { isKnownPage, resolvePageAlias } from "@/router/routes";
 import type { Page } from "@/types/ipc";
 
 const STORAGE_KEY_NAV = "vt_nav_state";
 
 const MAX_NAV_HISTORY = 50;
+
+// Set by loadNavState() when a restored legacy route carries a tab; the
+// nav store seeds its one-shot tab intent from it. Not persisted.
+let pendingTabOnLoad: DictionaryTab | null = null;
 
 interface NavState {
 	page: Page;
@@ -45,9 +50,20 @@ function loadNavState(): NavState {
 				if (parsed.page === "microphone") {
 					return defaultNavState();
 				}
+				// A saved legacy route (old Settings section, old
+				// collection page, About) resolves to its current home on
+				// restore, so a deep link from an older build lands on
+				// real content instead of a dead end.
+				const resolved = resolvePageAlias(parsed.page);
+				const history = (parsed.history as Page[]).map(
+					(oldPage) => resolvePageAlias(oldPage).page,
+				);
+				if (resolved.dictionaryTab) {
+					pendingTabOnLoad = resolved.dictionaryTab;
+				}
 				return {
-					page: parsed.page,
-					history: parsed.history as Page[],
+					page: resolved.page,
+					history,
 					index: parsed.index,
 				};
 			}
@@ -90,11 +106,17 @@ export interface NavigateOptions {
 	 * optional row hint (e.g. the matched label string) so the
 	 */
 	settingsScrollTarget?: { rowHint?: string };
+	/**
+	 * Which half of the merged Dictionary & Snippets page to show. Set by
+	 * legacy `templates`/`vocabulary` routes and by in-app links; consumed
+	 * once by the page (like the consent deep-link).
+	 */
+	dictionaryTab?: DictionaryTab;
 }
 
 interface NavStore extends NavState {
 	navigate: (page: Page, opts?: NavigateOptions) => void;
-	replace: (page: Page) => void;
+	replace: (page: Page, opts?: NavigateOptions) => void;
 	goBack: () => void;
 	goForward: () => void;
 	/**
@@ -107,6 +129,8 @@ interface NavStore extends NavState {
 	 * {@link NavigateOptions.settingsScrollTarget}). NOT persisted.
 	 */
 	pendingSettingsScrollTarget: { rowHint?: string } | null;
+	/** One-shot tab target for the merged Dictionary & Snippets page. */
+	pendingDictionaryTab: DictionaryTab | null;
 	/**
 	 * Read-and-clear the pending consent deep-link target. Returns the
 	 * field (or ``null``) and resets it to ``null`` so a stale target
@@ -117,6 +141,8 @@ interface NavStore extends NavState {
 	 * Mirrors {@link consumeConsentField}, one-shot consumption.
 	 */
 	consumeSettingsScrollTarget: () => { rowHint?: string } | null;
+	/** Read-and-clear the one-shot Dictionary & Snippets tab target. */
+	consumeDictionaryTab: () => DictionaryTab | null;
 }
 
 const useNavStore = create<NavStore>()((set, get) => {
@@ -132,17 +158,24 @@ const useNavStore = create<NavStore>()((set, get) => {
 		...loadNavState(),
 		pendingConsentField: null,
 		pendingSettingsScrollTarget: null,
+		pendingDictionaryTab: pendingTabOnLoad,
 		navigate: (page, opts) => {
 			const { page: current, history, index } = get();
+			const resolved = resolvePageAlias(page);
+			const destination = resolved.page;
+			const tab = opts?.dictionaryTab ?? resolved.dictionaryTab;
 			if (opts?.consentField) {
 				set({ pendingConsentField: opts.consentField });
 			}
 			if (opts?.settingsScrollTarget) {
 				set({ pendingSettingsScrollTarget: opts.settingsScrollTarget });
 			}
-			if (page === current) return;
+			if (tab) {
+				set({ pendingDictionaryTab: tab });
+			}
+			if (destination === current) return;
 
-			let nextHistory = [...history.slice(0, index + 1), page];
+			let nextHistory = [...history.slice(0, index + 1), destination];
 			let nextIndex = index + 1;
 
 			if (nextHistory.length > MAX_NAV_HISTORY) {
@@ -151,18 +184,21 @@ const useNavStore = create<NavStore>()((set, get) => {
 				nextIndex = Math.max(0, nextIndex - overflow);
 			}
 
-			apply({ page, history: nextHistory, index: nextIndex });
+			apply({ page: destination, history: nextHistory, index: nextIndex });
 		},
 		/**
 		 * pushing a new entry onto the stack. Mirrors
 		 * route guards that should NOT appear in the back/forward
 		 */
-		replace: (page) => {
+		replace: (page, opts) => {
 			const { page: current, history, index } = get();
-			if (page === current) return;
+			const resolved = resolvePageAlias(page);
+			const tab = opts?.dictionaryTab ?? resolved.dictionaryTab;
+			if (tab) set({ pendingDictionaryTab: tab });
+			if (resolved.page === current) return;
 			const nextHistory = [...history];
-			nextHistory[index] = page;
-			apply({ page, history: nextHistory, index });
+			nextHistory[index] = resolved.page;
+			apply({ page: resolved.page, history: nextHistory, index });
 		},
 		goBack: () => {
 			const { history, index } = get();
@@ -192,6 +228,11 @@ const useNavStore = create<NavStore>()((set, get) => {
 			}
 			return target;
 		},
+		consumeDictionaryTab: () => {
+			const tab = get().pendingDictionaryTab;
+			if (tab) set({ pendingDictionaryTab: null });
+			return tab;
+		},
 	};
 });
 
@@ -204,6 +245,7 @@ export function _resetNavigationForTest(): void {
 		...loadNavState(),
 		pendingConsentField: null,
 		pendingSettingsScrollTarget: null,
+		pendingDictionaryTab: pendingTabOnLoad,
 	});
 	documentListenersInstalled = false;
 }
@@ -263,6 +305,7 @@ export function useNavigation() {
 	const pendingSettingsScrollTarget = useNavStore(
 		(s) => s.pendingSettingsScrollTarget,
 	);
+	const pendingDictionaryTab = useNavStore((s) => s.pendingDictionaryTab);
 	const {
 		navigate,
 		replace,
@@ -270,6 +313,7 @@ export function useNavigation() {
 		goForward,
 		consumeConsentField,
 		consumeSettingsScrollTarget,
+		consumeDictionaryTab,
 	} = useNavStore(
 		useShallow((s) => ({
 			navigate: s.navigate,
@@ -278,6 +322,7 @@ export function useNavigation() {
 			goForward: s.goForward,
 			consumeConsentField: s.consumeConsentField,
 			consumeSettingsScrollTarget: s.consumeSettingsScrollTarget,
+			consumeDictionaryTab: s.consumeDictionaryTab,
 		})),
 	);
 
@@ -297,5 +342,7 @@ export function useNavigation() {
 		consumeConsentField,
 		pendingSettingsScrollTarget,
 		consumeSettingsScrollTarget,
+		pendingDictionaryTab,
+		consumeDictionaryTab,
 	};
 }

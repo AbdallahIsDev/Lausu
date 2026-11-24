@@ -37,8 +37,8 @@ describe("useDocumentTitle", () => {
 		renderHook(() => useDocumentTitle({ currentPage, t }));
 		// The registry key (NOT a nav.* duplicate), hub row, card
 		// heading, and window title all read the same source.
-		expect(t).toHaveBeenCalledWith("settings.privacy.privacyTitle");
-		expect(document.title).toBe("settings.privacy.privacyTitle, Lausu");
+		expect(t).toHaveBeenCalledWith("settings.privacyConsentTitle");
+		expect(document.title).toBe("settings.privacyConsentTitle, Lausu");
 	});
 
 	it("re-titles when the route changes", () => {

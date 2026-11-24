@@ -68,6 +68,16 @@ describe("DeviceToggle", () => {
 		expect(checkedLabel()).toBe("GPU");
 	});
 
+	it("treats a Vulkan-backed engine as GPU (runner backends are cpu/vulkan/cuda)", () => {
+		setConfigSnapshot({
+			device: "vulkan",
+			active_device: "vulkan",
+			gpu_available: true,
+		});
+		render(<DeviceToggle />);
+		expect(checkedLabel()).toBe("GPU");
+	});
+
 	it("falls back to the request when no effective device is reported", () => {
 		setConfigSnapshot({ device: "cuda", gpu_available: true });
 		render(<DeviceToggle />);

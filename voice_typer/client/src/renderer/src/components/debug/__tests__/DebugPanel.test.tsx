@@ -81,13 +81,9 @@ describe("DebugPanel", () => {
 			"red",
 		);
 		expect(localStorage.getItem("lausu-ui-debug-badge-hue")).toBe("red");
-
-		const srcRoot = resolve(import.meta.dirname, "../../../");
-		const sidebar = readFileSync(
-			resolve(srcRoot, "components/layout/Sidebar.tsx"),
-			"utf-8",
-		);
-		expect(sidebar).toContain("hue={badgeHue}");
+		// The badge had one home (the Plugins nav leaf); with that leaf
+		// removed from the rail the preference is still persisted for the
+		// DebugPanel, but no sidebar source pin remains.
 	});
 
 	it("reset returns both preferences to the shipped defaults", () => {

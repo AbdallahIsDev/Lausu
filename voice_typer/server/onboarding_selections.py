@@ -72,15 +72,49 @@ class _OnboardingSelectionsMixin:
     # The Model step's local-vs-cloud choice. The app NEVER downloads
     BACKEND_CHOICES: tuple[str, ...] = ("local", "cloud")
 
+    @staticmethod
+    def _size_label(download_size_mb: int) -> str:
+        """Human size derived from the registry byte count (never curated)."""
+        if download_size_mb >= 1000:
+            gb = download_size_mb / 1000
+            return f"~{gb:.1f}GB".replace(".0GB", "GB")
+        return f"~{download_size_mb}MB"
+
     @classmethod
     def visible_model_options(cls) -> list[dict]:
-        """Model options for this build; dev-only models never leave source."""
-        from voice_typer.server.gguf_model_registry import is_frozen, production_models
+        """The five production models, derived from the single GGUF registry.
 
-        if is_frozen():
-            allowed = set(production_models())
-            return [dict(option) for option in cls.MODEL_OPTIONS if option["name"] in allowed]
-        return [dict(option) for option in cls.MODEL_OPTIONS]
+        Sizes come from ``spec.size_bytes`` via ``ModelMetadata``; ``tiny`` is
+        dev-only and is never offered in a source build either. The historical
+        :attr:`MODEL_OPTIONS` literal stays for older callers but is no longer
+        the source of the wizard's visible list.
+        """
+        from voice_typer.server.gguf_model_registry import (
+            DEFAULT_MODEL_KEY,
+            get_model_metadata,
+            production_models,
+        )
+
+        options: list[dict] = []
+        for key in production_models():
+            meta = get_model_metadata(key)
+            if meta is None:
+                continue
+            options.append(
+                {
+                    "name": meta.name,
+                    "display_name": meta.display_name or "",
+                    "size": cls._size_label(meta.download_size_mb),
+                    "download_size_mb": meta.download_size_mb,
+                    "speed": (meta.speed_rating or "medium").capitalize(),
+                    "description": meta.description,
+                    "vram_gb": meta.required_vram_mb / 1024,
+                    "languages": meta.supported_languages,
+                    "backend": meta.backend,
+                    "recommended": key == DEFAULT_MODEL_KEY,
+                }
+            )
+        return options
 
     # each entry now carries ``vram_gb`` (estimated VRAM for
     MODEL_OPTIONS = [

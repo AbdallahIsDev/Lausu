@@ -40,6 +40,16 @@ class TtsMixin(ServiceMixinBase):
         result: dict[str, object] = self._get_tts_manager().prepare(engine)
         return result
 
+    def tts_delete(self, engine: str) -> dict[str, object]:
+        """Remove one engine's downloaded pack (runtime binaries are untouched)."""
+        log.info("[TTS] deleting pack for %s", engine)
+        result: dict[str, object] = self._get_tts_manager().delete(engine)
+        if result.get("was_active") is True:
+            # Canonical config write, never a direct attribute assignment:
+            # a deleted engine must not stay selected in the config file.
+            self.apply_config({"tts_engine": "off"})
+        return result
+
     def tts_speak(
         self,
         text: str,

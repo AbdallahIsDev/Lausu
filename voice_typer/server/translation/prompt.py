@@ -9,14 +9,15 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from functools import lru_cache
 from typing import NamedTuple
 
 from voice_typer.server.translation.catalogue import TRANSLATION_TARGETS, normalize_language_code
 from voice_typer.server.translation.preservation import unprotected_text
 
-_PROMPT = (
+_PROMPT_PREFIX = (
     "Translate the following text into {lang}. Note that you should only output "
-    "the translated result without any additional explanation:\n\n{src}"
+    "the translated result without any additional explanation:\n\n"
 )
 
 _GLOSSARY_HEADER = "Reference the following translations:"
@@ -65,8 +66,11 @@ class LanguageDetection(NamedTuple):
     letters: int  # letter count after protected spans are removed
 
 
+@lru_cache(maxsize=32)
 def parse_glossary(raw: str) -> list[tuple[str, str]]:
     """Parse ``source => target`` / ``source -> target`` / model-card pins.
+
+    The result is cached and MUST be treated as read-only by callers.
 
     Blank lines and ``#`` comments are ignored. The cap keeps a pasted glossary
     from eating the model's context or turning the translation into lookup.
@@ -93,6 +97,20 @@ def parse_glossary(raw: str) -> list[tuple[str, str]]:
     return pins
 
 
+@lru_cache(maxsize=64)
+def _prompt_shell(lang: str, glossary_raw: str, markers: tuple[str, ...]) -> str:
+    """Cache the part of the prompt that does not depend on the source text."""
+    blocks: list[str] = []
+    pins = parse_glossary(glossary_raw)
+    if pins:
+        glossary_lines = "\n".join(f"`{source}` translates to `{target_text}`" for source, target_text in pins)
+        blocks.append(f"{_GLOSSARY_HEADER}\n{glossary_lines}")
+    if markers:
+        blocks.append(f"{_PRESERVE_HEADER}\n" + " ".join(markers))
+    blocks.append(_PROMPT_PREFIX.format(lang=lang))
+    return "\n\n".join(blocks)
+
+
 def build_user_prompt(
     text: str,
     target_code: str,
@@ -107,15 +125,7 @@ def build_user_prompt(
     prompt shape.
     """
     target = TRANSLATION_TARGETS.get(normalize_language_code(target_code), target_code)
-    blocks: list[str] = []
-    pins = parse_glossary(glossary_raw)
-    if pins:
-        glossary_lines = "\n".join(f"`{source}` translates to `{target_text}`" for source, target_text in pins)
-        blocks.append(f"{_GLOSSARY_HEADER}\n{glossary_lines}")
-    if markers:
-        blocks.append(f"{_PRESERVE_HEADER}\n" + " ".join(markers))
-    blocks.append(_PROMPT.format(lang=target, src=text.strip()))
-    return "\n\n".join(blocks)
+    return _prompt_shell(target, glossary_raw, tuple(markers)) + text.strip()
 
 
 def detect_source_language(text: str) -> LanguageDetection:
@@ -138,11 +148,7 @@ def detect_source_language(text: str) -> LanguageDetection:
     if total == 0:
         return LanguageDetection("", mixed=False, confident=False, letters=0)
 
-    present = [
-        name
-        for name, count in counts.items()
-        if count and (count / total) >= _MIXED_SCRIPT_MIN_SHARE
-    ]
+    present = [name for name, count in counts.items() if count and (count / total) >= _MIXED_SCRIPT_MIN_SHARE]
     if len(present) > 1:
         return LanguageDetection("", mixed=True, confident=True, letters=total)
     if not present:

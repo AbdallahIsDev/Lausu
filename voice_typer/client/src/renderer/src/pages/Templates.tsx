@@ -25,6 +25,7 @@ import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { usePython } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
+import { useGlobalSearch } from "@/stores/useGlobalSearch";
 import { TemplateDialog } from "./templates/components/TemplateDialog";
 import { TemplateListRow } from "./templates/components/TemplateListRow";
 import { useTemplateDialog } from "./templates/hooks/useTemplateDialog";
@@ -36,9 +37,16 @@ import { saveTemplates } from "./templates/lib/storage";
 import { rowsToTemplates } from "./templates/lib/transform";
 import type { TemplateRow } from "./templates/lib/types";
 
-export default function TemplatesPage() {
+export default function TemplatesPage({
+	embedded = false,
+	active = true,
+}: {
+	embedded?: boolean;
+	active?: boolean;
+} = {}) {
 	const { call } = usePython();
 	const { showSnack } = useSnackbar();
+	const setCollectionEntryCount = useGlobalSearch((s) => s.setVocabEntryCount);
 
 	const {
 		templates,
@@ -52,6 +60,12 @@ export default function TemplatesPage() {
 		setSortOrder,
 		filteredSortedTemplates,
 	} = useTemplates({ call, showSnack });
+
+	// The merged Dictionary & Snippets page shows one search hint for the
+	// active tab only; the hidden tab keeps state without touching it.
+	useEffect(() => {
+		if (active) setCollectionEntryCount(templates.length);
+	}, [active, templates.length, setCollectionEntryCount]);
 
 	const {
 		showDialog,
@@ -133,10 +147,12 @@ export default function TemplatesPage() {
 	if (loadError && templates.length === 0) {
 		return (
 			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
-				<PageHeading
-					title={t("templates.title")}
-					description={t("templates.description")}
-				/>
+				{!embedded && (
+					<PageHeading
+						title={t("templates.title")}
+						description={t("templates.description")}
+					/>
+				)}
 				<EmptyState
 					icon={AlertCircleIcon}
 					title={t("templates.loadFailedTitle")}
@@ -166,10 +182,12 @@ export default function TemplatesPage() {
 							{/* Heading, then the toolbar on its OWN full-width row BELOW
                                     it (not inside PageHeading's children slot), mirrors
                                     the Vocabulary page layout exactly. */}
-							<PageHeading
-								title={t("templates.title")}
-								description={t("templates.description")}
-							/>
+							{!embedded && (
+								<PageHeading
+									title={t("templates.title")}
+									description={t("templates.description")}
+								/>
+							)}
 							<div className="flex flex-col gap-4">
 								{/* Shared collection toolbar shell, the page injects
                                                 every label key + the drift-decision values (Add is

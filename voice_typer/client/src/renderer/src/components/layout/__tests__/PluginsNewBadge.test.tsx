@@ -41,13 +41,12 @@ describe("PluginsNewBadge", () => {
 		expect(slot.className).toContain("blur-[4px]");
 	});
 
-	it("Sidebar still gates the badge on the one-way latch and renders it once", () => {
+	it("is no longer mounted in the sidebar (Plugins has no rail entry)", () => {
 		const src = readFileSync(
 			resolve(import.meta.dirname, "../Sidebar.tsx"),
 			"utf-8",
 		);
-		expect(src).toContain("{item.badge && showNewBadge && (");
-		expect(src.match(/<PluginsNewBadge\b/g)).toHaveLength(1);
-		expect(src).not.toContain("bg-primary/15 text-primary");
+		expect(src.match(/<PluginsNewBadge\b/g) ?? []).toHaveLength(0);
+		expect(src).not.toContain("showNewBadge");
 	});
 });

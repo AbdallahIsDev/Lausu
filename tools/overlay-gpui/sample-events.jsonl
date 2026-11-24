@@ -1,0 +1,7 @@
+{"type":"bubble_config","data":{"bubble_position":"bottom","bubble_behavior":"show_on_record","bubble_click_to_toggle":true,"bubble_mic_button":true,"bubble_show_recording_timer":false}}
+{"type":"bubble_show","data":{}}
+{"type":"bubble_set_state","data":{"state":"recording"}}
+{"type":"bubble_level","data":{"rms":0.35,"peak":0.71}}
+{"type":"bubble_level","data":{"rms":0.52,"peak":0.88}}
+{"type":"bubble_set_state","data":{"state":"transcribing"}}
+{"type":"bubble_hide","data":{}}

@@ -410,12 +410,9 @@ describe("axe-core automated WCAG scan, all pages", () => {
 	});
 
 	it("Models page (stub lifecycle): no axe violations", async () => {
-		//(session NH): the consent banner heading was promoted
-		// from <h3> to <h2> in components/models/LocalModelsPanel.tsx,
-		// so the heading hierarchy is now h1 (PageHeading) → h2
-		// (consent banner), no more axe heading-order violation.
-		// Flipped back from `it.fails` to `it` so this acts as a
-		// regression spec.
+		// Heading order is h1 (PageHeading) → h2 (Models accordion
+		// group header via `headingLevel={2}`) → h3 (model rows).
+		// The accordion primitive's default h3 was the axe violation.
 		const ModelsPage = (await import("@/pages/Models")).default;
 		const { container } = renderPage(<ModelsPage />);
 		await expectNoAxeViolations(container);

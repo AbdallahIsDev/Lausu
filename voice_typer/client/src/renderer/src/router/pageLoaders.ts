@@ -93,6 +93,8 @@ export const PAGE_LOADERS = {
 		loadChunk("aboutAndPrivacy", () => import("@/pages/AboutAndPrivacy")),
 	analytics: () => loadChunk("analytics", () => import("@/pages/Dashboard")),
 	chat: () => loadChunk("chat", () => import("@/pages/Chat")),
+	dictionarySnippets: () =>
+		loadChunk("dictionarySnippets", () => import("@/pages/DictionarySnippets")),
 	history: () => loadChunk("history", () => import("@/pages/History")),
 	media: () => loadChunk("media", () => import("@/pages/Media")),
 	microphone: () => loadChunk("microphone", () => import("@/pages/Microphone")),
@@ -115,6 +117,7 @@ export const LAZY_PAGES = {
 	aboutAndPrivacy: lazy(PAGE_LOADERS.aboutAndPrivacy),
 	analytics: lazy(PAGE_LOADERS.analytics),
 	chat: lazy(PAGE_LOADERS.chat),
+	dictionarySnippets: lazy(PAGE_LOADERS.dictionarySnippets),
 	history: lazy(PAGE_LOADERS.history),
 	media: lazy(PAGE_LOADERS.media),
 	microphone: lazy(PAGE_LOADERS.microphone),
