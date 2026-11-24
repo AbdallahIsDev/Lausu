@@ -6,6 +6,7 @@ import {
 	useState,
 } from "react";
 import { useLatestRef } from "@/hooks/useLatestRef";
+import { useNavigation } from "@/hooks/useNavigation";
 import { usePython, usePythonEvent } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
@@ -134,6 +135,7 @@ export function useOnboardingWizard(
 ): UseOnboardingWizardResult {
 	const { call } = usePython();
 	const { showSnack } = useSnackbar();
+	const { replace } = useNavigation();
 
 	// Ref mirror of `call` so the init effect depends only on
 	// `retryCounter`. Test mocks may return a FRESH call per render, an
@@ -325,6 +327,14 @@ export function useOnboardingWizard(
 				);
 			} catch (err) {
 				if (cancelled) return;
+				// Already finished: go Home silently, no card and no toast.
+				if (
+					(err as { code?: unknown } | null)?.code ===
+					"client.onboarding_already_complete"
+				) {
+					replace("home");
+					return;
+				}
 				console.error(
 					"[renderer:useOnboardingWizard] Failed to start onboarding:",
 					err,

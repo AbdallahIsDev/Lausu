@@ -46,6 +46,7 @@ vi.mock("@/components/ui/checkbox", () => ({
 }));
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { _resetNavigationForTest, useNavigation } from "@/hooks/useNavigation";
 import { useConsentGateStore } from "@/lib/consentGate";
 import OnboardingPage from "@/pages/Onboarding";
 import ConsentStep from "@/pages/onboarding/components/ConsentStep";
@@ -160,6 +161,48 @@ function mockStartAtStep(
 		}
 	});
 }
+
+describe("Onboarding already-complete redirect", () => {
+	beforeEach(() => {
+		mockCall.mockReset();
+		localStorage.setItem(
+			"vt_nav_state",
+			JSON.stringify({ page: "onboarding", history: ["onboarding"], index: 0 }),
+		);
+		_resetNavigationForTest();
+	});
+
+	it("routes straight to Home with no error card when onboarding_start says already complete", async () => {
+		const message = "Onboarding already complete; pass {force: true} to re-run";
+		mockCall.mockImplementation((type: string) => {
+			if (type === "onboarding_start") {
+				return Promise.reject(
+					Object.assign(new Error(message), {
+						code: "client.onboarding_already_complete",
+					}),
+				);
+			}
+			return Promise.reject(new Error(`unexpected call: ${type}`));
+		});
+
+		const NavProbe = () => {
+			const { currentPage } = useNavigation();
+			return <div data-testid="nav-page">{currentPage}</div>;
+		};
+		renderWithProviders(
+			<>
+				<NavProbe />
+				<OnboardingPage />
+			</>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("nav-page").textContent).toBe("home");
+		});
+		expect(screen.queryByText("Something went wrong")).toBeNull();
+		expect(screen.queryByText(message)).toBeNull();
+	});
+});
 
 describe("Onboarding 4-step essentials flow", () => {
 	beforeEach(() => {
