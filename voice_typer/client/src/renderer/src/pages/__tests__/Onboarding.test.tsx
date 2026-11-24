@@ -332,3 +332,33 @@ describe("Final step (Hotkey) apply flow", () => {
 		expect(screen.queryByRole("alert")).toBeNull();
 	});
 });
+
+describe("Onboarding init failure", () => {
+	beforeEach(() => {
+		mockCall.mockReset();
+	});
+
+	it("shows the themed failure screen instead of the red card", async () => {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "onboarding_start") {
+				return Promise.reject(new Error("backend exploded"));
+			}
+			return Promise.resolve({});
+		});
+
+		const { container } = renderWithProviders(<OnboardingPage />);
+		await waitFor(() => {
+			expect(screen.getByText("Something went wrong")).toBeTruthy();
+		});
+		expect(container.querySelector(".border-destructive\\/40")).toBeNull();
+		expect(container.querySelector(".bg-destructive\\/5")).toBeNull();
+		expect(
+			screen.getByText(
+				"The app encountered an unexpected error. Your data is safe.",
+			),
+		).toBeTruthy();
+		const raw = screen.getByText("backend exploded");
+		expect(raw.tagName).toBe("PRE");
+		expect(screen.getByRole("button", { name: "Copy error" })).toBeTruthy();
+	});
+});

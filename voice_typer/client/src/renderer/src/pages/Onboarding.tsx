@@ -14,8 +14,8 @@
 //     standard app behavior, not a consent gate) and the "You are all
 //     set" summary step were removed.
 //   - MANDATORY: the Skip button and its confirmation dialog are
-//     removed entirely (ONB-3). The init-error branch offers Retry
-//     only.
+//     removed entirely (ONB-3). Init failures use the shared themed
+//     failure screen.
 //   - Header (ONB-1): the Back button is hidden on step 1 (nowhere to
 //     go back to) and appears from step 2 onward; the top-right step
 //     title above the progress bar is removed (it duplicated the card
@@ -30,6 +30,7 @@
 
 import { useEffect, useRef } from "react";
 import { Skeleton } from "skullet/react";
+import { ErrorState } from "@/components/feedback/ErrorState";
 import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { formatHotkey } from "@/components/hotkey/hotkey-format";
 import { Button } from "@/components/ui/button";
@@ -96,7 +97,7 @@ export default function OnboardingPage({
 	// ── Focus ref for init-error branch ──────────────────────────
 	// Must be declared before any early return so the hooks are
 	// called unconditionally (React Rules of Hooks).
-	const initErrorRef = useRef<HTMLDivElement | null>(null);
+	const initErrorRef = useRef<HTMLButtonElement | null>(null);
 	useEffect(() => {
 		if (initError && initErrorRef.current) {
 			initErrorRef.current.focus();
@@ -182,25 +183,17 @@ export default function OnboardingPage({
 	// complete setup with defaults.
 	if (initError) {
 		return (
-			<div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center px-6">
-				{/* theme tokens (--destructive, not raw red-*) so the error card
-				    follows theme overrides (Dracula, Catppuccin, etc.). */}
-				<div
-					ref={initErrorRef}
-					tabIndex={-1}
-					className="flex w-full flex-col gap-4 rounded-lg border border-destructive/40 bg-destructive/5 p-8 text-center outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
-				>
-					<h2 className="text-lg font-medium text-foreground">
-						{t("errorBoundary.title")}
-					</h2>
-					<p className="text-sm text-muted-foreground">{initError}</p>
-					<div className="flex items-center justify-center gap-3">
-						<Button variant="default" onClick={retryInit}>
-							{t("errorBoundary.tryAgain")}
-						</Button>
-					</div>
-				</div>
-			</div>
+			<ErrorState
+				message={initError}
+				retryCount={0}
+				copied={false}
+				onTryAgain={retryInit}
+				onReload={() => window.location.reload()}
+				onCopyError={() => {
+					void navigator.clipboard?.writeText(initError);
+				}}
+				primaryButtonRef={initErrorRef}
+			/>
 		);
 	}
 
