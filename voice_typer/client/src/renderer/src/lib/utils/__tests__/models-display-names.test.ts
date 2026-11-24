@@ -117,12 +117,16 @@ describe("getModelVariantDisplayName, family prefix + display_name priority", ()
 			"utf-8",
 		);
 		for (const name of ["qwen3-1.7b", "qwen3-0.6b"]) {
-			const start = source.indexOf(`name="${name}"`);
-			expect(start, `${name} entry in gguf_model_registry.py`).toBeGreaterThan(
-				-1,
-			);
-			const registryName = /display_name="([^"]+)"/.exec(
-				source.slice(start, start + 1200),
+			// The key lives in GGUF_MODELS; the display name is derived from
+			// the _MODEL_PRESENTATION table in the same module.
+			expect(source, name).toContain(`model_key="${name}"`);
+			const start = source.indexOf(`"${name}": {`);
+			expect(
+				start,
+				`${name} presentation entry in gguf_model_registry.py`,
+			).toBeGreaterThan(-1);
+			const registryName = /"display_name":\s*"([^"]+)"/.exec(
+				source.slice(start, start + 600),
 			)?.[1];
 			const info = INITIAL_MODELS.find((m) => m.name === name);
 			expect(info?.displayName, name).toBe(registryName);
@@ -141,7 +145,7 @@ describe("requiresHuggingFaceConsent, JIT consent gate scope (point 4)", () => {
 		);
 	});
 
-	it("gates every Qwen size too (both download their ONNX export from HF)", () => {
+	it("gates every Qwen size too (both download their GGUF weights from HF)", () => {
 		expect(requiresHuggingFaceConsent(makeModel("qwen3-1.7b", "qwen"))).toBe(
 			true,
 		);

@@ -1,2 +1,3 @@
 STUB: not the transcribe.cpp runtime
+STUB_NOT_FOR_RELEASE
 Replace this directory with the pinned v0.4.2 native bundle before release.

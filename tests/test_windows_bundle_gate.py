@@ -175,6 +175,30 @@ def test_transcribe_cpp_bundle_rejects_gpl_dll_names(tmp_path: Path) -> None:
         gate.check_transcribe_cpp_bundle(gate.DEFAULT_TARGET, [tmp_path])
 
 
+def test_transcribe_cpp_bundle_rejects_stub_placeholder(tmp_path: Path) -> None:
+    native = tmp_path / "resources" / "transcribe-cpp"
+    native.mkdir(parents=True)
+    for name in gate.transcribe_cpp_required_files():
+        (native / name).write_bytes(b"")
+    # The generator's marker file must fail the gate even when every pinned
+    # file is present: a placeholder directory is not a release bundle.
+    (native / "STUB.txt").write_bytes(gate.TRANSCRIBE_STUB_MARKER)
+    with pytest.raises(gate.BundleVerificationError, match="stub marker"):
+        gate.check_transcribe_cpp_bundle(gate.DEFAULT_TARGET, [tmp_path])
+
+
+def test_transcribe_cpp_bundle_rejects_marker_inside_a_pinned_file(tmp_path: Path) -> None:
+    native = tmp_path / "resources" / "transcribe-cpp"
+    native.mkdir(parents=True)
+    for name in gate.transcribe_cpp_required_files():
+        (native / name).write_bytes(b"x" * (1024 * 1024 + 7))
+    (native / "ggml.dll").write_bytes(
+        b"a" * (1024 * 1024) + gate.TRANSCRIBE_STUB_MARKER + b"z" * 32
+    )
+    with pytest.raises(gate.BundleVerificationError, match="stub marker"):
+        gate.check_transcribe_cpp_bundle(gate.DEFAULT_TARGET, [tmp_path])
+
+
 def test_frozen_smoke_requires_no_dev_models_marker(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

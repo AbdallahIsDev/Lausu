@@ -15,7 +15,7 @@ Hard gates (always fail the job):
   * frozen-sidecar self-check (frozen build, no PATH fallback, bundled ffmpeg,
     16000 decoded samples, RNNoise, no dev-only model in the catalogue);
    * the staged transcribe.cpp native bundle (every pinned DLL + contract.json,
-     no GPL-named DLL in that directory).
+     no GPL-named DLL and no stub marker in that directory).
 
 The GPL gate runs after the frozen self-check and scans both the exe bytes
 (blind to compressed onefile payloads) and, authoritatively, DLL file names
@@ -24,7 +24,8 @@ this script, so it is left in place.
 
 Single SOFT gate -- ``ENFORCE_NO_GPL_DLLS`` (workflow env / repo variable,
 default ``'0'``): with '0' a WARNING table of libx264*/libx265*/avcodec*
-sightings is printed and exit is 0 (PyAV is intentionally still bundled);
+sightings is printed and exit is 0 (the gate stays advisory until a clean
+frozen build proves the flag can be flipped);
 with '1' any sighting is a hard failure. No other gate in this script is soft.
 """
 
@@ -65,6 +66,7 @@ ONEFILE_EXTRACT_DIR_ENV = "LAUSU_ONEFILE_EXTRACT_DIR"
 WORKER_ONEFILE_EXTRACT_DIR_ENV = "LAUSU_WORKER_ONEFILE_EXTRACT_DIR"
 TRANSCRIBE_MANIFEST = REPO_ROOT / "scripts" / "transcribe-cpp-win64.json"
 TRANSCRIBE_REL_DIR = "resources/transcribe-cpp"
+TRANSCRIBE_STUB_MARKER = b"STUB_NOT_FOR_RELEASE"
 NO_DEV_MODEL_MARKER = "SELFCHECK: PASS no-dev-models"
 FREEZE_SCRIPT = REPO_ROOT / "scripts" / "build" / "build_sidecar_windows.sh"
 WORKER_FREEZE_SCRIPT = REPO_ROOT / "scripts" / "build" / "build_worker_windows.sh"
@@ -188,6 +190,18 @@ def _is_gpl_dll_name(name: str) -> bool:
     return any(fnmatch.fnmatchcase(lowered, pattern) for pattern in GPL_DLL_GLOBS)
 
 
+def _has_stub_marker(path: Path) -> bool:
+    """Stream a staged file looking for the generator's do-not-release marker."""
+    overlap = len(TRANSCRIBE_STUB_MARKER) - 1
+    tail = b""
+    with path.open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            if TRANSCRIBE_STUB_MARKER in tail + chunk:
+                return True
+            tail = chunk[-overlap:]
+    return False
+
+
 def check_transcribe_cpp_bundle(
     target: str,
     roots: list[Path] | None = None,
@@ -213,6 +227,12 @@ def check_transcribe_cpp_bundle(
             "transcribe.cpp native bundle not staged under "
             f"'{TRANSCRIBE_REL_DIR}' (required: {', '.join(required)}). {detail}"
         )
+    for path in sorted(complete.iterdir()):
+        if path.is_file() and _has_stub_marker(path):
+            raise BundleVerificationError(
+                f"stub marker {TRANSCRIBE_STUB_MARKER.decode()} in staged "
+                f"transcribe.cpp file {path.name}; a placeholder must never ship"
+            )
     gpl = sorted(
         {path.name for path in complete.iterdir() if path.is_file() and _is_gpl_dll_name(path.name)}
     )
@@ -221,6 +241,7 @@ def check_transcribe_cpp_bundle(
     return [
         f"transcribe.cpp native bundle complete at {complete} ({len(required)} pinned files)",
         "transcribe.cpp bundle has no avcodec*/libx264*/libx265* DLLs",
+        "transcribe.cpp bundle has no stub placeholder marker",
     ]
 
 
@@ -597,6 +618,15 @@ def self_test() -> int:
         else:
             raise AssertionError("a GPL-named DLL in the native bundle must fail the hard gate")
         (native / "avcodec-62-xxxx.dll").unlink()
+        # A generator stub left beside a complete bundle must also fail.
+        (native / "STUB.txt").write_bytes(TRANSCRIBE_STUB_MARKER)
+        try:
+            check_transcribe_cpp_bundle(DEFAULT_TARGET, [Path(tmp)])
+        except BundleVerificationError as exc:
+            assert "stub marker" in str(exc)
+        else:
+            raise AssertionError("a stub placeholder must never pass the hard gate")
+        (native / "STUB.txt").unlink()
         (native / "contract.json").unlink()
         try:
             check_transcribe_cpp_bundle(DEFAULT_TARGET, [Path(tmp)])

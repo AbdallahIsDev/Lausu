@@ -1224,7 +1224,19 @@ def test_transcribe_cpp_resource_has_a_generator_owned_stub() -> None:
     assert stub.TRANSCRIBE_CPP_STUB.relative_to(SRC_TAURI).as_posix() == ("resources/transcribe-cpp/STUB.txt")
     assert _run().returncode == 0
     assert stub.TRANSCRIBE_CPP_STUB.is_file()
-    assert stub.TRANSCRIBE_CPP_STUB_MARKER in stub.TRANSCRIBE_CPP_STUB.read_text(encoding="utf-8")
+    text = stub.TRANSCRIBE_CPP_STUB.read_text(encoding="utf-8")
+    assert stub.TRANSCRIBE_CPP_STUB_MARKER in text
+    assert stub.TRANSCRIBE_CPP_RELEASE_MARKER in text
+    # The bundle gate's refusal token must be the generator's own marker.
+    import importlib.util
+
+    gate_spec = importlib.util.spec_from_file_location(
+        "_gate_for_stub_marker", SRC_TAURI.parent / "scripts" / "verify_windows_bundle.py"
+    )
+    assert gate_spec is not None and gate_spec.loader is not None
+    gate = importlib.util.module_from_spec(gate_spec)
+    gate_spec.loader.exec_module(gate)
+    assert gate.TRANSCRIBE_STUB_MARKER.decode() == stub.TRANSCRIBE_CPP_RELEASE_MARKER
 
 
 def test_check_fails_without_the_transcribe_cpp_resource_and_recovers() -> None:

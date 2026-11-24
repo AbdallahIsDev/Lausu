@@ -240,6 +240,9 @@ NATIVE_RESOURCES: list[tuple[str, str]] = [
 # stubs; a real DLL bundle (>512-byte transcribe.dll) is never clobbered.
 TRANSCRIBE_CPP_STUB = SRC_TAURI / "resources" / "transcribe-cpp" / "STUB.txt"
 TRANSCRIBE_CPP_STUB_MARKER = "STUB: not the transcribe.cpp runtime"
+# The bundle gate refuses any staged file containing this token, so a
+# placeholder directory can never be mistaken for a release bundle.
+TRANSCRIBE_CPP_RELEASE_MARKER = "STUB_NOT_FOR_RELEASE"
 
 # NOTE: prewarm resources DELETED 2026-08-13, prewarm became a startup phase
 # of the worker exe (plan-runtime-pack-split §6.2 Option P-1). The separate
@@ -527,6 +530,7 @@ def _stub_content(platform: str, kind: str) -> bytes:
     if kind == "runtime":
         return (
             f"{TRANSCRIBE_CPP_STUB_MARKER}\n"
+            f"{TRANSCRIBE_CPP_RELEASE_MARKER}\n"
             "Replace this directory with the pinned v0.4.2 native bundle before release.\n"
         ).encode("ascii")
     if platform == "windows":

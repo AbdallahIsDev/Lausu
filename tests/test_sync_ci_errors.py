@@ -283,6 +283,8 @@ def test_check_reports_match_and_mismatch_without_writing(fake_repo) -> None:
 
 
 def test_every_hook_has_nonblocking_invocation_and_bounded_latency(fake_repo, tmp_path: Path) -> None:
+    if shutil.which("sh") is None:
+        pytest.skip("the hook snippet is a POSIX shell script and sh is not on PATH")
     hook_dir = REPO_ROOT / ".husky"
     for name in HOOK_NAMES:
         hook = hook_dir / name
