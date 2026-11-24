@@ -76,9 +76,8 @@ class AsrBackendRegistry(RegistryCore):
     _MAX_CONSECUTIVE_FAILURES = 3
 
     # Maps backend name -> (module_path, class_name) for lazy import.
-    # C7: "whisper" is worker-backed (no in-process Whisper decode).
-    # parakeet/qwen are worker-backed too: all local ASR runs in the
-    # separate process through the transcribe.cpp native library.
+    # All three local families share one worker-backed slot: decode runs in
+    # the separate process through the transcribe.cpp native library.
     _BACKEND_SPECS: dict[str, tuple[str, str]] = {
         "whisper": ("voice_typer.server.worker_backed_asr", "WorkerBackedAsr"),
         "qwen": ("voice_typer.server.worker_backed_asr", "WorkerBackedAsr"),
@@ -106,7 +105,8 @@ class AsrBackendRegistry(RegistryCore):
         if backend is None:
             log.warning("[ASR_REGISTRY] no active backend to load")
             return None
-        # Worker-first for the ONNX backends (server/worker_proxy_asr.py).
+        # Worker-first for parakeet/qwen (server/worker_proxy_asr.py); the
+        # model is leased for the whole call, never loaded in the sidecar.
         worker_engine = self._try_worker_backend_fallback(self.active_name)
         if worker_engine is not None:
             return worker_engine
@@ -140,13 +140,12 @@ class AsrBackendRegistry(RegistryCore):
             return None
 
     def _try_worker_backend_fallback(self, name: str) -> AsrBackend | None:
-        """Serve parakeet/qwen from the pack worker first (sidecar keeps no model).
+        """Serve parakeet/qwen from the worker first (sidecar keeps no model).
 
         The worker is owned by the Tauri host and survives a sidecar
-        restart, so the model stays loaded across it. Returns ``None``
-        when no worker is connected (no pack = no worker) or the worker
-        refuses, so the caller falls through to the in-process ONNX
-        engine (the sidecar fallback).
+        restart, so the single GGUF model stays loaded across it. Returns
+        ``None`` when no worker is connected or the worker refuses, so the
+        caller falls through to the in-process backend.
         """
         if name not in ("parakeet", "qwen"):
             return None

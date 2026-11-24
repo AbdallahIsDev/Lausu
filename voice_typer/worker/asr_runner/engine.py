@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 import threading
-from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 from voice_typer.server.hallucination import REJECTION_REASON_HALLUCINATION
@@ -30,7 +29,7 @@ log = logging.getLogger("voice_typer.worker.asr_runner")
 
 
 class _DecodedSegment:
-    """Duck-type of the faster-whisper Segment fields the pipeline reads."""
+    """Duck-type of the segment fields the decode pipeline reads."""
 
     def __init__(self, start: float, end: float, text: str) -> None:
         self.start = start
@@ -87,13 +86,9 @@ class GgufTranscriptionEngine:
         **_: Any,
     ) -> None:
         self.model_size = model_size
-        if config is None:
-            config = SimpleNamespace(
-                asr_backend="whisper",
-                model_size=model_size,
-                language=language,
-                hallucination_filter_mode="balanced",
-            )
+        # None is the honest default: no live Config was supplied, so every
+        # config-gated branch reads its own default instead of a fabricated
+        # snapshot of a legacy schema.
         self.config = config
         if model_path is None:
             model_path = gguf_model_path_for(config)
@@ -137,8 +132,21 @@ class GgufTranscriptionEngine:
             self._model = _GgufModelAdapter(self, runner)
 
     def unload(self) -> None:
-        with self._lock:
+        from voice_typer.server.asr.registry import MODEL_UNLOAD_LOCK_TIMEOUT_S
+
+        # A decode holds this lock for the whole call; never free the model
+        # underneath it. Refuse (and keep the model) if the wait expires.
+        if not self._lock.acquire(timeout=MODEL_UNLOAD_LOCK_TIMEOUT_S):
+            log.error(
+                "[GGUF] refusing to unload %s: decode still holds the model lock after %.0fs",
+                self.model_size,
+                MODEL_UNLOAD_LOCK_TIMEOUT_S,
+            )
+            return
+        try:
             self._model = None
+        finally:
+            self._lock.release()
 
     def transcribe(self, audio: np.ndarray, audio_stats: tuple[float, float, float] | None = None) -> str:
         with self._lock:

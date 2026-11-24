@@ -658,31 +658,29 @@ class TestCancelNonBlocking:
         assert sig.parameters["blocking"].default is False
 
 
-class TestLoadTranscriberImplExists:
-    """_load_transcriber_impl is the shared load body."""
+class TestEngineLoadIsIdempotent:
+    """load() is the single load body and never rebuilds an active model."""
 
     def test_method_exists(self):
         from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-        assert hasattr(TranscriptionEngine, "_load_transcriber_impl")
+        assert callable(TranscriptionEngine.load)
 
-    def test_reload_under_lock_delegates(self):
-        from unittest.mock import MagicMock
-
+    def test_load_skips_when_already_loaded(self, monkeypatch):
         from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-        engine = TranscriptionEngine.__new__(TranscriptionEngine)
-        engine._build_fallback_chain = MagicMock(return_value=[])
-        called = {"n": 0}
+        engine = TranscriptionEngine(model_path="model.gguf")
+        engine._model = object()
+        constructed: list[object] = []
 
-        def fake_impl(chain, *, acquire_lock, **kw):
-            called["n"] += 1
-            called["acquire_lock"] = acquire_lock
+        class _ForbiddenRunner:
+            def __init__(self, *_args, **_kwargs):
+                constructed.append(self)
 
-        engine._load_transcriber_impl = fake_impl
-        engine._reload_under_lock()
-        assert called["n"] == 1
-        assert called["acquire_lock"] is False
+        monkeypatch.setattr("voice_typer.worker.asr_runner.engine.GgufRunner", _ForbiddenRunner)
+        engine.load()
+        engine.load()
+        assert constructed == [], "an already-loaded engine must not bind the runtime again"
 
 
 class TestFinalizeSkipsTailRetranscribe:
@@ -726,24 +724,19 @@ class TestWatchdogTimerTracked:
         assert "_watchdog_stop_event" in src
 
 
-class TestIsGpuRuntimeErrorClassHierarchy:
-    """GPU error detection uses isinstance, not just substring."""
+class TestRuntimeErrorCodeClassification:
+    """The shared classifier keeps GPU errors distinct from ordinary ones."""
 
-    def test_returns_false_on_cpu_device(self):
-        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
+    def test_non_gpu_error_is_not_classified_as_gpu(self):
+        from voice_typer.server.asr_utils import is_cuda_error
 
-        engine = TranscriptionEngine.__new__(TranscriptionEngine)
-        engine._device = "cpu"
-        cuda_exc = RuntimeError("CUDA error")
-        assert engine._is_gpu_runtime_error(cuda_exc) is False
+        assert is_cuda_error(RuntimeError("model file not found")) is False
 
     def test_substring_fallback_for_wrapped_errors(self):
-        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
+        from voice_typer.server.asr_utils import is_cuda_error
 
-        engine = TranscriptionEngine.__new__(TranscriptionEngine)
-        engine._device = "cuda"
         exc = RuntimeError("Library cublas64_12.dll not found")
-        assert engine._is_gpu_runtime_error(exc) is True
+        assert is_cuda_error(exc) is True
 
 
 class TestFreeNvidiaDllHandles:

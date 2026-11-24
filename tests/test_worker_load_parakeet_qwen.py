@@ -1,10 +1,10 @@
 """Worker-side load_parakeet_model / load_qwen_model commands + routing.
 
 Mirrors the WL-1 whisper coverage (``test_worker_load_whisper_model.py``)
-for the two ONNX backends: frame shapes, protocol routing, client
-requests, transcriber load with stubbed engines (no real weights, C-TEST-8),
-worker handlers, the sidecar worker-first try_load functions, the proxy
-engines, and the registry worker-first routing with in-process fallback.
+for the two worker-backed local families: frame shapes, protocol routing,
+client requests, transcriber load through the fake GGUF native layer (no
+real weights, C-TEST-8), worker handlers, the sidecar worker-first
+try_load functions, the proxy engines, and registry routing.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ import sys
 from types import SimpleNamespace
 
 import pytest
-from voice_typer.server.asr_errors import ModelNotDownloadedError
 from voice_typer.server.worker_client import (
     WorkerClient,
     build_load_parakeet_frame,
@@ -33,6 +32,8 @@ from voice_typer.worker._ws_commands import (
     handle_load_parakeet_model_async,
     handle_load_qwen_model_async,
 )
+
+from tests.fixtures.fake_native_engine import FakeLibrary, install_runner
 
 
 class TestLoadFrame:
@@ -227,17 +228,55 @@ def _patch_config(monkeypatch):
     monkeypatch.setattr(config_mod, "Config", _StubConfig)
 
 
+def _patch_worker_engine(monkeypatch, *, model_path="model.gguf"):
+    """Drive the real Gguf engine/load path with the fake native library."""
+    import voice_typer.worker.asr_runner as asr_runner
+
+    monkeypatch.setattr(asr_runner, "gguf_model_path_for_key", lambda *_a, **_k: model_path)
+    return install_runner(monkeypatch, FakeLibrary())
+
+
+def _patch_load_failure(monkeypatch, error):
+    """Make the engine's runtime bind fail with a specific real error."""
+    import voice_typer.worker.asr_runner.engine as engine_mod
+
+    class _FailingRunner:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def _loader(self):
+            raise error
+
+    monkeypatch.setattr(engine_mod, "GgufRunner", _FailingRunner)
+
+
+def _patch_missing_model(monkeypatch):
+    """A GGUF that is not cached refuses before the runtime is checked.
+
+    The worker resolves the model path while constructing the engine, so
+    "not downloaded" wins over "runtime not installed" by design.
+    """
+    import voice_typer.worker.asr_runner as asr_runner
+
+    def _refuse(*_args, **_kwargs):
+        raise RuntimeError("No speech model is selected or downloaded. Open Models to choose one.")
+
+    monkeypatch.setattr(asr_runner, "gguf_model_path_for_key", _refuse)
+
+
 class TestTranscriberLoadParakeet:
     def test_success_caches_engine(self, monkeypatch):
-        import voice_typer.server.parakeet_engine as parakeet_mod
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine
 
-        _StubParakeetEngine.instances.clear()
         _patch_config(monkeypatch)
-        monkeypatch.setattr(parakeet_mod, "ParakeetEngine", _StubParakeetEngine)
+        _patch_worker_engine(monkeypatch)
         transcriber = WorkerTranscriber()
         result = transcriber.load_parakeet_model(None, "en")
-        assert result == {"loaded": True, "backend": "parakeet", "device_info": "CPU", "error": None}
-        assert transcriber._engine is _StubParakeetEngine.instances[-1]
+        assert result["loaded"] is True
+        assert result["backend"] == "parakeet"
+        assert result["error"] is None
+        assert "transcribe.cpp" in result["device_info"]
+        assert isinstance(transcriber._engine, GgufTranscriptionEngine)
         assert transcriber._engine_language == "en"
         assert transcriber._engine_backend == "parakeet"
 
@@ -261,11 +300,10 @@ class TestTranscriberLoadParakeet:
         assert transcriber._engine is cached
 
     def test_wrong_backend_rebuilds(self, monkeypatch):
-        import voice_typer.server.parakeet_engine as parakeet_mod
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine
 
         _patch_config(monkeypatch)
-        _StubParakeetEngine.instances.clear()
-        monkeypatch.setattr(parakeet_mod, "ParakeetEngine", _StubParakeetEngine)
+        _patch_worker_engine(monkeypatch)
         transcriber = WorkerTranscriber()
         transcriber._engine = _StubParakeetEngine()
         transcriber._engine_language = "en"
@@ -273,59 +311,44 @@ class TestTranscriberLoadParakeet:
         result = transcriber.load_parakeet_model(None, "en")
         assert result["loaded"] is True
         assert transcriber._engine_backend == "parakeet"
+        assert isinstance(transcriber._engine, GgufTranscriptionEngine)
 
-    def test_load_false_is_error(self, monkeypatch):
-        import voice_typer.server.parakeet_engine as parakeet_mod
-
-        class _Refusing(_StubParakeetEngine):
-            def load(self):
-                return False
-
+    def test_load_failure_is_error(self, monkeypatch):
         _patch_config(monkeypatch)
-        monkeypatch.setattr(parakeet_mod, "ParakeetEngine", _Refusing)
+        _patch_load_failure(monkeypatch, RuntimeError("model load failed"))
         result = WorkerTranscriber().load_parakeet_model(None, "en")
         assert result["loaded"] is False
         assert result["backend"] == "parakeet"
         assert "load failed" in str(result["error"])
 
     def test_missing_model_never_raises(self, monkeypatch):
-        import voice_typer.server.parakeet_engine as parakeet_mod
-
-        class _Missing(_StubParakeetEngine):
-            def load(self):
-                raise ModelNotDownloadedError("not downloaded", model_size="parakeet", backend="parakeet")
-
         _patch_config(monkeypatch)
-        monkeypatch.setattr(parakeet_mod, "ParakeetEngine", _Missing)
+        _patch_missing_model(monkeypatch)
         result = WorkerTranscriber().load_parakeet_model()
         assert result["loaded"] is False
-        assert "not downloaded" in str(result["error"])
+        assert "downloaded" in str(result["error"])
 
     def test_runtime_error_never_raises(self, monkeypatch):
-        import voice_typer.server.parakeet_engine as parakeet_mod
-
-        class _Broken(_StubParakeetEngine):
-            def load(self):
-                raise RuntimeError("gpu gone")
-
         _patch_config(monkeypatch)
-        monkeypatch.setattr(parakeet_mod, "ParakeetEngine", _Broken)
+        _patch_load_failure(monkeypatch, RuntimeError("runtime backends could not be loaded"))
         result = WorkerTranscriber().load_parakeet_model("cuda")
         assert result["loaded"] is False
-        assert "gpu gone" in str(result["error"])
+        assert "runtime backends could not be loaded" in str(result["error"])
 
 
 class TestTranscriberLoadQwen:
     def test_success_caches_engine(self, monkeypatch):
-        import voice_typer.server.qwen_engine as qwen_mod
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine
 
-        _StubQwenEngine.instances.clear()
         _patch_config(monkeypatch)
-        monkeypatch.setattr(qwen_mod, "QwenEngine", _StubQwenEngine)
+        _patch_worker_engine(monkeypatch)
         transcriber = WorkerTranscriber()
         result = transcriber.load_qwen_model("/models/qwen", None, "en")
-        assert result == {"loaded": True, "backend": "qwen", "device_info": "CPU", "error": None}
-        assert transcriber._engine is _StubQwenEngine.instances[-1]
+        assert result["loaded"] is True
+        assert result["backend"] == "qwen"
+        assert result["error"] is None
+        assert "transcribe.cpp" in result["device_info"]
+        assert isinstance(transcriber._engine, GgufTranscriptionEngine)
         assert transcriber._engine.model_path == "/models/qwen"
         assert transcriber._engine_backend == "qwen"
 
@@ -348,45 +371,33 @@ class TestTranscriberLoadQwen:
         assert transcriber._engine is cached
 
     def test_different_path_rebuilds(self, monkeypatch):
-        import voice_typer.server.qwen_engine as qwen_mod
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine
 
         _patch_config(monkeypatch)
-        _StubQwenEngine.instances.clear()
-        monkeypatch.setattr(qwen_mod, "QwenEngine", _StubQwenEngine)
+        _patch_worker_engine(monkeypatch)
         transcriber = WorkerTranscriber()
         transcriber._engine = _StubQwenEngine(model_path="/models/qwen")
         transcriber._engine_language = "en"
         transcriber._engine_backend = "qwen"
         result = transcriber.load_qwen_model("/models/other", None, "en")
         assert result["loaded"] is True
+        assert isinstance(transcriber._engine, GgufTranscriptionEngine)
         assert transcriber._engine.model_path == "/models/other"
 
-    def test_load_false_is_error(self, monkeypatch):
-        import voice_typer.server.qwen_engine as qwen_mod
-
-        class _Refusing(_StubQwenEngine):
-            def load(self):
-                return False
-
+    def test_load_failure_is_error(self, monkeypatch):
         _patch_config(monkeypatch)
-        monkeypatch.setattr(qwen_mod, "QwenEngine", _Refusing)
+        _patch_load_failure(monkeypatch, RuntimeError("model load failed"))
         result = WorkerTranscriber().load_qwen_model("/models/qwen")
         assert result["loaded"] is False
         assert result["backend"] == "qwen"
         assert "load failed" in str(result["error"])
 
     def test_runtime_error_never_raises(self, monkeypatch):
-        import voice_typer.server.qwen_engine as qwen_mod
-
-        class _Broken(_StubQwenEngine):
-            def load(self):
-                raise RuntimeError("onnx session died")
-
         _patch_config(monkeypatch)
-        monkeypatch.setattr(qwen_mod, "QwenEngine", _Broken)
+        _patch_load_failure(monkeypatch, RuntimeError("native backend init failed"))
         result = WorkerTranscriber().load_qwen_model("/models/qwen")
         assert result["loaded"] is False
-        assert "onnx session died" in str(result["error"])
+        assert "native backend init failed" in str(result["error"])
 
 
 class _FakeWS:

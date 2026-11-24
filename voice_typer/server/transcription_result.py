@@ -1,14 +1,10 @@
-"""Transcription result normalization for ``TranscriptionEngine``.
+"""Transcription result normalization for the GGUF engine.
 
-CANONICAL home of the segment-decode bodies:
-``TranscriptionEngine._transcribe_unlocked`` /
-``_transcribe_words_unlocked`` are thin one-line delegates to the
-functions here (the engine module stays focused on the
-load/transcribe pipeline). The functions are also unit-testable in
-isolation with stub engines.
+CANONICAL home of the segment-decode bodies. ``GgufTranscriptionEngine``
+holds the model lock around the delegate to :func:`transcribe_unlocked`;
+this module stays free of engine state so it is unit-testable with stubs.
 
-* :func:`transcribe_unlocked`: the body of
-  :meth:`TranscriptionEngine._transcribe_unlocked`. Drives the
+* :func:`transcribe_unlocked`: drives the
   model-adapter ``model.transcribe(...)`` call, iterates the segment
   generator (with abort-token check between iterations), collects
   per-segment logprobs / no_speech_probs, builds the compact
@@ -16,10 +12,9 @@ isolation with stub engines.
   rejection gate, and returns the joined text. PII-safety:
   per-segment DEBUG logs are gated by ``config.log_transcriptions``
   AND wrapped in ``redact_pii`` when emitted.
-* :func:`transcribe_words_unlocked`: the body of
-  :meth:`TranscriptionEngine._transcribe_words_unlocked`. Streaming
-  word-timestamp variant of the above (used by the streaming
-  pipeline). Returns a list of :class:`streaming.WordTiming` objects.
+* :func:`transcribe_words_unlocked`: streaming word-timestamp variant
+  of the above (used by the streaming pipeline). Returns a list of
+  :class:`streaming.WordTiming` objects.
 * :func:`format_optional_mean`: formats a list of floats as a
   2-decimal mean, or ``"n/a"`` if empty. Used by the VAD-result log
   line in :func:`transcribe_unlocked`.
@@ -41,6 +36,8 @@ time.
 from __future__ import annotations
 
 import logging
+import math
+import numbers
 from typing import Any
 
 from voice_typer.server._audio_constants import (
@@ -271,12 +268,22 @@ def transcribe_unlocked(
     elif configured_language:
         log.info("[TRANSCRIBE] language: %s (configured; not detected) | %s", info.language, _stats)
     else:
-        log.info(
-            "[TRANSCRIBE] language: %s (detected, prob=%.2f) | %s",
-            info.language,
-            info.language_probability,
-            _stats,
-        )
+        # The GGUF adapter reports no language probability. A bare %.2f would
+        # raise inside log formatting whenever INFO logging is enabled.
+        probability = getattr(info, "language_probability", None)
+        if isinstance(probability, numbers.Real) and math.isfinite(probability):
+            log.info(
+                "[TRANSCRIBE] language: %s (detected, prob=%.2f) | %s",
+                info.language,
+                probability,
+                _stats,
+            )
+        else:
+            log.info(
+                "[TRANSCRIBE] language: %s (detected; probability unavailable) | %s",
+                info.language,
+                _stats,
+            )
 
     # Compact quality summary for the dictation pipeline → renderer
     engine.last_quality_summary = build_quality_summary(avg_logprobs, no_speech_probs)

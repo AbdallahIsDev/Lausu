@@ -1,4 +1,9 @@
-"""Qwen3-ASR transcription engine. ONNX Runtime backend (no torch).
+"""Legacy in-process Qwen3-ASR backend kept for compatibility.
+
+Production decode goes through ``GgufTranscriptionEngine`` and the single
+transcribe.cpp runner; this module remains for callers that still import
+``QwenEngine`` directly. Its ONNX Runtime sessions are not loaded by the
+normal dictation or media paths.
 
 PLAN_ONNX_INTEGRATION.md §4.3 Option C-2, implemented 2026-08-14,
 made torch-free-only 2026-08-15. The pre-exported ONNX models
@@ -22,7 +27,6 @@ Key constraints:
 - If the directory is missing / not an ONNX export / fails to load →
   ``load()`` returns False (non-ONNX dir) or raises ``RuntimeError``
   (ONNX dir that fails mid-load, fail-closed, no silent fallback).
-- Whisper stays as the default and fallback backend.
 - Uses shared hallucination detection from voice_typer.server.hallucination.
 """
 

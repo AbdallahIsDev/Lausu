@@ -191,20 +191,20 @@ class TestRegistryRefusesUnloadWhileLeased:
 
 class TestEngineUnloadIsBounded:
     def test_whisper_unload_skips_when_the_inference_lock_is_held(self, monkeypatch, caplog):
-        from voice_typer.server import system_whisper
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine
 
         monkeypatch.setattr("voice_typer.server.asr.registry.MODEL_UNLOAD_LOCK_TIMEOUT_S", 0.05)
-        engine = system_whisper.SystemWhisperEngine.__new__(system_whisper.SystemWhisperEngine)
-        engine._inference_lock = threading.RLock()
+        engine = GgufTranscriptionEngine.__new__(GgufTranscriptionEngine)
+        engine._lock = threading.RLock()
         engine._model = object()
-        engine._loaded = True
+        engine.model_size = "large-v3-turbo"
         # RLock is re-entrant, so the holder must be ANOTHER thread: that is
         # the real shape (a decode in progress), not the same thread nesting.
         holding = threading.Event()
         release = threading.Event()
 
         def _hold() -> None:
-            with engine._inference_lock:
+            with engine._lock:
                 holding.set()
                 release.wait(5)
 
@@ -212,13 +212,12 @@ class TestEngineUnloadIsBounded:
         holder.start()
         assert holding.wait(5)
         try:
-            with caplog.at_level(logging.ERROR, logger="voice_typer.server.system_whisper"):
+            with caplog.at_level(logging.ERROR, logger="voice_typer.worker.asr_runner"):
                 engine.unload()
         finally:
             release.set()
             holder.join(5)
         assert engine._model is not None, "the model was freed while a decode held it"
-        assert engine._loaded is True
         assert "refusing to unload" in caplog.text
 
     def test_parakeet_unload_skips_when_inference_is_active(self, monkeypatch, caplog):

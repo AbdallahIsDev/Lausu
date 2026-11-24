@@ -88,7 +88,7 @@ class TestTranscriptionLoggingRedactsPii:
         assert redact_pii(text) == text
 
     def test_transcribe_segment_log_redacts_pii_when_log_transcriptions_true(self, caplog):
-        """``TranscriptionEngine._transcribe_unlocked``"""
+        """The engine's decode body redacts PII in per-segment logs."""
         import logging
         import threading
         import types
@@ -109,7 +109,7 @@ class TestTranscriptionLoggingRedactsPii:
         engine.language = "en"
         engine.condition_on_previous_text = False
         engine._lock = threading.Lock()
-        # ``_transcribe_unlocked`` checks ``self._abort_event.is_set()``
+        # The decode body checks ``self._abort_event.is_set()`` between segments
         engine._abort_event = threading.Event()
 
         # Segment stub: provides .start, .end, .text, .avg_logprob,
@@ -138,7 +138,7 @@ class TestTranscriptionLoggingRedactsPii:
         raw_email = "john.doe@example.com"
 
         with caplog.at_level(logging.DEBUG, logger="voice_typer.server.transcription"):
-            engine._transcribe_unlocked(audio)
+            engine.transcribe(audio)
 
         log_text = caplog.text
         assert raw_email not in log_text, (
@@ -174,7 +174,7 @@ class TestTranscriptionLoggingRedactsPii:
         engine.language = "en"
         engine.condition_on_previous_text = False
         engine._lock = threading.Lock()
-        # ``_transcribe_unlocked`` checks ``self._abort_event.is_set()``
+        # The decode body checks ``self._abort_event.is_set()`` between segments
         engine._abort_event = threading.Event()
 
         seg_text = "My SSN is 123-45-6789 and card 4111-1111-1111-1111."
@@ -193,7 +193,7 @@ class TestTranscriptionLoggingRedactsPii:
         audio[1000:1100] = 0.1
 
         with caplog.at_level(logging.DEBUG, logger="voice_typer.server.transcription"):
-            engine._transcribe_unlocked(audio)
+            engine.transcribe(audio)
 
         log_text = caplog.text
         # The raw segment text (containing SSN + CC patterns) MUST NOT

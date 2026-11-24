@@ -39,14 +39,17 @@ class TestAsrRegistryCreatesEngines:
         assert registry.get("whisper") is fake_engine
 
     def test_create_qwen_constructs_with_kwargs(self, monkeypatch):
-        """create('qwen', ...) constructs QwenEngine with the right kwargs."""
+        """create('qwen', ...) forwards kwargs to the worker-backed slot."""
         fake_engine = MagicMock()
         fake_cls = MagicMock(return_value=fake_engine)
-        fake_mod = MagicMock(QwenEngine=fake_cls)
-        monkeypatch.setattr(
-            "importlib.import_module",
-            lambda name: fake_mod if name == "voice_typer.server.qwen_engine" else __import__(name),
-        )
+        fake_mod = MagicMock(WorkerBackedAsr=fake_cls)
+
+        def fake_import(name, *_args, **_kwargs):
+            if name == "voice_typer.server.worker_backed_asr":
+                return fake_mod
+            return __import__(name, fromlist=["*"])
+
+        monkeypatch.setattr("importlib.import_module", fake_import)
         registry = AsrBackendRegistry(MagicMock())
         result = registry.create(
             "qwen",
@@ -57,14 +60,17 @@ class TestAsrRegistryCreatesEngines:
         assert registry.get("qwen") is fake_engine
 
     def test_create_parakeet_constructs_with_kwargs(self, monkeypatch):
-        """create('parakeet', ...) constructs ParakeetEngine with the right kwargs."""
+        """create('parakeet', ...) forwards kwargs to the worker-backed slot."""
         fake_engine = MagicMock()
         fake_cls = MagicMock(return_value=fake_engine)
-        fake_mod = MagicMock(ParakeetEngine=fake_cls)
-        monkeypatch.setattr(
-            "importlib.import_module",
-            lambda name: fake_mod if name == "voice_typer.server.parakeet_engine" else __import__(name),
-        )
+        fake_mod = MagicMock(WorkerBackedAsr=fake_cls)
+
+        def fake_import(name, *_args, **_kwargs):
+            if name == "voice_typer.server.worker_backed_asr":
+                return fake_mod
+            return __import__(name, fromlist=["*"])
+
+        monkeypatch.setattr("importlib.import_module", fake_import)
         registry = AsrBackendRegistry(MagicMock())
         result = registry.create(
             "parakeet",

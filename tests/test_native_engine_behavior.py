@@ -25,14 +25,21 @@ class TestLanguageHandling:
         assert engine.language is None
 
     def test_explicit_code_is_preserved(self):
-        engine = GgufTranscriptionEngine(model_path="model.gguf", language="ar")
+        from types import SimpleNamespace
+
+        config = SimpleNamespace(language="ar")
+        engine = GgufTranscriptionEngine(model_path="model.gguf", language="ar", config=config)
         assert engine.language is None  # pinned per-model by gguf_model_path_for_key
+        assert engine.config is config
         assert engine.config.language == "ar"
 
     def test_auto_reaches_native_runner_as_none(self, monkeypatch, caplog):
         fake = FakeLibrary(language=b"")
         engine, _ = make_engine(monkeypatch, language=None, fake=fake)
-        with caplog.at_level("INFO", logger="voice_typer.worker.asr_runner"):
+        with (
+            caplog.at_level("INFO", logger="voice_typer.worker.asr_runner"),
+            caplog.at_level("INFO", logger="voice_typer.server.transcription"),
+        ):
             assert engine.transcribe(np.zeros(1600, dtype=np.float32)) == fake.text
         assert not any("configured; not detected" in r.getMessage() for r in caplog.records)
 

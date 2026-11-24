@@ -54,9 +54,9 @@ def test_word_level_capability_is_separate_protocol() -> None:
 
 
 def test_real_whisper_engine_satisfies_capability() -> None:
-    """The local Whisper engine implements the optional capability."""
+    """The GGUF engine implements the optional word-level capability."""
     from voice_typer.server.transcription_load import WordLevelTranscriber
-    from voice_typer.worker import whisper as transcription_module
+    from voice_typer.worker.asr_runner import GgufTranscriptionEngine
 
-    engine = transcription_module.TranscriptionEngine.__new__(transcription_module.TranscriptionEngine)
+    engine = GgufTranscriptionEngine.__new__(GgufTranscriptionEngine)
     assert isinstance(engine, WordLevelTranscriber)

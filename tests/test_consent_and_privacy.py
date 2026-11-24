@@ -249,115 +249,103 @@ class TestCloudEngineRefusesWithoutConsent:
 
 
 class TestWhisperLoadRefusesUncachedModel:
-    """deletes models automatically."""
+    """The GGUF resolver is local-only: no cached model means refuse, never download."""
+
+    MODEL_KEY = "large-v3-turbo"
 
     @staticmethod
-    def _make_engine():
-        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
-
-        engine = TranscriptionEngine.__new__(TranscriptionEngine)
-        engine.model_size = "small.en"
-        return engine
-
-    @staticmethod
-    def _install_fake_hf(monkeypatch, snapshot_impl):
+    def _install_fake_hf(monkeypatch, download_impl):
         import sys
 
         fake_module = type(sys)("huggingface_hub")
-        fake_module.snapshot_download = snapshot_impl
+        fake_module.hf_hub_download = download_impl
         monkeypatch.setitem(sys.modules, "huggingface_hub", fake_module)
         return fake_module
 
     def test_cache_miss_raises_not_downloaded_without_network(self, monkeypatch):
-        """Cache miss → ``ModelNotDownloadedError``; the only"""
+        """A cache miss refuses before inference; no network call is made."""
+        from voice_typer.worker.asr_runner import gguf_model_path_for_key
+
         calls = []
 
-        def fake_snapshot(**kwargs):
+        def fake_download(**kwargs):
             calls.append(kwargs)
             if kwargs.get("local_files_only"):
                 raise FileNotFoundError("not in cache")
             raise AssertionError("network download attempted from load path")
 
-        self._install_fake_hf(monkeypatch, fake_snapshot)
-        from voice_typer.server.asr_errors import ModelNotDownloadedError
-
-        engine = self._make_engine()
-        with pytest.raises(ModelNotDownloadedError, match="not downloaded"):
-            engine._require_model_downloaded("small.en")
+        self._install_fake_hf(monkeypatch, fake_download)
+        with pytest.raises(RuntimeError, match="downloaded"):
+            gguf_model_path_for_key(self.MODEL_KEY)
         assert calls, "the local cache probe must run"
         assert all(c.get("local_files_only") for c in calls), "the load path must never trigger a network download"
 
     def test_cache_miss_raises_even_with_consent(self, monkeypatch):
-        """``huggingface_consent=True`` the load refuses, there is nothing"""
+        """Consent never turns an engine load into a download."""
+        from types import SimpleNamespace
 
-        def fake_snapshot(**kwargs):
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
+
+        def fake_download(**kwargs):
             if kwargs.get("local_files_only"):
                 raise FileNotFoundError("not in cache")
             raise AssertionError("network download attempted from load path")
 
-        self._install_fake_hf(monkeypatch, fake_snapshot)
-        from voice_typer.server.asr_errors import ModelNotDownloadedError
-
-        engine = self._make_engine()
-        engine.config = type("FakeConfig", (), {"huggingface_consent": True})()
-        with pytest.raises(ModelNotDownloadedError):
-            engine._require_model_downloaded("small.en")
-
-    def test_tampered_cache_raises_integrity_error_without_deleting(self, monkeypatch):
-        """Cache hit but tampered → ``ModelIntegrityError``; the cache is"""
-        cleaned = []
-
-        def fake_snapshot(**kwargs):
-            return "/fake/cache/path"
-
-        self._install_fake_hf(monkeypatch, fake_snapshot)
-        monkeypatch.setattr(
-            "voice_typer.server.security.verify_model_integrity",
-            lambda local_dir, repo_id: False,
+        self._install_fake_hf(monkeypatch, fake_download)
+        cfg = SimpleNamespace(
+            huggingface_consent=True,
+            asr_backend="whisper",
+            model_size=self.MODEL_KEY,
+            language=None,
         )
-        monkeypatch.setattr(
-            "voice_typer.server.transcription.cleanup_hf_cache_dir",
-            lambda repo_id, log_prefix="": cleaned.append(repo_id),
-        )
-        from voice_typer.server.asr_errors import ModelIntegrityError
+        with pytest.raises(RuntimeError, match="downloaded"):
+            TranscriptionEngine(config=cfg)
 
-        engine = self._make_engine()
-        with pytest.raises(ModelIntegrityError):
-            engine._require_model_downloaded("small.en")
-        assert cleaned == [], "a tampered cache must NOT be deleted automatically"
+    def test_tampered_cache_raises_integrity_error_without_deleting(self, monkeypatch, tmp_path):
+        """A tampered GGUF is rejected by verification and left on disk."""
+        from types import SimpleNamespace
 
-    def test_cached_and_verified_model_passes(self, monkeypatch):
-        """Cached + integrity-verified → the gate passes (no raise)."""
+        from voice_typer.server.gguf_download import download_gguf_model
 
-        def fake_snapshot(**kwargs):
-            return "/fake/cache/path"
+        tampered = tmp_path / "tampered.gguf"
+        tampered.write_bytes(b"not a valid model")
+        self._install_fake_hf(monkeypatch, lambda **_kwargs: str(tampered))
+        ok, reason = download_gguf_model(self.MODEL_KEY, config=SimpleNamespace(huggingface_consent=True))
+        assert ok is False
+        assert reason in ("size_mismatch", "sha256_mismatch")
+        assert tampered.is_file(), "a tampered GGUF must NOT be deleted automatically"
 
-        self._install_fake_hf(monkeypatch, fake_snapshot)
-        monkeypatch.setattr(
-            "voice_typer.server.security.verify_model_integrity",
-            lambda local_dir, repo_id: True,
-        )
+    def test_cached_and_verified_model_passes(self, monkeypatch, tmp_path):
+        """A locally cached GGUF resolves to its path without any download."""
+        from voice_typer.worker.asr_runner import gguf_model_path_for_key
 
-        engine = self._make_engine()
-        engine._require_model_downloaded("small.en")  # must not raise
+        cached = tmp_path / "cached.gguf"
+        cached.write_bytes(b"x")
+        self._install_fake_hf(monkeypatch, lambda **_kwargs: str(cached))
+        assert gguf_model_path_for_key(self.MODEL_KEY) == str(cached)
 
     def test_non_whisper_models_skip_the_gate(self, monkeypatch):
-        """Non-Whisper model sizes are handled by their own load path."""
+        """Family routing picks one GGUF per family; legacy ids migrate."""
+        from types import SimpleNamespace
 
-        def fake_snapshot(**kwargs):
-            raise AssertionError("snapshot_download must not be called for non-whisper")
+        from voice_typer.server.gguf_model_registry import normalize_model_key
+        from voice_typer.worker.asr_runner.families import model_key_for
 
-        self._install_fake_hf(monkeypatch, fake_snapshot)
+        def fake_download(**_kwargs):
+            raise AssertionError("HF cache must not be consulted for family routing")
 
-        engine = self._make_engine()
-        engine._require_model_downloaded("parakeet")
-        engine._require_model_downloaded("qwen3-1.7b")
-        engine._require_model_downloaded("")
+        self._install_fake_hf(monkeypatch, fake_download)
+        assert model_key_for(SimpleNamespace(asr_backend="parakeet")) == "parakeet"
+        assert model_key_for(SimpleNamespace(asr_backend="qwen")) == "qwen3-1.7b"
+        assert model_key_for(SimpleNamespace(asr_backend="whisper", model_size="")) == self.MODEL_KEY
+        assert normalize_model_key("small.en", frozen=True) == self.MODEL_KEY
 
     def test_missing_huggingface_hub_raises_not_downloaded(self, monkeypatch):
-        """If huggingface_hub is unavailable we cannot verify the cache —"""
+        """No hub client means the cache cannot be confirmed: refuse."""
         import importlib.abc
         import sys
+
+        from voice_typer.worker.asr_runner import gguf_model_path_for_key
 
         real_hf = sys.modules.pop("huggingface_hub", None)
 
@@ -370,11 +358,8 @@ class TestWhisperLoadRefusesUncachedModel:
         blocker = _BlockHF()
         sys.meta_path.insert(0, blocker)
         try:
-            from voice_typer.server.asr_errors import ModelNotDownloadedError
-
-            engine = self._make_engine()
-            with pytest.raises(ModelNotDownloadedError):
-                engine._require_model_downloaded("small.en")
+            with pytest.raises(RuntimeError, match="downloaded"):
+                gguf_model_path_for_key(self.MODEL_KEY)
         finally:
             if blocker in sys.meta_path:
                 sys.meta_path.remove(blocker)
@@ -401,54 +386,50 @@ class TestEngineAcceptsConfigInRealConstructionPath:
         engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en")
         assert engine.config is None
 
-    def test_require_model_downloaded_does_not_crash_without_config(self, tmp_path, monkeypatch):
-        """When ``config`` is None the load gate still works, the local"""
+    def test_cache_gate_does_not_crash_without_config(self, tmp_path, monkeypatch):
+        """Config=None falls back to the current default model key, not a crash."""
         import sys
 
         fake_module = type(sys)("huggingface_hub")
 
-        def fake_snapshot_download(**kwargs):
+        def fake_download(**kwargs):
             if kwargs.get("local_files_only"):
                 raise FileNotFoundError("not in cache")
-            raise AssertionError("snapshot_download network call from load path")
+            raise AssertionError("network call from the load path")
 
-        fake_module.snapshot_download = fake_snapshot_download
+        fake_module.hf_hub_download = fake_download
         monkeypatch.setitem(sys.modules, "huggingface_hub", fake_module)
 
-        from voice_typer.server.asr_errors import ModelNotDownloadedError
         from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-        engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en")
-        with pytest.raises(ModelNotDownloadedError):
-            engine._require_model_downloaded("small.en")
+        with pytest.raises(RuntimeError, match="downloaded"):
+            TranscriptionEngine()
 
     def test_load_path_never_downloads_even_with_consent(self, tmp_path, monkeypatch):
-        """The engine load path NEVER downloads, even with consent"""
+        """Engine construction resolves only local files, even with consent."""
         import sys
 
         from voice_typer.server.config import Config
 
         download_calls: list[dict] = []
 
-        def fake_snapshot_download(**kwargs):
+        def fake_download(**kwargs):
             download_calls.append(kwargs)
             if kwargs.get("local_files_only"):
                 raise FileNotFoundError("not in cache")
             raise AssertionError("network download attempted from load path")
 
         fake_module = type(sys)("huggingface_hub")
-        fake_module.snapshot_download = fake_snapshot_download
+        fake_module.hf_hub_download = fake_download
         monkeypatch.setitem(sys.modules, "huggingface_hub", fake_module)
 
-        from voice_typer.server.asr_errors import ModelNotDownloadedError
         from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
         cfg = Config()
         cfg.huggingface_consent = True
-        engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en", config=cfg)
-
-        with pytest.raises(ModelNotDownloadedError):
-            engine._require_model_downloaded("small.en")
+        cfg.model_size = "large-v3-turbo"
+        with pytest.raises(RuntimeError, match="downloaded"):
+            TranscriptionEngine(config=cfg)
         non_local_calls = [c for c in download_calls if not c.get("local_files_only")]
         assert len(non_local_calls) == 0
 

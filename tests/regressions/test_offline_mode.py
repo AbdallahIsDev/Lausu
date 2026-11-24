@@ -95,7 +95,7 @@ class TestCloudEngineFailsGracefullyOnNetworkError:
         eng._compute_type = "int8"
         eng.config = MagicMock()
         eng.config.log_transcriptions = False
-        # ``_transcribe_unlocked`` also touches the abort + inference
+        # The decode body also touches the abort + inference
         eng._abort_event = threading.Event()
         eng._active_inference = 0
         eng._inference_cond = threading.Condition()
@@ -108,7 +108,7 @@ class TestCloudEngineFailsGracefullyOnNetworkError:
             mock_socket.side_effect = ConnectionError("No network")
 
             # Local transcription must succeed despite network being down
-            result = eng._transcribe_unlocked(audio)
+            result = eng.transcribe(audio)
             assert "hello from local engine" in result, "NEW-UX-029: local ASR must work when the network is down"
 
     def test_offline_mode_cloud_engine_error_message_is_user_friendly(self):

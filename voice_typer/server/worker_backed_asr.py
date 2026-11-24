@@ -1,19 +1,14 @@
-"""Worker-backed whisper backend (ADR-0025 C7).
+"""Worker-backed local ASR backend for the registry's whisper slot.
 
-One purpose only: expose the in-process ``AsrBackend`` surface for the
-``whisper`` registry slot while running ZERO inference in this process.
-Every call forwards to the runtime-pack worker over the C2/C3 bridge;
-the in-process engine class it replaces
-(``transcription.TranscriptionEngine``) is deleted, which is what lets
-the Nuitka sidecar exclude the legacy native speech libraries.
+One purpose only: expose the in-process ``AsrBackend`` surface while
+running ZERO inference here. Every call forwards to the runtime-pack
+worker over the C2/C3 bridge; decode uses one GGUF model through
+transcribe.cpp, so the Nuitka sidecar needs no native speech library.
 
-``parakeet``/``qwen`` run in-process by default with a worker-first
-hook in the registry (served from the pack worker when one is
-connected, falling back to these ONNX engines when it is not) — see
-``worker_proxy_asr.py``. There is deliberately no
-``transcribe_words`` here: word-level streaming goes through the C6
-worker session (the coordinator checks for this class), never through
-an in-process engine that no longer exists.
+``parakeet``/``qwen`` are worker-first too (see ``worker_proxy_asr.py``).
+There is deliberately no ``transcribe_words`` here: word-level streaming
+goes through the C6 worker session (the coordinator checks for this
+class), never through a sidecar-local decoder.
 """
 
 from __future__ import annotations
