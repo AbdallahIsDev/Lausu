@@ -220,112 +220,84 @@ def _model_languages(family: str) -> list[str] | None:
     return None
 
 
-_METADATA_BY_KEY: dict[str, ModelMetadata] = {
-    meta.name: meta
-    for meta in (
-        ModelMetadata(
-            name="tiny",
-            download_size_mb=75,
-            required_vram_mb=512,
-            backend="whisper",
-            multilingual=True,
-            supported_languages=None,
-            accepts_language_hint=True,
-            supports_language_detection=True,
-            description="Fastest multilingual model. Low accuracy, good for testing.",
-            network_behavior="downloads-on-first-use-consent-gated",
-            repo_id="Systran/faster-whisper-tiny",
-            speed_rating="fast",
-            accuracy_rating="low",
-            wer=12.3,
-        ),
-        ModelMetadata(
-            name="large-v3",
-            download_size_mb=3000,
-            required_vram_mb=3072,
-            backend="whisper",
-            multilingual=True,
-            supported_languages=None,
-            accepts_language_hint=True,
-            supports_language_detection=True,
-            description="Highest-accuracy Whisper model. Slow on CPU; GPU strongly recommended.",
-            network_behavior="downloads-on-first-use-consent-gated",
-            repo_id="Systran/faster-whisper-large-v3",
-            speed_rating="slow",
-            accuracy_rating="high",
-            wer=5.0,
-        ),
-        ModelMetadata(
-            name="large-v3-turbo",
-            download_size_mb=1618,
-            required_vram_mb=2000,
-            backend="whisper",
-            multilingual=True,
-            supported_languages=None,
-            accepts_language_hint=True,
-            supports_language_detection=True,
-            description="Turbo model, near-large-v3 accuracy at 8x speed. Recommended for most users.",
-            network_behavior="downloads-on-first-use-consent-gated",
-            repo_id="dropbox-dash/faster-whisper-large-v3-turbo",
-            speed_rating="fast",
-            accuracy_rating="high",
-            wer=5.5,
-        ),
-        ModelMetadata(
-            name="parakeet",
-            display_name="Parakeet Ultra",
-            download_size_mb=670,
-            required_vram_mb=2048,
-            backend="parakeet",
-            multilingual=True,
-            supported_languages=_model_languages("parakeet"),
-            accepts_language_hint=False,
-            supports_language_detection=True,
-            description=(
-                "Parakeet Ultra (NVIDIA Parakeet TDT 0.6b, post-trained by Moondream). "
-                "ONNX int8, 25 languages."
-            ),
-            network_behavior="downloads-on-first-use-consent-gated",
-            repo_id="Masterx/parakeet-tdt-0.6b-ultra-onnx",
-            speed_rating="fast",
-            accuracy_rating="high",
-            wer=5.8,
-        ),
-        ModelMetadata(
-            name="qwen3-1.7b",
-            display_name="qwen3 1.7B",
-            download_size_mb=3943,
-            required_vram_mb=4096,
-            backend="qwen",
-            multilingual=True,
-            supported_languages=_model_languages("qwen"),
-            accepts_language_hint=False,
-            supports_language_detection=True,
-            description="Qwen3-ASR 1.7B (ONNX int4). Multilingual ASR without PyTorch.",
-            network_behavior="downloads-on-first-use-consent-gated",
-            repo_id="andrewleech/qwen3-asr-1.7b-onnx",
-            speed_rating="medium",
-            accuracy_rating="high",
-            wer=5.76,
-        ),
-        ModelMetadata(
-            name="qwen3-0.6b",
-            display_name="qwen3 0.6B",
-            download_size_mb=1940,
-            required_vram_mb=2048,
-            backend="qwen",
-            multilingual=True,
-            supported_languages=_model_languages("qwen"),
-            accepts_language_hint=False,
-            supports_language_detection=True,
-            description="Qwen3-ASR 0.6B (ONNX int4). Smaller, faster multilingual ASR without PyTorch.",
-            network_behavior="downloads-on-first-use-consent-gated",
-            repo_id="andrewleech/qwen3-asr-0.6b-onnx",
-            speed_rating="fast",
-            accuracy_rating="high",
-        ),
-    )
+# Editorial fields are the only hand-written part of the catalogue. Size,
+# repo id and name come from GGUF_MODELS so UI/API never drift from the file
+# the downloader verifies and inference loads.
+_MODEL_PRESENTATION: dict[str, dict[str, object]] = {
+    "tiny": {
+        "required_vram_mb": 512,
+        "description": "Fastest multilingual model. Low accuracy, good for testing.",
+        "speed_rating": "fast",
+        "accuracy_rating": "low",
+        "wer": 12.3,
+    },
+    "large-v3": {
+        "required_vram_mb": 3072,
+        "description": "Highest-accuracy Whisper model. Slow on CPU; GPU strongly recommended.",
+        "speed_rating": "slow",
+        "accuracy_rating": "high",
+        "wer": 5.0,
+    },
+    "large-v3-turbo": {
+        "required_vram_mb": 2000,
+        "description": "Turbo model, near-large-v3 accuracy at 8x speed. Recommended for most users.",
+        "speed_rating": "fast",
+        "accuracy_rating": "high",
+        "wer": 5.5,
+    },
+    "parakeet": {
+        "display_name": "Parakeet Ultra",
+        "required_vram_mb": 2048,
+        "description": "Parakeet Ultra (NVIDIA Parakeet TDT 0.6b). GGUF Q8_0, 25 languages.",
+        "speed_rating": "fast",
+        "accuracy_rating": "high",
+        "wer": 5.8,
+    },
+    "qwen3-1.7b": {
+        "display_name": "qwen3 1.7B",
+        "required_vram_mb": 4096,
+        "description": "Qwen3-ASR 1.7B GGUF Q4_K_M. Multilingual ASR in one local model.",
+        "speed_rating": "medium",
+        "accuracy_rating": "high",
+        "wer": 5.76,
+    },
+    "qwen3-0.6b": {
+        "display_name": "qwen3 0.6B",
+        "required_vram_mb": 2048,
+        "description": "Qwen3-ASR 0.6B GGUF Q8_0. Smaller, faster multilingual ASR.",
+        "speed_rating": "fast",
+        "accuracy_rating": "high",
+    },
 }
+
+
+def _metadata_for_spec(spec: GgufModelSpec) -> ModelMetadata:
+    editorial = _MODEL_PRESENTATION[spec.model_key]
+    return ModelMetadata(
+        name=spec.model_key,
+        download_size_mb=spec.size_bytes // 1_000_000,
+        required_vram_mb=int(editorial["required_vram_mb"]),
+        backend=spec.family,
+        multilingual=True,
+        supported_languages=_model_languages(spec.family),
+        accepts_language_hint=spec.family == "whisper",
+        supports_language_detection=True,
+        description=str(editorial["description"]),
+        network_behavior="downloads-on-first-use-consent-gated",
+        repo_id=spec.repo_id,
+        speed_rating=str(editorial["speed_rating"]),
+        accuracy_rating=str(editorial["accuracy_rating"]),
+        wer=editorial.get("wer"),
+        display_name=editorial.get("display_name"),
+    )
+
+
+_METADATA_BY_KEY: dict[str, ModelMetadata] = {spec.model_key: _metadata_for_spec(spec) for spec in GGUF_MODELS.values()}
+
+
+def gguf_spec_for_repo_id(repo_id: str) -> GgufModelSpec | None:
+    """Find the registered GGUF file for a cache repo id."""
+    return next((spec for spec in GGUF_MODELS.values() if spec.repo_id == repo_id), None)
 
 
 def available_model_metadata() -> dict[str, ModelMetadata]:
@@ -339,6 +311,10 @@ MODEL_REGISTRY = MappingProxyType(available_model_metadata())
 def get_model_metadata(model_size: str) -> ModelMetadata | None:
     """Return metadata for ``model_size`` or ``None`` if unknown/not selectable."""
     key = LEGACY_MODEL_ALIASES.get(model_size, model_size)
+    key = LEGACY_REPO_ID_KEYS.get(key, key)
+    spec = gguf_spec_for_repo_id(key)
+    if spec is not None:
+        key = spec.model_key
     if key not in available_models():
         return None
     return _METADATA_BY_KEY.get(key)
@@ -370,9 +346,7 @@ def require_complete_spec(spec: GgufModelSpec) -> None:
 
 
 def resolve_gguf_spec(model_key: str, *, allow_dev: bool | None = None) -> GgufModelSpec:
-    catalogue = available_models() if allow_dev is None else (
-        dict(GGUF_MODELS) if allow_dev else production_models()
-    )
+    catalogue = available_models() if allow_dev is None else (dict(GGUF_MODELS) if allow_dev else production_models())
     spec = catalogue.get(model_key)
     if spec is None:
         raise KeyError(f"No GGUF model registered under {model_key!r}")

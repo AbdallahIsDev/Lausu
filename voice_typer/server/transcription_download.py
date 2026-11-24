@@ -218,6 +218,17 @@ def is_model_snapshot_complete(repo_id: str) -> bool:
 
     Returns ``False`` when ``huggingface_hub`` is unavailable, the
     """
+    from voice_typer.server.gguf_model_registry import gguf_spec_for_repo_id
+
+    spec = gguf_spec_for_repo_id(repo_id)
+    if spec is not None:
+        # GGUF files are single verified blobs; the ONNX allow-pattern probe
+        # below would never match them. Use the same path inference resolves.
+        from voice_typer.server.gguf_download import resolve_gguf_model_path
+
+        path = resolve_gguf_model_path(spec.model_key)
+        return bool(path and path.is_file() and path.stat().st_size == spec.size_bytes)
+
     from voice_typer.server.config import _config_dir
     from voice_typer.server.model_availability import snapshot_search_dirs
     from voice_typer.server.qwen_layout import cached_qwen_model_dir, qwen_repo_ids

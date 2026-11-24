@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
+import shutil
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -132,4 +135,62 @@ def download_gguf_model(
     if _sha256(downloaded) != spec.sha256:
         return (False, "sha256_mismatch")
     report("downloaded and verified")
+    return (True, "")
+
+
+def install_gguf_model_from_file(
+    model_key: str, source: str | Path, *, cache_dir: str | Path | None = None
+) -> tuple[bool, str]:
+    """Install an already-downloaded GGUF into the same cache a download fills.
+
+    Verification is the downloader's (exact byte size + SHA-256) and the commit
+    is an atomic rename inside the Hugging Face cache layout, so inference's
+    ``local_files_only`` lookup resolves the file without any network access.
+    Returns ``(ok, failure_code)`` like :func:`download_gguf_model`.
+    """
+    spec, error = _resolved_spec_or_error(model_key)
+    if spec is None:
+        return (False, error)
+    if is_placeholder_hash(spec.sha256) or is_placeholder_size(spec.size_bytes):
+        return (False, "placeholder_in_registry")
+    require_complete_spec(spec)
+    origin = Path(source).expanduser()
+    if not origin.is_file():
+        return (False, "source_missing")
+    if origin.stat().st_size != spec.size_bytes:
+        return (False, "size_mismatch")
+    if _sha256(origin) != spec.sha256:
+        return (False, "sha256_mismatch")
+
+    ensure_hf_env()
+    from huggingface_hub.constants import HF_HUB_CACHE
+    from huggingface_hub.file_download import _get_pointer_path
+
+    cache = Path(cache_dir) if cache_dir is not None else Path(HF_HUB_CACHE)
+    storage = cache / f"models--{spec.repo_id.replace('/', '--')}"
+    revision = spec.sha256[:40]
+    pointer = Path(_get_pointer_path(str(storage), revision, spec.filename))
+    pointer.parent.mkdir(parents=True, exist_ok=True)
+    (storage / "refs").mkdir(parents=True, exist_ok=True)
+
+    def _commit(destination: Path, payload: bytes) -> None:
+        handle, temporary = tempfile.mkstemp(prefix=".gguf-install-", dir=str(destination.parent))
+        try:
+            with os.fdopen(handle, "wb") as stream:
+                stream.write(payload)
+            os.replace(temporary, destination)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+
+    handle, temporary = tempfile.mkstemp(prefix=".gguf-install-", dir=str(pointer.parent))
+    try:
+        with os.fdopen(handle, "wb") as target, origin.open("rb") as incoming:
+            shutil.copyfileobj(incoming, target, length=1024 * 1024)
+        os.replace(temporary, pointer)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    _commit(storage / "refs" / "main", revision.encode("ascii"))
+    log.info("[GGUF] installed %s from a local file", model_key)
     return (True, "")

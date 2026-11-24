@@ -7,6 +7,7 @@ import os
 from typing import TYPE_CHECKING
 
 from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
+from voice_typer.server.gguf_model_registry import GGUF_MODELS as _GGUF_MODELS
 from voice_typer.server.retry import run_with_retry
 
 if TYPE_CHECKING:
@@ -15,17 +16,9 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-# Approximate model sizes (MB) for disk-space pre-check.
-_MODEL_SIZE_MB = {
-    "tiny": 75,
-    # ``large-v3``: highest-accuracy multilingual Whisper (~3 GB).
-    "large-v3": 3000,
-    # ``large-v3-turbo`` is the fast multilingual model released by
-    # OpenAI (fp16 weights, ~1.62 GB on HuggingFace).
-    "large-v3-turbo": 1618,
-    # Parakeet Ultra int8 ONNX export is ~0.67 GB uncompressed
-    "parakeet": 670,
-}
+# Disk-space pre-check sizes come from the same GGUF catalogue as the
+# downloader and the UI, so a changed file can never leave a stale estimate.
+_MODEL_SIZE_MB = {key: spec.size_bytes // 1_000_000 for key, spec in _GGUF_MODELS.items()}
 # Extra margin for temporary files, metadata, tokenizer, etc.
 _DISK_SPACE_MARGIN_MB = 500
 

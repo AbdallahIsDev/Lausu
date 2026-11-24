@@ -7,15 +7,11 @@ from pathlib import Path
 
 LOCALES = ["en", "ar", "de", "es", "fr", "hi", "ru", "zh"]
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TRANSLATIONS_DIR = (
-    REPO_ROOT / "voice_typer/client/src/renderer/src/i18n/translations"
-)
+TRANSLATIONS_DIR = REPO_ROOT / "voice_typer/client/src/renderer/src/i18n/translations"
 
 
 def _onboarding(locale: str) -> dict:
-    return json.loads(
-        (TRANSLATIONS_DIR / f"{locale}.json").read_text(encoding="utf-8")
-    )["onboarding"]
+    return json.loads((TRANSLATIONS_DIR / f"{locale}.json").read_text(encoding="utf-8"))["onboarding"]
 
 
 class TestRecommendedEntry:
@@ -40,6 +36,7 @@ class TestRecommendedEntry:
         assert flagged[0]["name"] == "parakeet"
 
     def test_recommended_matches_registry_metadata(self, tmp_config_dir):
+        from voice_typer.server.gguf_model_registry import GGUF_MODELS
         from voice_typer.server.model_registry import get_model_metadata
         from voice_typer.server.onboarding import OnboardingController
 
@@ -48,7 +45,7 @@ class TestRecommendedEntry:
         meta = get_model_metadata("parakeet")
         assert meta is not None
         assert meta.display_name == parakeet["display_name"]
-        assert meta.download_size_mb == 670
+        assert meta.download_size_mb == GGUF_MODELS["parakeet"].size_bytes // 1_000_000
         assert meta.speed_rating == "fast"
         assert meta.multilingual is True
 
@@ -81,9 +78,7 @@ class TestRecommendedI18n:
         for locale in LOCALES:
             onboarding = _onboarding(locale)
             value = onboarding.get("languageCountBadge")
-            assert isinstance(value, str) and value.strip(), (
-                f"{locale}.json missing onboarding.languageCountBadge"
-            )
+            assert isinstance(value, str) and value.strip(), f"{locale}.json missing onboarding.languageCountBadge"
             assert "{count}" in value, f"{locale}.json languageCountBadge must interpolate {{count}}"
 
     def test_non_english_locales_are_translated(self):

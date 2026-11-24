@@ -52,12 +52,15 @@ class TestModelStatusCache:
 
     def test_cache_invalidated_after_delete(self, tmp_config_dir, monkeypatch):
         """After ``delete_model``, the next ``get_model_status`` re-queries FS."""
+        # Pre-create the HF cache directory with a "tiny" model, using the
+        # same repo id the GGUF catalogue (and therefore the status probe) uses.
+        from voice_typer.server.gguf_model_registry import resolve_gguf_spec
         from voice_typer.server.service import LausuService
 
-        # Pre-create the HF cache directory with a "tiny" model
         cache_dir = tmp_config_dir / "huggingface" / "hub"
         cache_dir.mkdir(parents=True, exist_ok=True)
-        repo_dir = cache_dir / "models--Systran--faster-whisper-tiny"
+        tiny_repo = resolve_gguf_spec("tiny").repo_id
+        repo_dir = cache_dir / f"models--{tiny_repo.replace('/', '--')}"
         repo_dir.mkdir(parents=True, exist_ok=True)
 
         # Active model is set to large-v3-turbo (NOT tiny) so delete_model

@@ -1,5 +1,6 @@
 """Tests for the model registry."""
 
+from voice_typer.server.gguf_model_registry import GGUF_MODELS, resolve_gguf_spec
 from voice_typer.server.model_registry import (
     DEFAULT_MODEL_SIZE,
     MODEL_REGISTRY,
@@ -162,10 +163,10 @@ class TestLargeV3HasCorrectMetadata:
     """test_large-v3_has_correct_metadata."""
 
     def test_large_v3_has_correct_metadata(self):
-        """The ``large-v3`` entry matches: 3000 MB download, 3072 MB"""
+        """The ``large-v3`` entry matches the GGUF file size and 3072 MB"""
         meta = get_model_metadata("large-v3")
         assert meta is not None, "large-v3 missing from registry"
-        assert meta.download_size_mb == 3000, f"expected download_size_mb=3000, got {meta.download_size_mb}"
+        assert meta.download_size_mb == GGUF_MODELS["large-v3"].size_bytes // 1_000_000
         assert meta.required_vram_mb == 3072, f"expected required_vram_mb=3072, got {meta.required_vram_mb}"
         assert meta.multilingual is True, "expected multilingual=True"
         assert meta.supported_languages is None, "expected supported_languages=None (all languages)"
@@ -173,9 +174,7 @@ class TestLargeV3HasCorrectMetadata:
         assert meta.speed_rating == "slow", f"expected speed_rating='slow', got {meta.speed_rating!r}"
         assert meta.accuracy_rating == "high", f"expected accuracy_rating='high', got {meta.accuracy_rating!r}"
         assert meta.is_distilled is False, "large-v3 is NOT a distilled variant"
-        assert meta.repo_id == "Systran/faster-whisper-large-v3", (
-            f"expected Systran/faster-whisper-large-v3, got {meta.repo_id}"
-        )
+        assert meta.repo_id == resolve_gguf_spec("large-v3").repo_id
 
     def test_large_v3_size_matches_model_size_mb(self):
         """``_MODEL_SIZE_MB`` table in asr_utils.py so the disk-space"""
@@ -192,10 +191,10 @@ class TestLargeV3TurboHasCorrectMetadata:
     """test_large-v3-turbo_has_correct_metadata."""
 
     def test_large_v3_turbo_has_correct_metadata(self):
-        """The ``large-v3-turbo`` entry matches: 1618 MB download, 2000"""
+        """The ``large-v3-turbo`` entry matches the GGUF size and 2000"""
         meta = get_model_metadata("large-v3-turbo")
         assert meta is not None, "large-v3-turbo missing from registry"
-        assert meta.download_size_mb == 1618, f"expected download_size_mb=1618, got {meta.download_size_mb}"
+        assert meta.download_size_mb == GGUF_MODELS["large-v3-turbo"].size_bytes // 1_000_000
         assert meta.required_vram_mb == 2000, f"expected required_vram_mb=2000, got {meta.required_vram_mb}"
         assert meta.multilingual is True, "expected multilingual=True"
         assert meta.supported_languages is None, "expected supported_languages=None (all languages)"
@@ -203,9 +202,7 @@ class TestLargeV3TurboHasCorrectMetadata:
         assert meta.speed_rating == "fast", f"expected speed_rating='fast', got {meta.speed_rating!r}"
         assert meta.accuracy_rating == "high", f"expected accuracy_rating='high', got {meta.accuracy_rating!r}"
         assert meta.is_distilled is False, "turbo is NOT a distilled variant"
-        assert meta.repo_id == "dropbox-dash/faster-whisper-large-v3-turbo", (
-            f"expected dropbox-dash/faster-whisper-large-v3-turbo, got {meta.repo_id}"
-        )
+        assert meta.repo_id == resolve_gguf_spec("large-v3-turbo").repo_id
 
     def test_turbo_size_matches_model_size_mb(self):
         """``_MODEL_SIZE_MB`` table in asr_utils.py so the disk-space"""
@@ -333,8 +330,8 @@ class TestModelMetadataHasNetworkBehaviorField:
         assert small is not None and large is not None
         assert small.repo_id != large.repo_id
         assert small.download_size_mb < large.download_size_mb
-        assert small.download_size_mb == 1940, small.download_size_mb
-        assert large.download_size_mb == 3943, large.download_size_mb
+        assert small.download_size_mb == GGUF_MODELS["qwen3-0.6b"].size_bytes // 1_000_000
+        assert large.download_size_mb == GGUF_MODELS["qwen3-1.7b"].size_bytes // 1_000_000
 
     def test_to_dict_includes_network_behavior(self):
         """``to_dict()`` (used for IPC transport to the renderer)"""
@@ -349,20 +346,16 @@ class TestModelMetadataHasNetworkBehaviorField:
 
 
 class TestRegistryRepoIdsMatchIntegrityManifest:
-    """Whisper repo ids must match pinned integrity-manifest entries."""
+    """Catalogue repo ids must match the verified GGUF specification."""
 
     def test_every_whisper_repo_id_is_pinned_in_manifest(self):
-        """A repo rename must update registry + manifest together."""
-        from voice_typer.server.security import MODEL_HASHES
-
+        """A repo rename must update metadata + GGUF catalogue together."""
         for name in ("tiny", "large-v3", "large-v3-turbo"):
             meta = get_model_metadata(name)
             assert meta is not None, f"{name} missing from registry"
-            assert meta.repo_id in MODEL_HASHES, f"{name}: repo_id {meta.repo_id!r} missing from model_hashes.json"
-            revision = MODEL_HASHES[meta.repo_id].get("revision")
-            assert revision and revision != "main", (
-                f"{name}: repo {meta.repo_id!r} must pin a commit revision, got {revision!r}"
-            )
+            spec = resolve_gguf_spec(name)
+            assert meta.repo_id == spec.repo_id
+            assert len(spec.sha256) == 64 and spec.size_bytes > 0
 
 
 class TestLanguageCapabilities:
@@ -392,9 +385,7 @@ class TestLanguageCapabilities:
             meta = get_model_metadata(name)
             assert meta is not None, f"{name} missing from registry"
             assert meta.accepts_language_hint is True, f"{name}: Whisper takes a decode hint"
-            assert meta.supports_language_detection is True, (
-                f"{name}: Whisper detects when the hint is Auto"
-            )
+            assert meta.supports_language_detection is True, f"{name}: Whisper detects when the hint is Auto"
 
     def test_catalog_payload_carries_language_capabilities(self):
         """``to_dict()`` transports the flags with the model catalog."""

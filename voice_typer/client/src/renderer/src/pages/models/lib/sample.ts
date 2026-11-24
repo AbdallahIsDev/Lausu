@@ -38,7 +38,7 @@ export const SAMPLE_MODELS: ModelInfo[] = INITIAL_MODELS.map((model) => ({
 export const SAMPLE_MODEL_CATALOG: Record<string, ModelMetadata> = {
 	"large-v3": {
 		name: "large-v3",
-		download_size_mb: 3000,
+		download_size_mb: 1297,
 		required_vram_mb: 3072,
 		backend: "whisper",
 		multilingual: true,
@@ -47,7 +47,7 @@ export const SAMPLE_MODEL_CATALOG: Record<string, ModelMetadata> = {
 		supports_language_detection: true,
 		description:
 			"Highest-accuracy Whisper model. Slow on CPU; GPU strongly recommended.",
-		repo_id: "Systran/faster-whisper-large-v3",
+		repo_id: "handy-computer/whisper-large-v3-gguf",
 		is_distilled: false,
 		speed_rating: "slow",
 		accuracy_rating: "high",
@@ -55,7 +55,7 @@ export const SAMPLE_MODEL_CATALOG: Record<string, ModelMetadata> = {
 	},
 	"large-v3-turbo": {
 		name: "large-v3-turbo",
-		download_size_mb: 1618,
+		download_size_mb: 886,
 		required_vram_mb: 2000,
 		backend: "whisper",
 		multilingual: true,
@@ -64,7 +64,7 @@ export const SAMPLE_MODEL_CATALOG: Record<string, ModelMetadata> = {
 		supports_language_detection: true,
 		description:
 			"Turbo model, near-large-v3 accuracy at 8x speed. Recommended for most users.",
-		repo_id: "dropbox-dash/faster-whisper-large-v3-turbo",
+		repo_id: "handy-computer/whisper-large-v3-turbo-gguf",
 		is_distilled: false,
 		speed_rating: "fast",
 		accuracy_rating: "high",
@@ -73,7 +73,7 @@ export const SAMPLE_MODEL_CATALOG: Record<string, ModelMetadata> = {
 	"qwen3-1.7b": {
 		name: "qwen3-1.7b",
 		display_name: "qwen3 1.7B",
-		download_size_mb: 3943,
+		download_size_mb: 1319,
 		required_vram_mb: 4096,
 		backend: "qwen",
 		multilingual: true,
@@ -81,8 +81,8 @@ export const SAMPLE_MODEL_CATALOG: Record<string, ModelMetadata> = {
 		accepts_language_hint: false,
 		supports_language_detection: true,
 		description:
-			"Qwen3-ASR 1.7B (ONNX int4). Multilingual ASR without PyTorch.",
-		repo_id: "andrewleech/qwen3-asr-1.7b-onnx",
+			"Qwen3-ASR 1.7B GGUF Q4_K_M. Multilingual ASR in one local model.",
+		repo_id: "handy-computer/Qwen3-ASR-1.7B-gguf",
 		is_distilled: false,
 		speed_rating: "medium",
 		accuracy_rating: "high",
@@ -91,16 +91,15 @@ export const SAMPLE_MODEL_CATALOG: Record<string, ModelMetadata> = {
 	"qwen3-0.6b": {
 		name: "qwen3-0.6b",
 		display_name: "qwen3 0.6B",
-		download_size_mb: 1940,
+		download_size_mb: 850,
 		required_vram_mb: 2048,
 		backend: "qwen",
 		multilingual: true,
 		supported_languages: null,
 		accepts_language_hint: false,
 		supports_language_detection: true,
-		description:
-			"Qwen3-ASR 0.6B (ONNX int4). Smaller, faster multilingual ASR without PyTorch.",
-		repo_id: "andrewleech/qwen3-asr-0.6b-onnx",
+		description: "Qwen3-ASR 0.6B GGUF Q8_0. Smaller, faster multilingual ASR.",
+		repo_id: "handy-computer/Qwen3-ASR-0.6B-gguf",
 		is_distilled: false,
 		speed_rating: "fast",
 		accuracy_rating: "high",
@@ -109,7 +108,7 @@ export const SAMPLE_MODEL_CATALOG: Record<string, ModelMetadata> = {
 	parakeet: {
 		name: "parakeet",
 		display_name: "Parakeet Ultra",
-		download_size_mb: 670,
+		download_size_mb: 740,
 		required_vram_mb: 2048,
 		backend: "parakeet",
 		multilingual: true,
@@ -143,8 +142,8 @@ export const SAMPLE_MODEL_CATALOG: Record<string, ModelMetadata> = {
 		accepts_language_hint: false,
 		supports_language_detection: true,
 		description:
-			"Parakeet Ultra (NVIDIA Parakeet TDT 0.6b, post-trained by Moondream). ONNX int8, 25 European languages.",
-		repo_id: "Masterx/parakeet-tdt-0.6b-ultra-onnx",
+			"Parakeet Ultra (NVIDIA Parakeet TDT 0.6b). GGUF Q8_0, 25 languages.",
+		repo_id: "handy-computer/parakeet-ultra-gguf",
 		is_distilled: false,
 		speed_rating: "fast",
 		accuracy_rating: "high",

@@ -74,7 +74,7 @@ export interface ModelFamily {
 export const INITIAL_MODELS: ModelInfo[] = [
 	{
 		name: "large-v3",
-		size: "3 GB",
+		size: "1297 MB",
 		speed: "Slow",
 		backend: "whisper",
 		downloaded: false,
@@ -83,7 +83,7 @@ export const INITIAL_MODELS: ModelInfo[] = [
 	},
 	{
 		name: "large-v3-turbo",
-		size: "1.6 GB",
+		size: "886 MB",
 		speed: "Fast",
 		backend: "whisper",
 		downloaded: false,
@@ -93,7 +93,7 @@ export const INITIAL_MODELS: ModelInfo[] = [
 	{
 		name: "qwen3-1.7b",
 		displayName: "qwen3 1.7B",
-		size: "3.9 GB",
+		size: "1319 MB",
 		speed: "Medium",
 		backend: "qwen",
 		downloaded: false,
@@ -103,7 +103,7 @@ export const INITIAL_MODELS: ModelInfo[] = [
 	{
 		name: "qwen3-0.6b",
 		displayName: "qwen3 0.6B",
-		size: "1.9 GB",
+		size: "850 MB",
 		speed: "Fast",
 		backend: "qwen",
 		downloaded: false,
@@ -113,7 +113,7 @@ export const INITIAL_MODELS: ModelInfo[] = [
 	{
 		name: "parakeet",
 		displayName: "Parakeet Ultra",
-		size: "670 MB",
+		size: "740 MB",
 		speed: "Fast",
 		backend: "parakeet",
 		downloaded: false,

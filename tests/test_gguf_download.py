@@ -116,3 +116,42 @@ def test_inference_lookup_is_local_only(monkeypatch: pytest.MonkeyPatch, tmp_pat
     _install_hub(monkeypatch, hub)
     assert gguf_download.resolve_gguf_model_path("tiny") == path
     assert hub.calls == [{"repo_id": spec.repo_id, "filename": spec.filename, "local_files_only": True}]
+
+
+def test_install_from_file_lands_in_the_cache_the_downloader_reads(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import huggingface_hub.constants as hf_constants
+
+    spec, source = _real_spec(tmp_path)
+    _use_spec(monkeypatch, spec)
+    monkeypatch.setattr(gguf_download, "ensure_hf_env", lambda: None)
+    cache = tmp_path / "cache"
+    monkeypatch.setattr(hf_constants, "HF_HUB_CACHE", str(cache))
+    monkeypatch.setenv("HF_HUB_DISABLE_SYMLINKS", "1")
+
+    assert gguf_download.install_gguf_model_from_file("parakeet", source, cache_dir=cache) == (True, "")
+    assert gguf_download.resolve_gguf_model_path("parakeet") == (
+        cache / f"models--{spec.repo_id.replace('/', '--')}" / "snapshots" / spec.sha256[:40] / spec.filename
+    )
+
+
+def test_install_from_file_refuses_unverified_sources(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    spec, source = _real_spec(tmp_path)
+    _use_spec(monkeypatch, spec)
+    monkeypatch.setattr(gguf_download, "ensure_hf_env", lambda: None)
+    cache = tmp_path / "cache"
+    for spec_override, expected in (
+        (GgufModelSpec(**{**spec.__dict__, "size_bytes": 999}), "size_mismatch"),
+        (GgufModelSpec(**{**spec.__dict__, "sha256": "b" * 64}), "sha256_mismatch"),
+    ):
+        _use_spec(monkeypatch, spec_override)
+        assert gguf_download.install_gguf_model_from_file("parakeet", source, cache_dir=cache) == (
+            False,
+            expected,
+        )
+    assert gguf_download.install_gguf_model_from_file("parakeet", tmp_path / "missing.gguf", cache_dir=cache) == (
+        False,
+        "source_missing",
+    )
+    assert not cache.exists()

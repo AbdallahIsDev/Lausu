@@ -177,7 +177,7 @@ class TestModelSizeMbIncludesParakeet:
         assert "parakeet" in _MODEL_SIZE_MB, "AP-43: missing 'parakeet' key"
         assert _MODEL_SIZE_MB["parakeet"] >= 600, (
             "AP-43: _MODEL_SIZE_MB['parakeet'] must be >= 600 (the ONNX "
-            "int8 export is ~670 MB uncompressed); got "
+            "GGUF Q8_0 export is ~740 MB); got "
             f"{_MODEL_SIZE_MB['parakeet']} MB."
         )
 
@@ -216,8 +216,11 @@ class TestModelSizeMbIncludesParakeet:
 
         msg = str(excinfo.value)
         assert "Insufficient disk space" in msg
-        assert "670 MB" in msg, (
-            f"AP-43: error message must show the 670 MB parakeet estimate (not the 500 MB default); got: {msg!r}"
+        from voice_typer.server.gguf_model_registry import GGUF_MODELS
+
+        expected_mb = GGUF_MODELS["parakeet"].size_bytes // 1_000_000
+        assert f"{expected_mb} MB" in msg, (
+            f"error message must show the {expected_mb} MB parakeet estimate (not the 500 MB default); got: {msg!r}"
         )
 
         # And with ~2 GB free (2048 MB), the check must PASS.

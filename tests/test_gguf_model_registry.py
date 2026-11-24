@@ -110,6 +110,66 @@ def test_frozen_default_and_catalogue_are_production_only() -> None:
         assert get_model_metadata("tiny") is not None
 
 
+def test_metadata_derives_every_authoritative_field_from_gguf_models(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """UI/API metadata must never restate size, repo id or family by hand."""
+    from dataclasses import replace
+
+    monkeypatch.setattr(registry, "is_frozen", lambda: False)
+    metadata = registry.available_model_metadata()
+    assert set(metadata) == set(GGUF_MODELS)
+    for key, spec in GGUF_MODELS.items():
+        meta = metadata[key]
+        assert meta.name == spec.model_key
+        assert meta.download_size_mb == spec.size_bytes // 1_000_000
+        assert meta.repo_id == spec.repo_id
+        assert meta.backend == spec.family
+        changed = registry._metadata_for_spec(replace(spec, size_bytes=spec.size_bytes + 1_000_000))
+        assert changed.download_size_mb == meta.download_size_mb + 1
+        changed = registry._metadata_for_spec(replace(spec, repo_id="example/new-repo"))
+        assert changed.repo_id == "example/new-repo"
+
+
+def test_production_metadata_has_no_dev_model_or_legacy_repo() -> None:
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(registry, "is_frozen", lambda: True)
+    try:
+        metadata = registry.available_model_metadata()
+        assert registry.get_all_models() == list(metadata.values())
+    finally:
+        monkeypatch.undo()
+    assert set(metadata) == PRODUCTION_MODEL_KEYS
+    assert "tiny" not in metadata
+    for meta in metadata.values():
+        assert meta.repo_id.startswith("handy-computer/")
+        assert "systran" not in meta.repo_id.lower()
+        assert "onnx" not in meta.repo_id.lower()
+
+
+def test_client_sample_size_matches_the_downloaded_byte_size() -> None:
+    """The skeleton and the download button show the registry's byte size."""
+    from pathlib import Path
+
+    sample = (
+        Path(registry.__file__).parents[1]
+        / "client"
+        / "src"
+        / "renderer"
+        / "src"
+        / "pages"
+        / "models"
+        / "lib"
+        / "sample.ts"
+    ).read_text(encoding="utf-8")
+    shown = dict(re.findall(r'name: "([^"]+)",\s*\n\s*display_name:.*?\n\s*download_size_mb: (\d+)', sample))
+    shown.update(dict(re.findall(r'name: "([^"]+)",\s*\n\s*download_size_mb: (\d+)', sample)))
+    for key, spec in GGUF_MODELS.items():
+        if spec.dev_only:
+            continue
+        assert shown.get(key) == str(spec.size_bytes // 1_000_000), key
+
+
 def test_only_the_registry_module_reads_raw_gguf_models() -> None:
     """AST scan: every other production module goes through the catalogue API."""
     import ast
@@ -139,7 +199,6 @@ def test_only_the_registry_module_reads_raw_gguf_models() -> None:
         "model_registry.py must stay a pure re-export shim"
     )
     assert not any(
-        isinstance(node, ast.Assign)
-        and any(isinstance(t, ast.Name) and t.id == "MODEL_REGISTRY" for t in node.targets)
+        isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "MODEL_REGISTRY" for t in node.targets)
         for node in shim_tree.body
     ), "model_registry.py must not define another MODEL_REGISTRY"
