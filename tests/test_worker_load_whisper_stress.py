@@ -24,7 +24,7 @@ class _StubEngine:
     constructions = 0
     loads = 0
 
-    def __init__(self, model_size="tiny", device="auto", language="en"):
+    def __init__(self, model_size="tiny", device="auto", language="en", **_kwargs):
         type(self).constructions += 1
         self.model_size = model_size
 
@@ -208,11 +208,15 @@ class TestAbortSemantics:
 
 class TestTranscriberCache:
     def test_transcriber_cache_hit_fast(self, monkeypatch):
-        import voice_typer.worker.whisper.engine as engine_mod
+        import voice_typer.worker.asr_runner as engine_mod
+        monkeypatch.setattr(
+            "voice_typer.worker.asr_runner.gguf_model_path_for_key",
+            lambda size, lang: "/models/test.gguf",
+        )
 
         _StubEngine.constructions = 0
         _StubEngine.loads = 0
-        monkeypatch.setattr(engine_mod, "TranscriptionEngine", _StubEngine)
+        monkeypatch.setattr(engine_mod, "GgufTranscriptionEngine", _StubEngine)
         transcriber = WorkerTranscriber()
         first = transcriber.load_whisper_model("tiny", None, "en")
         assert first["loaded"] is True
@@ -224,11 +228,15 @@ class TestTranscriberCache:
         assert transcriber._engine is not None
 
     def test_cache_miss_on_language_change_rebuilds(self, monkeypatch):
-        import voice_typer.worker.whisper.engine as engine_mod
+        import voice_typer.worker.asr_runner as engine_mod
+        monkeypatch.setattr(
+            "voice_typer.worker.asr_runner.gguf_model_path_for_key",
+            lambda size, lang: "/models/test.gguf",
+        )
 
         _StubEngine.constructions = 0
         _StubEngine.loads = 0
-        monkeypatch.setattr(engine_mod, "TranscriptionEngine", _StubEngine)
+        monkeypatch.setattr(engine_mod, "GgufTranscriptionEngine", _StubEngine)
         transcriber = WorkerTranscriber()
         transcriber.load_whisper_model("tiny", None, "en")
         transcriber.load_whisper_model("tiny", None, "de")

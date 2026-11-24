@@ -107,8 +107,6 @@ EXPECTED_NUITKA_FLAGS = [
     "--onefile",
     "--assume-yes-for-downloads",
     "--enable-plugin=numpy",
-    "--nofollow-import-to=faster_whisper",
-    "--nofollow-import-to=ctranslate2",
     "--include-package=voice_typer",
     "--include-package=websockets",
     "--include-package=numpy",

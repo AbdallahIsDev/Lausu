@@ -76,7 +76,6 @@ class TestMutexHandleClose:
         mock_sd = MagicMock()
         mock_sd.query_devices.return_value = []
         monkeypatch.setitem(sys.modules, "sounddevice", mock_sd)
-        monkeypatch.setitem(sys.modules, "faster_whisper", MagicMock())
         monkeypatch.setitem(sys.modules, "pynput", MagicMock())
         monkeypatch.setitem(sys.modules, "pynput.keyboard", MagicMock())
         monkeypatch.setitem(sys.modules, "pystray", MagicMock())

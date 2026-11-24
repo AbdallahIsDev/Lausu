@@ -69,8 +69,8 @@ def _real_module_available(modname: str) -> bool:
 def test_runtime_proof_smoke() -> None:
     """Run ``runtime_proof.py`` end-to-end and assert it exits cleanly."""
     pytest.importorskip("numpy", reason="runtime_proof.py imports numpy at top level")
-    if not _real_module_available("faster_whisper"):
-        pytest.skip("faster_whisper not installed, runtime_proof needs a real model")
+    if not _real_module_available("voice_typer.worker.asr_runner"):
+        pytest.skip("GGUF ASR runner not installed, runtime_proof needs a speech runtime")
     if not _real_module_available("voice_typer"):
         pytest.skip("voice_typer not installed, run `pip install -e .` first")
 

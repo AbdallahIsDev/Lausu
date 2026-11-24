@@ -96,7 +96,7 @@ class TestTranscriptionLoggingRedactsPii:
 
         import numpy as np
         from voice_typer.server.config import Config
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
         # Build a minimal Config with log_transcriptions=True.
         cfg = Config()
@@ -161,7 +161,7 @@ class TestTranscriptionLoggingRedactsPii:
 
         import numpy as np
         from voice_typer.server.config import Config
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
         cfg = Config()
         cfg.log_transcriptions = False  # default, no transcription logging

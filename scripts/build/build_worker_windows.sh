@@ -4,7 +4,7 @@
 #
 # Plan-runtime-pack-split §4.4 / §11.5, builds the runtime-pack worker exe
 # (lausu-worker-<triple>.exe), the heavy-ML process that owns
-# onnxruntime (VAD + Parakeet) + ctranslate2/faster_whisper (Whisper
+# onnxruntime (VAD + Parakeet) + the GGUF speech runner (Whisper
 # fallback) + numpy/scipy/av/pyrnnoise + the bundled silero_vad.onnx.
 # The slim-core sidecar connects to this worker via a localhost WebSocket
 # (master plan §7) and offloads all heavy inference to it.

@@ -78,7 +78,7 @@ class TestCloudEngineFailsGracefullyOnNetworkError:
     def test_offline_mode_local_asr_still_works(self):
         """When the network is down, local ASR (mocked) must still work —"""
         import numpy as np
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
         # Build a mock local engine (no network calls)
         eng = TranscriptionEngine.__new__(TranscriptionEngine)

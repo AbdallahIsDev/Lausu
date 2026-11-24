@@ -21,7 +21,7 @@ _MODEL_SIZE_MB = {
     # ``large-v3``: highest-accuracy multilingual Whisper (~3 GB).
     "large-v3": 3000,
     # ``large-v3-turbo`` is the fast multilingual model released by
-    # OpenAI (fp16 CTranslate2 weights, ~1.62 GB on HuggingFace).
+    # OpenAI (fp16 weights, ~1.62 GB on HuggingFace).
     "large-v3-turbo": 1618,
     # Parakeet Ultra int8 ONNX export is ~0.67 GB uncompressed
     "parakeet": 670,
@@ -377,11 +377,10 @@ def asr_language_param(value: str | None) -> str | None:
     """Map the config's empty-string "auto-detect" sentinel to ``None``.
 
     ``config.language == ""`` is how Settings → Post-Processing →
-    Transcription Language → Auto-detect is stored. faster-whisper only runs
-    language detection when it receives ``None``; an empty string skips the
-    detection branch and ``Tokenizer`` then raises
-    ``ValueError: '' is not a valid language code``, so every engine that
-    hands this value to a model must normalize it first.
+    Transcription Language → Auto-detect is stored. Decoders only run
+    language detection when they receive ``None``; an empty string skips the
+    detection branch and is rejected as a language code, so every engine
+    that hands this value to a model must normalize it first.
     """
     if value is None:
         return None

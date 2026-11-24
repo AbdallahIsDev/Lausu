@@ -253,7 +253,7 @@ class TestWhisperLoadRefusesUncachedModel:
 
     @staticmethod
     def _make_engine():
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine.model_size = "small.en"
@@ -387,18 +387,18 @@ class TestEngineAcceptsConfigInRealConstructionPath:
 
     def test_engine_accepts_config_kwarg(self, tmp_config_dir):
         from voice_typer.server.config import Config
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
         cfg = Config()
         cfg.huggingface_consent = True
-        engine = TranscriptionEngine(model_size="small.en", config=cfg)
+        engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en", config=cfg)
         assert engine.config is cfg
         assert engine.config.huggingface_consent is True
 
     def test_engine_defaults_config_to_none(self, tmp_config_dir):
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-        engine = TranscriptionEngine(model_size="small.en")
+        engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en")
         assert engine.config is None
 
     def test_require_model_downloaded_does_not_crash_without_config(self, tmp_path, monkeypatch):
@@ -416,9 +416,9 @@ class TestEngineAcceptsConfigInRealConstructionPath:
         monkeypatch.setitem(sys.modules, "huggingface_hub", fake_module)
 
         from voice_typer.server.asr_errors import ModelNotDownloadedError
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-        engine = TranscriptionEngine(model_size="small.en")
+        engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en")
         with pytest.raises(ModelNotDownloadedError):
             engine._require_model_downloaded("small.en")
 
@@ -441,11 +441,11 @@ class TestEngineAcceptsConfigInRealConstructionPath:
         monkeypatch.setitem(sys.modules, "huggingface_hub", fake_module)
 
         from voice_typer.server.asr_errors import ModelNotDownloadedError
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
         cfg = Config()
         cfg.huggingface_consent = True
-        engine = TranscriptionEngine(model_size="small.en", config=cfg)
+        engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en", config=cfg)
 
         with pytest.raises(ModelNotDownloadedError):
             engine._require_model_downloaded("small.en")

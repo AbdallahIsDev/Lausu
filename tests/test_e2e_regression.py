@@ -203,7 +203,7 @@ class TestPrewarmFiltersImportsByActiveBackend:
         real_import = __builtins__["__import__"] if isinstance(__builtins__, dict) else __builtins__.__import__
 
         def tracking_import(name, *args, **kwargs):
-            if name in ("torch", "transformers", "faster_whisper"):
+            if name in ("torch", "transformers", "onnxruntime"):
                 raise AssertionError(
                     f"_warm_imports should NOT call __import__({name!r}), "
                     f"it should use _warm_package_files instead (XV-19)."

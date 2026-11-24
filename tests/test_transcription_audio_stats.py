@@ -30,10 +30,12 @@ class TestAllBackendsAcceptAudioStatsKwarg:
     def test_whisper_transcribe_with_fallback_accepts_audio_stats(self):
         import inspect
 
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
         sig = inspect.signature(TranscriptionEngine.transcribe_with_fallback)
-        assert "audio_stats" in sig.parameters
+        assert "kwargs" in sig.parameters, (
+            "the GGUF engine forwards optional audio_stats through **kwargs"
+        )
 
     def test_parakeet_transcribe_with_fallback_accepts_audio_stats(self):
         import inspect

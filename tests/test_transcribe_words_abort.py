@@ -2,23 +2,10 @@
 
 from __future__ import annotations
 
-import sys
 import threading
 from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
-
-
-@pytest.fixture(autouse=True)
-def mock_faster_whisper(monkeypatch):
-    """Mock faster_whisper + ctranslate2 so no real model is loaded."""
-    mock_fw = MagicMock()
-    monkeypatch.setitem(sys.modules, "faster_whisper", mock_fw)
-    monkeypatch.setitem(sys.modules, "faster_whisper.WhisperModel", MagicMock())
-    mock_ct2 = MagicMock()
-    mock_ct2.get_cuda_device_count.return_value = 0
-    monkeypatch.setitem(sys.modules, "ctranslate2", mock_ct2)
 
 
 def _make_segment(words_list, seg_index=0):
@@ -43,9 +30,9 @@ class TestTranscribeWordsAbort:
 
     def test_abort_set_before_loop_breaks_immediately(self):
         """When ``_abort_event`` is already set when the loop starts,"""
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-        engine = TranscriptionEngine(model_size="small.en", device="cpu")
+        engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en", device="cpu")
         mock_model = MagicMock()
         seg0 = _make_segment(
             [_make_word("hello", 0.0, 0.5), _make_word("world", 0.5, 1.0)],
@@ -63,9 +50,9 @@ class TestTranscribeWordsAbort:
 
     def test_abort_set_mid_loop_breaks_early(self):
         """loop breaks early: only the words from segments consumed BEFORE"""
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-        engine = TranscriptionEngine(model_size="small.en", device="cpu")
+        engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en", device="cpu")
         mock_model = MagicMock()
 
         # Five segments, each with one distinctive word.
@@ -99,9 +86,9 @@ class TestTranscribeWordsAbort:
     def test_abort_not_set_processes_all_segments(self):
         """Happy path: when ``_abort_event`` is never set, all segments"""
         from voice_typer.server.streaming import WordTiming
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-        engine = TranscriptionEngine(model_size="small.en", device="cpu")
+        engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en", device="cpu")
         mock_model = MagicMock()
         seg0 = _make_segment(
             [_make_word("hello", 0.25, 0.75), _make_word("world", 0.8, 1.2)],
@@ -128,16 +115,16 @@ class TestTranscribeWordsAbort:
 
     def test_abort_event_is_threading_event_instance(self):
         """Guard against accidental refactors that change the abort"""
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-        engine = TranscriptionEngine()
+        engine = TranscriptionEngine(model_path="model.gguf")
         assert isinstance(engine._abort_event, threading.Event)
 
     def test_abort_set_via_request_abort_method(self):
         """End-to-end: ``request_abort()`` (called by the dictation"""
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-        engine = TranscriptionEngine(model_size="small.en", device="cpu")
+        engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en", device="cpu")
         mock_model = MagicMock()
         segments = [_make_segment([_make_word(f"w{i}", 0.0, 0.5)], seg_index=i) for i in range(4)]
 

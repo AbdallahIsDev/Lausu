@@ -245,8 +245,9 @@ def export_diagnostics() -> str:
         # ``get_available_providers()`` / ``get_device()`` so the CLI
         # diagnostic producer has no heavy GPU-framework import.
         # ``nvidia-smi`` subprocess provides the GPU name + total VRAM
-        # (ORT's ``get_device()`` returns only "cuda" or "cpu"). ctranslate2 info is preserved (faster-whisper still
-        # uses ctranslate2 in Phase 1c).
+        # (ORT's ``get_device()`` returns only "cuda" or "cpu"). GPU backend
+        # details for the speech runner come from the shipped contract, not
+        # from a Python inference wheel.
         try:
             import onnxruntime as ort
 
@@ -285,19 +286,6 @@ def export_diagnostics() -> str:
                 sys_info["gpu_name"] = "nvidia-smi unavailable"
         except Exception as exc:
             sys_info["gpu_error"] = str(exc)
-
-        # ctranslate2 info (preserved, faster-whisper still uses
-        # ctranslate2 in Phase 1c; the Qwen engine also uses it
-        # transitively).
-        try:
-            import ctranslate2
-
-            sys_info["ctranslate2_version"] = ctranslate2.__version__
-            sys_info["cuda_device_count"] = ctranslate2.get_cuda_device_count()
-        except ImportError:
-            sys_info["ctranslate2_version"] = "not installed"
-        except Exception as exc:
-            sys_info["ctranslate2_error"] = str(exc)
 
         # App version
         try:

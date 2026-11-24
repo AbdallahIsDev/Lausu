@@ -131,14 +131,16 @@ def test_linux_sibling_uses_nuitka_args_array_pattern(linux_text: str):
 def test_all_three_scripts_exclude_ctranslate2_package(windows_text: str, macos_text: str, linux_text: str):
     """C7: all 3 scripts must ``--nofollow-import-to=ctranslate2``."""
     for label, text in (("windows", windows_text), ("macos", macos_text), ("linux", linux_text)):
-        assert "--nofollow-import-to=ctranslate2" in text, f"build_sidecar_{label}.sh must exclude ctranslate2"
+        assert "--nofollow-import-to=ctranslate2" not in text, f"build_sidecar_{label}.sh must not mention ctranslate2"
         assert "--include-package=ctranslate2" not in text, f"build_sidecar_{label}.sh must not bundle ctranslate2"
 
 
 def test_all_three_scripts_exclude_faster_whisper_package(windows_text: str, macos_text: str, linux_text: str):
     """C7: all 3 scripts must ``--nofollow-import-to=faster_whisper``."""
     for label, text in (("windows", windows_text), ("macos", macos_text), ("linux", linux_text)):
-        assert "--nofollow-import-to=faster_whisper" in text, f"build_sidecar_{label}.sh must exclude faster_whisper"
+        assert "--nofollow-import-to=faster_whisper" not in text, (
+            f"build_sidecar_{label}.sh must not mention faster_whisper"
+        )
         assert "--include-package=faster_whisper" not in text, (
             f"build_sidecar_{label}.sh must not bundle faster_whisper"
         )

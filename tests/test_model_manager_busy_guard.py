@@ -72,7 +72,7 @@ class TestSetActiveBackendDefersWhenBusy:
     def test_set_active_backend_defers_when_recording(self):
         """
         When ``recorder.recording`` is True, ``set_active_backend``
-        MUST NOT run the unload phase, unloading the ctranslate2 model
+        MUST NOT run the unload phase, unloading the speech model
         """
         mm, app, config, registry = _make_mm(asr_backend="whisper", recording=True, busy=False)
         # Pre-register a whisper engine so we can assert it was NOT
@@ -104,7 +104,7 @@ class TestSetActiveBackendDefersWhenBusy:
             whisper_engine.unload.assert_not_called(),
             (
                 "UE-11: set_active_backend must NOT call _change_model_unload_phase "
-                "when recording, unloading the ctranslate2 model mid-inference "
+                "when recording, unloading the speech model mid-inference "
                 "crashes the transcribe thread."
             ),
         )
@@ -343,7 +343,7 @@ class TestEnsureActiveEngineLoadedBusyRejection:
             "the active backend is busy (stuck transcription). Returning "
             "None causes recording_controller.start to fall through to "
             "fallback_to_whisper, which loads a SEPARATE backend rather "
-            "than piling up on the stuck backend's ctranslate2 lock."
+            "than piling up on the stuck backend's model lock."
         )
         assert mm._pending_dictation is True, (
             "ensure_active_engine_loaded must set "

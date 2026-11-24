@@ -102,8 +102,8 @@ This design is:
 ├── history.db                   # SQLite transcription history
 ├── huggingface/                 # HF_HOME cache (models + tokenizers)
 │   ├── hub/                     #   Actual model blobs (snapshot_download)
-│   │   ├── models--Systran--faster-whisper-small.en/
-│   │   ├── models--Systran--faster-whisper-medium.en/
+│   │   ├── models--<whisper-export>--small.en/
+│   │   ├── models--<whisper-export>--medium.en/
 │   │   └── ...
 │   ├── version                  #   HF cache version stamp
 │   └── tokenizers/              #   Tokenizer cache (rarely used)
@@ -145,7 +145,7 @@ HuggingFace cache directory. Set via `os.environ["HF_HOME"]` in `logging_setup.p
 ### `venv/` (LEGACY/dev only)
 Legacy Python virtual environment layout (dev installs / first-run setup). The shipped app does NOT use a `venv/`: it runs frozen Nuitka onefiles (`python-sidecar` + `lausu-worker` via Tauri `externalBin` in `src-tauri/tauri.conf.json`). A `venv/` on disk is a dev leftover, not a runtime requirement. Historical contents:
 - Python interpreter
-- All pip dependencies (faster-whisper, ctranslate2, onnxruntime, sounddevice, pynput, pystray, Pillow, etc.)
+- All pip dependencies (onnxruntime, sounddevice, pynput, pystray, Pillow, etc.)
   - **Torch migration note (retired 2026-08-15)**: the ONNX migration is complete (`PLAN_ONNX_INTEGRATION.md` §2/§3, Phase 1d). VAD uses `onnxruntime`, Parakeet uses `onnx-asr`, Qwen uses pre-exported ONNX via `onnxruntime`. `torch` is not a project dependency; see `pyproject.toml` for the canonical dep list.
 - CLI entry point (`lausu`)
 
@@ -169,7 +169,7 @@ User-defined vocabulary and correction files. Read by `VocabularyManager` and `c
 - The app never writes model files directly, HF libraries manage the cache
 
 ### Why NOT `<DATA_DIR>/models/`
-- `faster-whisper` expects the HF cache layout. Custom download logic would be fragile, hard to maintain, and break with upstream changes.
+- The ASR model resolver expects a stable local cache layout. Custom download logic would be fragile, hard to maintain, and break with upstream changes.
 - **Compromise**: the `models/` folder is a **directory junction** (Windows) or **symlink** (macOS/Linux) pointing to `huggingface/hub/`. Users who browse `<DATA_DIR>/models/` see the actual model files without indirection. Created/fixed on first app run.
 
 ### Download flow
@@ -188,16 +188,16 @@ The old code created a junction from `<DATA_DIR>/huggingface/` → `~/.cache/hug
 
 ### What lives in `<DATA_DIR>`
 - Python CUDA packages: installed by pip into `venv/Lib/site-packages/`
-  - `ctranslate2` (with CUDA extensions)
+  - GGUF speech runtime (transcribe.cpp with Vulkan/CUDA backends)
   - `nvidia-*` wheels (CUDA runtime DLLs, cuBLAS, cuDNN)
-  - No `torch` entry: the runtime is ONNX-only since 2026-08-15 (Phase 1d). GPU execution goes through `onnxruntime` providers / `ctranslate2` CUDA extensions + `nvidia-*` wheels.
+  - No `torch` entry: GPU execution goes through the GGUF runtime's native backends and `onnxruntime` providers + `nvidia-*` wheels.
 
 ### What does NOT live in `<DATA_DIR>`
 - **NVIDIA system driver** (`C:\Program Files\NVIDIA GPU Computing Toolkit\`): this is a system-level component installed by the user or driver update. The Python process merely **loads** these DLLs at runtime. Cannot be bundled.
 - **CUDA toolkit** (`C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.x`): only needed for compilation, not runtime. Not required for users.
 
 ### How GPU detection works
-- `TranscriptionEngine._probe_cuda()` checks `ctranslate2.get_cuda_device_count()`
+- The device probe checks the shipped speech runtime contract
 - Result is stored in `self.device_info` and displayed in tray tooltip / Settings UI
 - If CUDA is unavailable, falls back to CPU (`device="cpu"`)
 

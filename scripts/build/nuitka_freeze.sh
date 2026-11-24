@@ -14,10 +14,8 @@
 # ADR-0020 §4 mandates:
 #   - python-build-standalone cpython-3.12.x as the base interpreter.
 #   - `--onefile` mode (single self-extracting binary).
-#   - OpenMP runtimes (libiomp5md.dll on Windows, libomp.dylib on macOS,
-#     libgomp.so on Linux) bundled via `--include-data-dir=$SITE/ctranslate2/{lib,libs}`.
-#   - `--include-package` for faster_whisper, ctranslate2, websockets,
-#     voice_typer, numpy (hidden imports faster-whisper needs).
+#   - `--include-package` for websockets, voice_typer and numpy; the
+#     GGUF speech runner ships as a native sibling binary, not a Python package.
 #   - `--enable-plugin=numpy` for numpy hidden imports.
 #   - `--onefile-tempdir-spec` pinned to a per-app cache dir so stale
 #     extractions are cleanable.
@@ -190,8 +188,7 @@ mkdir -p "$PROJECT_ROOT/src-tauri/bin"
 # Each per-platform script:
 #   1. Locates python-build-standalone cpython-3.12.x+<triple> (via
 #      VOICE_TYPER_PYBS_DIR or $PROJECT_ROOT/.python-build-standalone).
-#   2. Verifies faster_whisper + ctranslate2 + websockets + numpy are
-#      installed in the pybs env's site-packages.
+#   2. Verifies websockets + numpy are installed in the pybs env's site-packages.
 #   3. Installs Nuitka + zstandard into the pybs env if missing.
 #   4. Runs Nuitka --standalone --onefile with the ADR-0020 §4 flag set.
 #   5. Verifies the output binary exists + smoke-tests --help.
@@ -201,7 +198,7 @@ mkdir -p "$PROJECT_ROOT/src-tauri/bin"
 # wrapper does NOT duplicate the Nuitka command line. To change the Nuitka
 # flags, edit build_sidecar_<platform>.sh, not this file.
 echo "[nuitka_freeze] Dispatching to: bash $DISPATCH_SCRIPT $TARGET_ARCH"
-echo "[nuitka_freeze] (ADR-0020 §4: python-build-standalone cpython-3.12.x + --onefile + OpenMP runtimes)"
+echo "[nuitka_freeze] (ADR-0020 §4: python-build-standalone cpython-3.12.x + --onefile)"
 
 set +e
 bash "$DISPATCH_SCRIPT" "$TARGET_ARCH"

@@ -1,32 +1,15 @@
 #!/usr/bin/env python3
-"""ML-import ratchet for the slim-core build (ADR-0024 Step 7, plan §11.2).
+"""Fail-closed import gate for the slim-core build (ADR-0024 Step 7).
 
-Counts the ASR/ML runtime imports that the SLIM-CORE sidecar must
-eventually stop pulling in, and refuses to let that count grow. This is
-the reversible measurement layer that lands BEFORE any Nuitka exclusion:
-it makes the current gap visible and blocks regressions while the
-dictation-engine cutover proceeds.
-
-Scope (the two libraries the worker owns exclusively, plan §4.1 "Box B"):
-
-* ``faster_whisper`` — Whisper ASR weights/runtime
-* ``ctranslate2``  — the decoder backend behind ``faster_whisper``
-
-Deliberately NOT counted (ADR-0024 Step-7 ownership decision,
-2026-09-26): ``onnxruntime``. VAD (``vad.py``) and the GTCRN noise
-filter (``audio_filters/gtcrn_backend.py``) run on the real-time audio
-processing path in the slim core, so ``onnxruntime`` stays a declared
-slim-core dependency (plan §5.3). Excluding it would break speech
-detection, not slim the build. Counting it here would produce a gate
-that can never go green and would push someone to "fix" it by breaking
-VAD.
+The legacy Python ASR stack is gone from the product. The baseline is zero,
+so any import of a retired runtime under ``voice_typer/server`` fails the
+gate. ``onnxruntime`` stays out of scope: VAD and the GTCRN noise filter
+still run on the real-time audio path in the slim core.
 
 CI policy
 ---------
-* ``total_count`` MUST NOT grow.
-* Per-library counts in ``by_library`` MUST NOT grow.
-* Counts MAY shrink — that is the whole point of the ratchet. When one
-  shrinks, regenerate the baseline so the new lower number is the floor.
+* ``total_count`` MUST NOT exceed the zero baseline.
+* Per-library counts in ``by_library`` MUST NOT exceed the zero baseline.
 
 Usage
 -----
@@ -58,7 +41,7 @@ BASELINE_PATH = REPO_ROOT / "slim-core-ml-baseline.json"
 # purpose: it is Box B and is *supposed* to import all of this.
 SLIM_CORE_ROOTS = ("voice_typer/server",)
 
-#: Libraries owned exclusively by the runtime pack (worker).
+#: Retired Python ASR runtimes (zero imports are allowed in the slim core).
 COUNTED_LIBRARIES = ("faster_whisper", "ctranslate2")
 
 #: Matches ``import faster_whisper`` / ``from faster_whisper import X``.

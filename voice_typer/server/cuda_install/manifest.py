@@ -1,8 +1,9 @@
 """Pinned CUDA 12 artifact set (URLs, sizes, SHA256) for the GPU install.
 
-One CUDA 12 stack serves every local backend: CTranslate2 (Whisper) needs
-cuBLAS + cuDNN 9, and the CUDA-12 ``onnxruntime-gpu`` build (Parakeet, Qwen,
-local ONNX polish) is itself built against CUDA 12.8 + cuDNN 9. CUDA 13 is
+One CUDA 12 stack serves the remaining ONNX backends: the CUDA-12
+``onnxruntime-gpu`` build (VAD, noise filters, local ONNX polish) is built
+against CUDA 12.8 + cuDNN 9. The GGUF speech runner ships its own native
+GPU runtime. CUDA 13 is
 deliberately excluded: its cuDNN ships the same ``cudnn64_9.dll`` file names
 into the same directory, so mixing majors silently breaks whichever backend
 loads second.
@@ -106,7 +107,7 @@ ORT_WHEELS: dict[tuple[int, int], Artifact] = {
 }
 
 # DLLs every install must prove before it is allowed to activate. cuBLAS
-# needs cudart, cuDNN 9 is what CTranslate2 links against, and nvRTC backs
+# needs cudart, cuDNN 9 is what the ORT CUDA provider links against, and nvRTC backs
 # the CUDA execution provider's runtime kernel compilation.
 REQUIRED_DLLS: tuple[str, ...] = (
     "cublas64_12.dll",

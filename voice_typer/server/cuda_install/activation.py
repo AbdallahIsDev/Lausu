@@ -40,9 +40,8 @@ def apply_pending_activation(app: Any) -> bool:
     )
     # `stack_complete` — every gpu-capable LOCAL backend ready — is the
     # acceptance signal, not the historical `cuda_ready` ("any backend").
-    # A CUDA wheel set that fixes CTranslate2 but leaves the CPU-only
-    # onnxruntime in place would otherwise pass on Whisper alone and
-    # persist `cuda` for a Parakeet user who can only fall back to CPU.
+    # A partial stack that leaves one ONNX backend on the CPU-only runtime
+    # would otherwise persist `cuda` for a user who can only fall back to CPU.
     if not snapshot.get("stack_complete"):
         state.write_failure(REASON_NOT_READY)
         log.warning(

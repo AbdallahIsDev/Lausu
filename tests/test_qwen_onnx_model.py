@@ -54,20 +54,6 @@ def make_onnx_dir(
     return d
 
 
-@pytest.fixture(autouse=True)
-def real_faster_whisper(monkeypatch):
-    """Restore the REAL ``faster_whisper`` package for the mel path."""
-    import importlib
-    import sys
-
-    mocked = sys.modules.get("faster_whisper")
-    if mocked is not None and not hasattr(mocked, "__path__"):
-        for name in [n for n in list(sys.modules) if n == "faster_whisper" or n.startswith("faster_whisper.")]:
-            monkeypatch.delitem(sys.modules, name, raising=False)
-        real = importlib.import_module("faster_whisper")
-        monkeypatch.setitem(sys.modules, "faster_whisper", real)
-
-
 class FakeTokenizer:
     """Stub HF tokenizer: ``from_file`` + ``decode`` only."""
 

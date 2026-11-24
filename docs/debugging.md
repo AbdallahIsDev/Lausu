@@ -60,7 +60,7 @@ file. The most useful tags for debugging:
 |---|---|
 | `[IPC]` | TCP / WebSocket IPC server, dispatch, rate limiter, heartbeat watchdog. |
 | `[RECORDING]` | PortAudio capture, silence detection, streaming session lifecycle. |
-| `[TRANSCRIPTION]` | faster-whisper / Qwen / Parakeet engine dispatch. |
+| `[TRANSCRIPTION]` | GGUF runner / Qwen / Parakeet engine dispatch. |
 | `[STREAMING]` | Hidden streaming transcription (overlapping windows, commit horizon, tail merge). |
 | `[HOTKEY]` | Hotkey backend dispatch (native binary + pynput fallback). |
 | `[HOTKEY-CAPTURE]` | Settings hotkey-picker capture dialog. |

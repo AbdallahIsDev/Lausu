@@ -174,17 +174,26 @@ def _probe_gpu_memory_via_nvidia_smi() -> tuple[float | None, float | None]:
     return (None, None)
 
 
-def _probe_ct2_cuda_count() -> int | None:
-    """Return ``ctranslate2.get_cuda_device_count()`` (the runtime the
-    Whisper backend actually uses), or ``None`` when ctranslate2 is not
-    importable. ``None`` means unknown, not zero."""
-    try:
-        import importlib
+def _probe_runner_backends() -> tuple[str, ...]:
+    """Read the pinned native runner's backends from its contract file.
 
-        ctranslate2 = importlib.import_module("ctranslate2")
-        return int(ctranslate2.get_cuda_device_count())
+    ADR-0031: the ASR runtime is the transcribe.cpp native library; no
+    legacy inference probe exists. An unreadable contract means unknown, not none.
+    """
+    try:
+        import json
+
+        from voice_typer.server.media_ingest.ffmpeg_binaries import _shipped_dirs
+
+        for directory in _shipped_dirs():
+            for base in (directory, directory / "transcribe-cpp"):
+                contract = base / "contract.json"
+                if contract.is_file():
+                    data = json.loads(contract.read_text(encoding="utf-8"))
+                    return tuple(str(name) for name in data.get("backends", []))
     except Exception:
-        return None
+        pass
+    return ()
 
 
 def _drive_key_for_log_dedup(path: pathlib.Path) -> str:
@@ -378,12 +387,10 @@ def check_resources(*, logger: logging.Logger | None = None) -> None:
                     free_gb,
                 )
 
-    # Uses ctranslate2's CUDA device count (what the Whisper backend
-    # actually runs on) first, ``nvidia-smi``/pynvml for memory numbers,
-    # onnxruntime's device string last (ORT is only the Parakeet/Qwen
-    # runtime; its verdict says nothing about faster-whisper).
+    # The native runner contract advertises cpu/vulkan/cuda. nvidia-smi and
+    # onnxruntime are secondary probes and cannot prove ASR GPU capability.
     try:
-        ct2_count = _probe_ct2_cuda_count()
+        runner_backends = _probe_runner_backends()
         gpu_total_mb, gpu_free_mb = _probe_gpu_memory_via_nvidia_smi()
         if gpu_total_mb is not None and gpu_free_mb is not None:
             gpu_used_mb = gpu_total_mb - gpu_free_mb
@@ -398,21 +405,21 @@ def check_resources(*, logger: logging.Logger | None = None) -> None:
                     "[RESOURCE] Low GPU memory (%.0f MB free). CUDA out-of-memory errors are likely.",
                     gpu_free_mb,
                 )
-        elif ct2_count is not None:
+        elif runner_backends:
             _log.info(
-                "[RESOURCE] GPU: ctranslate2 sees %d CUDA devices, memory figures unavailable "
+                "[RESOURCE] GPU: transcribe.cpp advertises backends=%s, memory figures unavailable "
                 "(nvidia-smi unreadable and pynvml missing)",
-                ct2_count,
+                ",".join(runner_backends),
             )
         else:
             ort_device = _probe_ort_device()
             if ort_device is not None:
                 _log.info(
-                    "[RESOURCE] GPU: onnxruntime reports device='%s' (ctranslate2 + nvidia-smi unavailable)",
+                    "[RESOURCE] GPU: onnxruntime reports device='%s' (native runner + nvidia-smi unavailable)",
                     ort_device,
                 )
             else:
-                _log.debug("[RESOURCE] GPU probe skipped (ctranslate2, nvidia-smi, and onnxruntime all unavailable)")
+                _log.debug("[RESOURCE] GPU probe skipped (native runner, nvidia-smi, and onnxruntime all unavailable)")
     except Exception:
         _log.debug(
             "[RESOURCE] GPU check failed (non-fatal)",

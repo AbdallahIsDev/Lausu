@@ -7,20 +7,6 @@ import numpy as np
 import pytest
 
 
-@pytest.fixture(autouse=True)
-def real_faster_whisper(monkeypatch):
-    """Restore the REAL ``faster_whisper`` package for the mel path."""
-    import importlib
-    import sys
-
-    mocked = sys.modules.get("faster_whisper")
-    if mocked is not None and not hasattr(mocked, "__path__"):
-        for name in [n for n in list(sys.modules) if n == "faster_whisper" or n.startswith("faster_whisper.")]:
-            monkeypatch.delitem(sys.modules, name, raising=False)
-        real = importlib.import_module("faster_whisper")
-        monkeypatch.setitem(sys.modules, "faster_whisper", real)
-
-
 class TestQwenEngineUnit:
     """Unit tests for QwenEngine, all model calls are mocked."""
 
@@ -264,9 +250,6 @@ class TestWhisperSkipWhenQwenActive:
         mock_sd = MagicMock()
         mock_sd.query_devices.return_value = []
         monkeypatch.setitem(sys.modules, "sounddevice", mock_sd)
-        mock_whisper = MagicMock()
-        monkeypatch.setitem(sys.modules, "faster_whisper", mock_whisper)
-        monkeypatch.setitem(sys.modules, "faster_whisper.WhisperModel", MagicMock())
         mock_pynput = MagicMock()
         mock_pynput_kb = MagicMock()
         monkeypatch.setitem(sys.modules, "pynput", mock_pynput)
@@ -372,7 +355,7 @@ class TestWhisperSkipWhenQwenActive:
         mock_transcriber.device_info = "cpu (int8)"
         mock_transcriber.loaded_via = "cpu/int8/small.en"
         monkeypatch.setattr(
-            "voice_typer.worker.whisper.TranscriptionEngine",
+            "voice_typer.worker.asr_runner.GgufTranscriptionEngine",
             MagicMock(return_value=mock_transcriber),
         )
         app.models.transcriber = mock_transcriber

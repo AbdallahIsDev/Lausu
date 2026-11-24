@@ -9,7 +9,7 @@ isolation with stub engines.
 
 * :func:`transcribe_unlocked`: the body of
   :meth:`TranscriptionEngine._transcribe_unlocked`. Drives the
-  faster-whisper ``model.transcribe(...)`` call, iterates the segment
+  model-adapter ``model.transcribe(...)`` call, iterates the segment
   generator (with abort-token check between iterations), collects
   per-segment logprobs / no_speech_probs, builds the compact
   ``last_quality_summary``, applies the low-audio-hallucination
@@ -55,15 +55,11 @@ from voice_typer.server.hallucination import (
     should_reject_low_audio_hallucination,
 )
 from voice_typer.server.transcription_batching import (  # noqa: F401, re-exported: the engine + tests import these from this module
-    _BATCHED_BATCH_SIZE,
     _BATCHED_MIN_DURATION_S,
     _BATCHED_SUPER_CHUNK_S,
     _DECODE_TEMPERATURES,
     _VAD_PARAMETERS,
-    _batched_pipeline_for,
     _decode_segments,
-    _offset_segment,
-    _split_on_silence,
 )
 from voice_typer.server.vad_policy import decide_vad_filter
 
@@ -131,7 +127,7 @@ def transcribe_unlocked(
 ) -> str:
     """Body of :meth:`TranscriptionEngine._transcribe_unlocked`.
 
-    Drives the faster-whisper ``model.transcribe(...)`` call, iterates
+    Drives the model adapter's ``model.transcribe(...)`` call, iterates
     the segment generator (with abort-token check between iterations),
     collects per-segment logprobs / no_speech_probs, builds
     ``engine.last_quality_summary``, applies the low-audio-hallucination
@@ -186,10 +182,10 @@ def transcribe_unlocked(
         log.warning("[TRANSCRIBE] Near-silence input (very quiet audio): RMS=%.6f", rms)
 
     # The language handed to the decode, read BEFORE it runs: passing one makes
-    # faster-whisper skip LID and report prob=1.00, so this is the only fact
+    # Detectors skip LID and report prob=1.00, so this is the only fact
     # that tells a configured reading apart from a detected one.
     configured_language = getattr(engine, "language", None)
-    # NOTE: ``best_of`` is deliberately NOT passed, faster-whisper only
+    # NOTE: ``best_of`` is deliberately NOT passed, the model adapter only
     # Batched on long CUDA audio (identical params, parallel windows),
     # sequential otherwise. See _decode_segments.
     segments, info = _decode_segments(engine, audio, use_vad_filter, duration)
@@ -262,7 +258,7 @@ def transcribe_unlocked(
                         _safe_seg_text,
                     )
 
-    # Language provenance: faster-whisper echoes the CONFIGURED language with
+    # Language provenance: the decoder echoes the CONFIGURED language with
     # prob=1.00 whenever one was passed in, so an unqualified reading claimed a
     # detection the engine never performed.
     _stats = (

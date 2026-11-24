@@ -3,30 +3,16 @@
 from __future__ import annotations
 
 import logging
-import sys
 from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
-
-
-@pytest.fixture(autouse=True)
-def mock_faster_whisper(monkeypatch):
-    """Mock faster_whisper so no real model is loaded."""
-    mock_fw = MagicMock()
-    monkeypatch.setitem(sys.modules, "faster_whisper", mock_fw)
-    monkeypatch.setitem(sys.modules, "faster_whisper.WhisperModel", MagicMock())
-
-    mock_ct2 = MagicMock()
-    mock_ct2.get_cuda_device_count.return_value = 1
-    monkeypatch.setitem(sys.modules, "ctranslate2", mock_ct2)
 
 
 def _make_engine_with_model(config: object | None = None):
     """Build a TranscriptionEngine with a mocked whisper model."""
-    from voice_typer.worker.whisper import TranscriptionEngine
+    from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-    engine = TranscriptionEngine(model_size="small.en", device="cuda", config=config)
+    engine = TranscriptionEngine(model_path="model.gguf", model_size="small.en", device="cuda", config=config)
     engine._device = "cuda"
     engine._compute_type = "float16"
     mock_model = MagicMock()

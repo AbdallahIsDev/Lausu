@@ -8,7 +8,7 @@ Premium offline background voice-to-text utility. Runs in your system tray. Pres
 2. Press the hotkey anywhere to start recording (configurable in Settings)
 3. Talk freely: switch apps, browse, do whatever
 4. Press the hotkey again to stop (or let silence/max duration stop it automatically)
-5. Audio is transcribed locally (faster-whisper or optional Qwen3-ASR, your GPU if available)
+5. Audio is transcribed locally with the GGUF speech runner (or an optional cloud backend), using your GPU if available
 6. Text is cleaned (dedup, misspellings, self-corrections, capitalization)
 7. Text is copied to clipboard
 8. If a text field is focused, text is auto-pasted there; otherwise it stays in the clipboard
@@ -36,7 +36,7 @@ No cloud. No API keys. No rate limits. Fully offline after first model download.
 
 ### Does my voice or text ever leave my machine?
 
-No. Transcription runs locally (faster-whisper, optional Qwen3-ASR/Parakeet) on your own hardware. The only network activity is the one-time model download from HuggingFace when you first install a model. No cloud, no API keys, no telemetry. If you explicitly opt into the experimental cloud backends (`cloud_engines.py`), those requests go only to the provider you configured.
+No. Transcription runs locally with the GGUF speech runner on your own hardware. The only network activity is the one-time model download from HuggingFace when you first install a model. No cloud, no API keys, no telemetry. If you explicitly opt into the experimental cloud backends (`cloud_engines.py`), those requests go only to the provider you configured.
 
 ### Where are my recordings, history, and settings stored?
 
@@ -205,7 +205,7 @@ pip install .
 
 > **Note:** the install is ONNX-only (no `torch`). The default
 > `pip install .` pulls `onnxruntime` (CPU), `onnx-asr`, and
-> `faster-whisper` / `ctranslate2` plus `tokenizers`. GPU users install
+> the GGUF speech runner plus `tokenizers`. GPU users install
 > `onnxruntime-gpu` separately. The `pyproject.toml` `dependencies`
 > block lists the full set.
 
@@ -531,7 +531,7 @@ voice_typer/
 │   ├── asr_registry.py # Registry of ASR backends (whisper/qwen/parakeet)
 │   ├── config/        # Configuration package (platform-aware paths, validation, schema versioning), see config/__init__.py
 │   ├── recording/     # Session-based audio recording (package: recorder, buffer, resampling, exceptions)
-│   ├── transcription.py  # faster-whisper engine with GPU→CPU fallback chain
+│   ├── transcription.py  # GGUF speech runner (ctypes transcribe.cpp wrapper)
 │   ├── qwen_engine.py  # Optional Qwen3-ASR-0.6B backend
 │   ├── parakeet_engine.py  # Optional Parakeet Ultra backend
 │   ├── cloud_engines.py   # Cloud ASR / LLM HTTP transports
@@ -572,7 +572,7 @@ Key design decisions:
 
 - **Fast startup**: Tray icon appears quickly. TranscriptionEngine created in background thread.
 - **Hidden streaming transcription**: Records the full session while transcribing safe overlapping chunks in the background. On stop, it finalizes the unconfirmed tail and falls back to full-session batch transcription if streaming state is unsafe.
-- **Dual ASR backends**: Whisper (default, via faster-whisper) with 4-level GPU->CPU fallback, optional Qwen3-ASR-0.6B, and optional NVIDIA Parakeet. Backend selection via `asr_backend` config key.
+- **Dual ASR backends**: Whisper via the GGUF speech runner, optional Qwen3-ASR-0.6B, and optional NVIDIA Parakeet. Backend selection via `asr_backend` config key.
 - **ASR auto-setup**: GPU detection, dependency verification, and weight downloading at startup.
 - **Text cleanup pipeline**: High-confidence adjacent duplicate removal, self-correction cleanup, misspelling correction, phrase substitutions, extra-word removal, sentence capitalization, pronoun-I capitalization with Roman numeral awareness, and case-preserving phrase corrections.
 - **Low-audio hallucination guard**: Rejects known boilerplate phrases only when audio evidence indicates near-silence.

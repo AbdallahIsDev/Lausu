@@ -4,7 +4,7 @@
 #
 # Plan-runtime-pack-split §4.4 / §11.5, builds the runtime-pack worker exe
 # (lausu-worker-<triple>), the heavy-ML process that owns
-# onnxruntime (VAD + Parakeet) + ctranslate2/faster_whisper (Whisper
+# onnxruntime (VAD + Parakeet) + the GGUF speech runner (Whisper
 # fallback) + numpy/scipy/av/pyrnnoise + the bundled silero_vad.onnx.
 # The slim-core sidecar connects to this worker via a localhost WebSocket
 # (master plan §7) and offloads all heavy inference to it.
@@ -184,16 +184,6 @@ else
     echo "[build_worker_macos] NOTE: no libpython dylib under $PY_PREFIX/lib (non-PYBS python?); skipping ID rewrite."
 fi
 
-# ctranslate2/lib + libs, optional on the worker (the Whisper fallback
-# may not be wired in for Phase 2a; the worker still builds without it).
-CT2_LIB_DIR="$SITE/ctranslate2/lib"
-CT2_LIBS_DIR="$SITE/ctranslate2/libs"
-if [[ -d "$CT2_LIB_DIR" ]]; then
-    echo "[build_worker_macos] CT2_LIB_DIR=$CT2_LIB_DIR"
-else
-    echo "[build_worker_macos] NOTE: $CT2_LIB_DIR not found, ctranslate2 not installed (Whisper fallback unavailable in this build)."
-fi
-
 # ─── Prepare output dir ──────────────────────────────────────────────────────
 mkdir -p "$WORKER_DIR"
 
@@ -263,12 +253,6 @@ if [[ -n "${MAC_SIGNING_IDENTITY:-}" ]]; then
     # signs the binary at build time. `--macos-signed-app-name` only sets
     # the bundle's signed name; it does not invoke codesign.
     NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")
-fi
-if [[ -d "$CT2_LIB_DIR" ]]; then
-    NUITKA_ARGS+=(--include-data-dir="$CT2_LIB_DIR=$CT2_LIB_DIR")
-fi
-if [[ -d "$CT2_LIBS_DIR" ]]; then
-    NUITKA_ARGS+=(--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR")
 fi
 "$PY" -m nuitka "${NUITKA_ARGS[@]}"
 

@@ -95,7 +95,7 @@ class TestRequestLoad:
 class _StubEngine:
     instances: list = []
 
-    def __init__(self, model_size="small.en", device="auto", language="en", fail=None):
+    def __init__(self, model_size="small.en", device="auto", language="en", fail=None, **_kwargs):
         self.model_size = model_size
         self._device = device
         self.fail = fail
@@ -117,10 +117,14 @@ class _StubEngine:
 
 class TestTranscriberLoad:
     def test_success_caches_engine(self, monkeypatch):
-        import voice_typer.worker.whisper.engine as engine_mod
+        import voice_typer.worker.asr_runner as engine_mod
+        monkeypatch.setattr(
+            "voice_typer.worker.asr_runner.gguf_model_path_for_key",
+            lambda size, lang: "/models/test.gguf",
+        )
 
         _StubEngine.instances.clear()
-        monkeypatch.setattr(engine_mod, "TranscriptionEngine", _StubEngine)
+        monkeypatch.setattr(engine_mod, "GgufTranscriptionEngine", _StubEngine)
         transcriber = WorkerTranscriber()
         result = transcriber.load_whisper_model("small.en", None, "en")
         assert result == {"loaded": True, "backend": "whisper", "device_info": "cpu (int8)", "error": None}
@@ -128,7 +132,11 @@ class TestTranscriberLoad:
         assert transcriber._engine_language == "en"
 
     def test_cached_engine_short_circuits(self, monkeypatch):
-        import voice_typer.worker.whisper.engine as engine_mod
+        import voice_typer.worker.asr_runner as engine_mod
+        monkeypatch.setattr(
+            "voice_typer.worker.asr_runner.gguf_model_path_for_key",
+            lambda size, lang: "/models/test.gguf",
+        )
 
         cached = _StubEngine(model_size="small.en")
         transcriber = WorkerTranscriber()
@@ -138,33 +146,41 @@ class TestTranscriberLoad:
         def _forbidden(*_a, **_k):
             raise AssertionError("must use cache")
 
-        monkeypatch.setattr(engine_mod, "TranscriptionEngine", _forbidden)
+        monkeypatch.setattr(engine_mod, "GgufTranscriptionEngine", _forbidden)
         result = transcriber.load_whisper_model("small.en", None, "en")
         assert result["loaded"] is True
         assert result["error"] is None
         assert transcriber._engine is cached
 
     def test_missing_model_returns_error(self, monkeypatch):
-        import voice_typer.worker.whisper.engine as engine_mod
+        import voice_typer.worker.asr_runner as engine_mod
+        monkeypatch.setattr(
+            "voice_typer.worker.asr_runner.gguf_model_path_for_key",
+            lambda size, lang: "/models/test.gguf",
+        )
 
         class _Missing(_StubEngine):
             def load(self):
                 raise ModelNotDownloadedError("not downloaded")
 
-        monkeypatch.setattr(engine_mod, "TranscriptionEngine", _Missing)
+        monkeypatch.setattr(engine_mod, "GgufTranscriptionEngine", _Missing)
         result = WorkerTranscriber().load_whisper_model("tiny", None, None)
         assert result["loaded"] is False
         assert result["backend"] == "whisper"
         assert "not downloaded" in str(result["error"])
 
     def test_runtime_error_never_raises(self, monkeypatch):
-        import voice_typer.worker.whisper.engine as engine_mod
+        import voice_typer.worker.asr_runner as engine_mod
+        monkeypatch.setattr(
+            "voice_typer.worker.asr_runner.gguf_model_path_for_key",
+            lambda size, lang: "/models/test.gguf",
+        )
 
         class _Broken(_StubEngine):
             def load(self):
                 raise RuntimeError("gpu gone")
 
-        monkeypatch.setattr(engine_mod, "TranscriptionEngine", _Broken)
+        monkeypatch.setattr(engine_mod, "GgufTranscriptionEngine", _Broken)
         result = WorkerTranscriber().load_whisper_model("small.en")
         assert result["loaded"] is False
         assert "gpu gone" in str(result["error"])

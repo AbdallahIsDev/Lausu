@@ -21,10 +21,6 @@ def mock_heavy_imports(monkeypatch):
     mock_sd.query_devices.return_value = []
     monkeypatch.setitem(sys.modules, "sounddevice", mock_sd)
 
-    mock_whisper = MagicMock()
-    monkeypatch.setitem(sys.modules, "faster_whisper", mock_whisper)
-    monkeypatch.setitem(sys.modules, "faster_whisper.WhisperModel", MagicMock())
-
     mock_pynput = MagicMock()
     mock_pynput_kb = MagicMock()
     monkeypatch.setitem(sys.modules, "pynput", mock_pynput)

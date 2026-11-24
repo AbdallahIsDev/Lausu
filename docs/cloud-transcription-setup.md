@@ -2,7 +2,7 @@
 
 End-user + integrator guide for routing Lausu's ASR (and LLM
 polishing) through a cloud provider instead of the default on-device
-faster-whisper / Qwen / Parakeet engines. Covers supported providers,
+GGUF / Qwen / Parakeet engines. Covers supported providers,
 API key format, network requirements, and per-OS quirks.
 
 > **Threat model first.** All cloud ASR / LLM traffic is gated by the

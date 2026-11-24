@@ -1,33 +1,46 @@
-"""Compute-device capability probe (CPU vs CUDA) + fallback broadcast.
+"""Compute-device capability probe (CPU vs GPU) + fallback broadcast.
 
 Single-purpose module: answers "can this machine run models on GPU?"
 fast enough for startup and every ``get_config`` call. Results are
 cached per process; GPUs don't hot-plug, so one probe is enough.
+
+The verdict comes from the shipped speech runtime contract, not from a
+Python inference wheel: the worker's runner publishes its supported
+backends (``cpu`` / ``vulkan`` / ``cuda``) in ``contract.json`` beside the
+native library. An unreadable contract is UNVERIFIED and keeps the app on
+CPU rather than persisting a GPU setting the runtime cannot serve.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 
 log = logging.getLogger(__name__)
 
 # Total wall-clock budget for one probe. The ctypes DLL check is
-# microseconds; the subprocess/ORT steps each carry their own shorter
-# timeout so the sum stays under this cap.
+# microseconds; the contract read is one small local file.
 _PROBE_BUDGET_S = 0.9
 
 _cached_available: bool | None = None
+_last_probe_unverified: bool = False
 
 
 def reset_cache() -> None:
     """Drop the cached probe result (tests only)."""
-    global _cached_available
+    global _cached_available, _last_probe_unverified
     _cached_available = None
+    _last_probe_unverified = False
+
+
+def is_gpu_unverified() -> bool:
+    """True when the last probe could not read the runtime backend contract."""
+    return _last_probe_unverified
 
 
 def gpu_available(*, refresh: bool = False) -> bool:
-    """Return True when a CUDA-capable GPU can run models here."""
+    """Return True when a GPU-capable speech runtime is available here."""
     global _cached_available
     if _cached_available is not None and not refresh:
         return _cached_available
@@ -44,8 +57,29 @@ def gpu_available(*, refresh: bool = False) -> bool:
     return _cached_available
 
 
+def _runner_backends() -> set[str] | None:
+    """Read the backends published by the shipped speech runtime contract."""
+    try:
+        from voice_typer.worker.asr_runner.runner import library_dir
+
+        directory = library_dir()
+        if directory is None:
+            return None
+        contract = directory / "contract.json" if directory.is_dir() else directory.parent / "contract.json"
+        data = json.loads(contract.read_text(encoding="utf-8"))
+        backends = data.get("backends")
+        if not isinstance(backends, list):
+            return None
+        return {str(backend).strip().lower() for backend in backends}
+    except Exception:
+        log.debug("[DEVICE] speech runtime contract unreadable", exc_info=True)
+        return None
+
+
 def _probe() -> bool:
     """Run the capability checks inside the wall-clock budget."""
+    global _last_probe_unverified
+    _last_probe_unverified = False
     deadline = time.monotonic() + _PROBE_BUDGET_S
     try:
         from voice_typer.server.platform_utils import is_macos
@@ -64,63 +98,14 @@ def _probe() -> bool:
         log.debug("[DEVICE] CUDA DLL probe failed", exc_info=True)
         return False
     if time.monotonic() >= deadline:
-        return True
-    # NOTE: importlib (not import statements) on purpose, same reason
-    # as SystemWhisperEngine.load: static imports would pull
-    # ctranslate2 into the frozen sidecar and trip the slim-core ML
-    # ratchet (scripts/slim_core_ml_ratchet_check.py).
-    import importlib
-
-    try:
-        ctranslate2 = importlib.import_module("ctranslate2")
-        # Whisper transcribes via ctranslate2, never via onnxruntime: a
-        # CUDA device here means GPU transcription works even when the
-        # CPU-only onnxruntime wheel (no CUDAExecutionProvider) is
-        # installed, so return without consulting ORT below.
-        count: int = ctranslate2.get_cuda_device_count()
-        return count > 0
-    except ImportError:
-        pass
-    except Exception:
-        log.debug("[DEVICE] ctranslate2 device count failed", exc_info=True)
+        _last_probe_unverified = True
         return False
-    if time.monotonic() >= deadline:
-        return True
-    # ORT answers for the Parakeet/Qwen ONNX backends only: Whisper
-    # returned above when ctranslate2 is present, so reaching here
-    # means ctranslate2 is absent and only ONNX backends remain.
-    try:
-        ort = importlib.import_module("onnxruntime")
-        providers = ort.get_available_providers()
-        return "CUDAExecutionProvider" in providers
-    except ImportError:
-        pass
-    except Exception:
-        log.debug("[DEVICE] onnxruntime provider check failed", exc_info=True)
-    try:
-        from voice_typer.server.platform_utils import is_linux
-
-        if is_linux():
-            import shutil
-            import subprocess
-
-            nvidia_smi = shutil.which("nvidia-smi")
-            if nvidia_smi is None:
-                return False
-            try:
-                proc = subprocess.run(
-                    [nvidia_smi, "-L"],
-                    capture_output=True,
-                    timeout=max(0.1, deadline - time.monotonic()),
-                )
-                return proc.returncode == 0 and bool(proc.stdout.strip())
-            except Exception:
-                log.debug("[DEVICE] nvidia-smi probe failed", exc_info=True)
-                return False
-    except Exception:
-        log.debug("[DEVICE] linux GPU probe failed", exc_info=True)
+    backends = _runner_backends()
+    if backends is None:
+        _last_probe_unverified = True
+        log.warning("[DEVICE] GPU UNVERIFIED: speech runtime contract unavailable, keeping CPU")
         return False
-    return True
+    return bool(backends & {"vulkan", "cuda"})
 
 
 def publish_device_cpu_fallback(reason: str) -> None:

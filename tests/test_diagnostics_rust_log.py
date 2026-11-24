@@ -31,8 +31,8 @@ def _make_bundle(tmp_path: Path, monkeypatch, config_dir: Path) -> Path:
         lambda: config_dir,
     )
 
-    # Avoid importing torch / ctranslate2 / huggingface_hub in CI.
-    for mod in ("torch", "ctranslate2", "huggingface_hub"):
+    # Avoid importing torch / huggingface_hub in CI.
+    for mod in ("torch", "huggingface_hub"):
         monkeypatch.setitem(sys.modules, mod, None)
 
     # Import after patches are in place.

@@ -1,18 +1,15 @@
-"""Offline-pack-missing UX + system-library fallback.
+"""Offline-pack-missing UX: no in-process ASR fallback remains.
 
-Weights on disk but no runtime pack must NOT report "no model
-selected": the tray/homepage message names the offline pack, and a
-dev checkout with system ML libraries serves the model in-process.
+Weights on disk but no runtime pack must NOT report "no model selected":
+the tray/homepage message names the offline pack. The old system-library
+fallback is gone with the Python ASR stack; the worker loader stays.
 """
 
 from __future__ import annotations
 
-import sys
-import types
 from types import SimpleNamespace
 
 import pytest
-from voice_typer.server.asr_errors import ModelNotDownloadedError, OfflinePackMissingError
 
 
 def _manager():
@@ -33,10 +30,13 @@ def _manager():
 
 class TestOfflinePackMissingError:
     def test_is_model_not_downloaded_subclass(self):
+        from voice_typer.server.asr_errors import ModelNotDownloadedError, OfflinePackMissingError
+
         assert issubclass(OfflinePackMissingError, ModelNotDownloadedError)
 
     def test_worker_raises_pack_error_when_pack_absent(self, monkeypatch):
         from voice_typer.server import worker_backed_asr
+        from voice_typer.server.asr_errors import OfflinePackMissingError
         from voice_typer.server.service import update_check
 
         monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda: None)
@@ -61,6 +61,8 @@ class TestOfflinePackMissingError:
         mgr = _manager()
         messages: list[str] = []
         mgr._app.tray.set_state = lambda *a, **k: messages.append(a[1] if len(a) > 1 else "")
+        from voice_typer.server.asr_errors import OfflinePackMissingError
+
         exc = OfflinePackMissingError(
             "The offline pack is not installed.",
             model_size="large-v3",
@@ -72,70 +74,28 @@ class TestOfflinePackMissingError:
         assert messages and "Offline pack" in messages[0]
 
 
-def _fake_faster_whisper(calls: list):
-    mod = types.ModuleType("faster_whisper")
-
-    class _FakeModel:
-        def __init__(self, path, **kwargs):
-            calls.append((path, kwargs))
-
-        def transcribe(self, audio, **kwargs):
-            class _Seg:
-                def __init__(self, text, start):
-                    self.text = text
-                    self.start = start
-                    self.end = start + 0.5
-                    self.avg_logprob = -0.2
-                    self.no_speech_prob = 0.01
-                    self.words = []
-
-            segments = [_Seg("hello", 0.0), _Seg("world", 0.5)]
-            info = SimpleNamespace(language="en", language_probability=0.99)
-            return (segments, info)
-
-    mod.WhisperModel = _FakeModel
-    return mod
-
-
-class TestSystemWhisperFallback:
-    def test_serves_model_from_system_libraries(self, tmp_path, monkeypatch):
+class TestNoInProcessFallback:
+    def test_system_fallback_always_refuses(self):
         from voice_typer.server import system_whisper
 
-        weights = tmp_path / "snap"
-        weights.mkdir()
-        (weights / "model.bin").write_bytes(b"\x00")
-        calls: list = []
-        monkeypatch.setitem(sys.modules, "faster_whisper", _fake_faster_whisper(calls))
-        monkeypatch.setattr(system_whisper, "_resolve_weights_dir", lambda *a, **k: weights)
-        cfg = SimpleNamespace(model_size="large-v3", device="cpu", language="en", beam_size=5)
-        engine = system_whisper.try_load_system_whisper(cfg)
-        assert engine is not None
-        assert engine.is_loaded is True
-        assert engine.loaded_via == "system/large-v3"
-        assert engine.transcribe_with_fallback([0.0, 0.1]) == "hello world"
-        assert calls and calls[0][1].get("local_files_only") is True
-
-    def test_missing_libraries_returns_none(self, monkeypatch):
-        from voice_typer.server import system_whisper
-
-        monkeypatch.setitem(sys.modules, "faster_whisper", None)
-        monkeypatch.setattr(system_whisper, "_resolve_weights_dir", lambda *a, **k: None)
         cfg = SimpleNamespace(model_size="large-v3", device="cpu", language="en", beam_size=5)
         assert system_whisper.try_load_system_whisper(cfg) is None
 
-    def test_missing_weights_returns_none(self, monkeypatch):
-        from voice_typer.server import system_whisper
+    def test_worker_fallback_refuses_when_worker_down(self, monkeypatch):
+        from voice_typer.server import system_whisper, worker_client
 
-        monkeypatch.setitem(sys.modules, "faster_whisper", _fake_faster_whisper([]))
-        monkeypatch.setattr(system_whisper, "_resolve_weights_dir", lambda *a, **k: None)
-        cfg = SimpleNamespace(model_size="large-v3", device="cpu", language="en", beam_size=5)
-        assert system_whisper.try_load_system_whisper(cfg) is None
+        client = SimpleNamespace(port=None)
+        monkeypatch.setattr(worker_client, "get_shared_client", lambda: client)
+        cfg = SimpleNamespace(model_size="large-v3", device="cpu", language="en")
+        assert system_whisper.try_load_worker_whisper(cfg) is None
 
-
-class TestRegistrySystemFallback:
-    def _registry(self):
+    def test_pack_missing_reraises_without_worker(self, monkeypatch):
+        from voice_typer.server.asr_errors import OfflinePackMissingError
         from voice_typer.server.asr_registry import AsrBackendRegistry
+        from voice_typer.server.service import update_check
+        from voice_typer.server.worker_backed_asr import WorkerBackedAsr
 
+        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda: None)
         cfg = SimpleNamespace(
             asr_backend="whisper",
             model_size="large-v3",
@@ -146,36 +106,7 @@ class TestRegistrySystemFallback:
             condition_on_previous_text=False,
             disabled_backends=[],
         )
-        return AsrBackendRegistry(cfg)
-
-    def test_pack_missing_falls_back_to_system(self, tmp_path, monkeypatch):
-        from voice_typer.server import system_whisper
-        from voice_typer.server.service import update_check
-        from voice_typer.server.worker_backed_asr import WorkerBackedAsr
-
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda: None)
-        weights = tmp_path / "snap"
-        weights.mkdir()
-        (weights / "model.bin").write_bytes(b"\x00")
-        monkeypatch.setitem(sys.modules, "faster_whisper", _fake_faster_whisper([]))
-        monkeypatch.setattr(system_whisper, "_resolve_weights_dir", lambda *a, **k: weights)
-
-        registry = self._registry()
-        registry.register("whisper", WorkerBackedAsr(model_size="large-v3", config=registry._config))
-        backend = registry.load_with_fallback()
-        assert backend is not None
-        assert backend.loaded_via == "system/large-v3"
-        assert registry.get("whisper") is backend
-
-    def test_pack_missing_without_system_libs_reraises(self, monkeypatch):
-        from voice_typer.server.asr_errors import OfflinePackMissingError
-        from voice_typer.server.service import update_check
-        from voice_typer.server.worker_backed_asr import WorkerBackedAsr
-
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda: None)
-        monkeypatch.setitem(sys.modules, "faster_whisper", None)
-
-        registry = self._registry()
-        registry.register("whisper", WorkerBackedAsr(model_size="large-v3", config=registry._config))
+        registry = AsrBackendRegistry(cfg)
+        registry.register("whisper", WorkerBackedAsr(model_size="large-v3", config=cfg))
         with pytest.raises(OfflinePackMissingError):
             registry.load_with_fallback()

@@ -51,8 +51,6 @@ COMMON_NUITKA_FLAGS = [
     "--onefile",
     "--assume-yes-for-downloads",
     "--enable-plugin=numpy",
-    "--nofollow-import-to=faster_whisper",
-    "--nofollow-import-to=ctranslate2",
     "--include-package=voice_typer",
     "--include-package=websockets",
 ]
@@ -339,8 +337,8 @@ def test_script_verifies_output_after_build(script_texts: dict[str, str], platfo
 def test_script_includes_faster_whisper_package(script_texts: dict[str, str], platform: str):
     """C7: ``--nofollow-import-to=faster_whisper`` must be present."""
     text = script_texts[platform]
-    assert "--nofollow-import-to=faster_whisper" in text, (
-        f"build_sidecar_{platform}.sh must --nofollow-import-to=faster_whisper (worker-owned)."
+    assert "--nofollow-import-to=faster_whisper" not in text, (
+        f"build_sidecar_{platform}.sh must not mention retired faster_whisper."
     )
     assert "--include-package=faster_whisper" not in text, (
         f"build_sidecar_{platform}.sh must not --include-package=faster_whisper."
@@ -351,8 +349,8 @@ def test_script_includes_faster_whisper_package(script_texts: dict[str, str], pl
 def test_script_includes_ctranslate2_package(script_texts: dict[str, str], platform: str):
     """C7: ``--nofollow-import-to=ctranslate2`` must be present."""
     text = script_texts[platform]
-    assert "--nofollow-import-to=ctranslate2" in text, (
-        f"build_sidecar_{platform}.sh must --nofollow-import-to=ctranslate2 (worker-owned)."
+    assert "--nofollow-import-to=ctranslate2" not in text, (
+        f"build_sidecar_{platform}.sh must not mention retired ctranslate2."
     )
     assert "--include-package=ctranslate2" not in text, (
         f"build_sidecar_{platform}.sh must --include-package=ctranslate2."

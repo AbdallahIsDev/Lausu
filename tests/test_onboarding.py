@@ -256,8 +256,6 @@ def app_with_service(tmp_config_dir, monkeypatch):
     mock_sd = MagicMock()
     mock_sd.query_devices.return_value = []
     monkeypatch.setitem(sys.modules, "sounddevice", mock_sd)
-    monkeypatch.setitem(sys.modules, "faster_whisper", MagicMock())
-    monkeypatch.setitem(sys.modules, "faster_whisper.WhisperModel", MagicMock())
     monkeypatch.setitem(sys.modules, "pynput", MagicMock())
     monkeypatch.setitem(sys.modules, "pynput.keyboard", MagicMock())
     monkeypatch.setitem(sys.modules, "pystray", MagicMock())

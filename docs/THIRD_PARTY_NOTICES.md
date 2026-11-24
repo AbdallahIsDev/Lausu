@@ -216,8 +216,10 @@ sections outside these markers are preserved verbatim by regeneration.
 | Component | Version | License identifier (verbatim) | Copyright | Status |
 |---|---|---|---|---|
 | charset-normalizer | 3.5.1 | MIT | Copyright (c) 2025 TAHRI Ahmed R. | VERIFIED |
+| ggml (vendored in transcribe.cpp) | 0.4.2 runtime | MIT | Copyright (c) 2023-2024 ggml authors | VERIFIED |
 | GGUF ASR model weights | Q8_0 | MIT / CC-BY-4.0 / Apache-2.0 | Copyright retained by each model author. | VERIFIED |
 | gtcrn_simple.onnx | unknown | MIT | — | VERIFIED |
+| miniz (vendored in transcribe.cpp) | 3.0.2 | MIT | Copyright 2013-2014 RAD Game Tools and Valve Software; Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC | VERIFIED |
 | onnxruntime | 1.29.0 (installed metadata); shipped DLL 1.28.0 | MIT License | Copyright (c) Microsoft Corporation | VERIFIED |
 | pillow | 13.0.0 | MIT-CMU | — | VERIFIED |
 | PyYAML | 6.0.3 | MIT | Copyright (c) 2017-2021 Ingy döt Net | VERIFIED |
@@ -226,8 +228,10 @@ sections outside these markers are preserved verbatim by regeneration.
 | Tauri host crate graph | per Cargo.lock | mixed (MIT, Apache-2.0, Unicode-3.0, MPL-2.0, CC0-1.0, Zlib, BSL-1.0, ISC) | — | VERIFIED |
 | transcribe.cpp | 0.4.2 | MIT | Copyright (c) 2026 transcribe.cpp contributors | VERIFIED |
 
+- ggml (vendored in transcribe.cpp): MIT text from the ggml project LICENSE; vendored runtime DLLs (ggml.dll, ggml-base.dll, ggml-vulkan.dll, ggml-cuda.dll) ship beside transcribe.dll. Upstream https://github.com/ggml-org/ggml
 - GGUF ASR model weights: Downloaded on first use; licences per model in voice_typer/server/gguf_model_registry.py. No weights are bundled.
 - gtcrn_simple.onnx: Bundled noise-suppression model with local MIT evidence.
+- miniz (vendored in transcribe.cpp): Full MIT text from the vendored miniz-3.0.2/LICENSE in the local PyTorch third-party licence bundle; upstream https://github.com/richgel999/miniz
 - onnxruntime: Build drift: shipped onnxruntime.dll PE version 1.28.0; dist-info 1.29.0. ThirdPartyNotices not shipped.
 - silero_vad.onnx: PRESENT; no licence file beside the model. Upstream https://github.com/snakers4/silero-vad/blob/master/LICENSE
 - Tauri host crate graph: Root crate license-file = ../LICENSE (PolyForm Strict 1.0.0). Representative: unicode-ident '(MIT OR Apache-2.0) AND Unicode-3.0'; icu_* 2.2.0 'Unicode-3.0'; cssparser/selectors/option-ext/dtoa-short 'MPL-2.0'; ryu 'Apache-2.0 OR BSL-1.0'; dunce 'CC0-1.0 OR MIT-0 OR Apache-2.0'; foldhash 'Zlib'.

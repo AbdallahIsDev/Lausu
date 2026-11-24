@@ -101,11 +101,9 @@ def _audio_pad_range(prompt_ids: list[int]) -> tuple[int, int]:
     return start, end
 
 
-# Vendored from faster_whisper.feature_extractor (Slaney mel + numpy
-# STFT), so this module stays importable without faster_whisper (C7:
-# the slim core must not import it). Verified element-wise against the
-# reference in tests/test_qwen_mel_parity.py; do not "simplify" without
-# re-running that parity test.
+# Self-contained Slaney mel + numpy STFT (no ASR-library import). Shape and
+# values were checked against the retired reference extractor before it was
+# removed; do not "simplify" without re-validating the mel output.
 _MEL_FILTERS: np.ndarray | None = None
 
 

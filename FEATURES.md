@@ -26,7 +26,7 @@ Last updated: 2026-06-22
 | **VOICE2TYPE** | 39 | Rust | Native Win32 | Windows | SiliconFlow/Groq cloud + local Whisper |
 | **thinkur** | 23 | Swift | Native Xcode | macOS | Apple Speech Framework |
 | **MoFA-IME** | 4 | Rust | Native Rust | macOS | Whisper + Qwen GGUF (llama.cpp) |
-| **Lausu (ours)** | — | Python + TypeScript + Rust | Tauri | Win/Mac/Linux | faster-whisper (ctranslate2), Qwen3-ASR, Parakeet Ultra, cloud (OpenAI/Groq/Deepgram) |
+| **Lausu (ours)** | — | Python + TypeScript + Rust | Tauri | Win/Mac/Linux | GGUF speech runner, Qwen3-ASR, Parakeet Ultra, cloud (OpenAI/Groq/Deepgram) |
 
 ---
 
@@ -67,7 +67,7 @@ Last updated: 2026-06-22
 │  · ModelManager (ASR lifecycle, ARCH-006)               │
 │  · RecordingController (recording lifecycle, #2 R9)     │
 │  · DictationPipeline (testable steps)                   │
-│  · Transcription (faster-whisper, ctranslate2)          │
+│  · Transcription (GGUF speech runner)          │
 │  · Qwen engine · Parakeet engine · Cloud engines        │
 │  · Streaming transcription (chunk-by-chunk)             │
 │  · AudioProcessor (VAD-based noise gate)                │
@@ -151,7 +151,7 @@ cutover complete 2026-09-17). predecessor packaging, TCP IPC, and
 
 | # | Feature | Status | Notes |
 |---|---|---|---|---|
-| 16 | faster-whisper (tiny.en, small.en, medium.en) | ✅ | ctranslate2 backend, GPU→CPU 4-level automatic fallback |
+| 16 | faster-whisper (tiny.en, small.en, medium.en) | ✅ | GGUF runtime, GPU/CPU selection from the shipped runtime contract |
 | 17 | Qwen3-ASR (0.6B / 1.7B) | ✅ | ONNX Runtime backend only (pre-exported `andrewleech/qwen3-asr-*-onnx` models, downloaded from HuggingFace after consent; a local dir via `qwen_model_path` still works as an override). The torch `qwen-asr` path was removed 2026-08-15 (Phase 1d), the project is torch-free. |
 | 18 | Parakeet Ultra | ✅ | HuggingFace (ONNX int8), auto-download weights |
 | 19 | Cloud ASR: OpenAI Whisper API | ✅ | `CloudEngine` interface, tested |

@@ -70,7 +70,7 @@ classifiers = [
 ]
 dependencies = [
     # ADR-0031 Phase 1: ASR runs through the sibling transcribe.cpp GGUF
-    # runner. faster-whisper, CTranslate2 and PyAV are intentionally absent;
+    # runner. The retired Python ASR/media stack is intentionally absent;
     # ONNX Runtime stays for Silero VAD and the noise models.
     # CR-DEP-2: sounddevice is the cross-platform PortAudio binding used by
     # audio_processor.py + microphone_watcher.py. The <1.0 cap reflects
@@ -88,7 +88,7 @@ dependencies = [
     # verified API-compatible with this codebase (no removed 1.x aliases
     # in use) and installs official wheels on every supported Python.
     # The <3 cap is the standard major-version guard (mirrors the
-    # scipy <2.0 / faster-whisper <2.0 caps), numpy 3.0 is not announced,
+    # scipy <2.0 caps), numpy 3.0 is not announced,
     # but a major bump is permitted to break 2.x APIs (e.g. the future
     # removal of deprecated aliases this codebase may still rely on).
     "numpy>=2.0,<3",
@@ -100,7 +100,7 @@ dependencies = [
     # `padtype='even'` fix we use in noise_suppressor.py.
     "scipy>=1.10,<2.0",
     # ADR-0031 Phase 1: media decode uses the pinned LGPL ffmpeg sibling
-    # executable. PyAV is removed with faster-whisper; no Python decode dep.
+    # executable. Media decode uses the LGPL FFmpeg executable, not a Python binding.
     # ADR-0023: yt-dlp is the URL resolver/downloader for media ingest
     # (~1000 sites). The >=2026.8.19 floor is the current release at
     # adoption time; post-2025.11.12 YouTube support REQUIRES an external
@@ -173,7 +173,7 @@ dependencies = [
     "onnx-asr>=0.12.0",
     # Phase 1a + §5.3 (companion plan): onnxruntime is declared
     # explicitly because after the slim-core / runtime-pack split
-    # (plan-runtime-pack-split.md §3.3 + §5.3), faster-whisper moves to
+    # (plan-runtime-pack-split.md §3.3 + §5.3), the speech runtime moves to
     # the runtime-pack and the slim core loses the transitive
     # onnxruntime dep. The slim core's VAD (silero_vad.onnx via ORT
     # InferenceSession) and Parakeet (via onnx-asr which wraps ORT) both
@@ -182,9 +182,9 @@ dependencies = [
     # `RunOptions.set_terminate()` API used by parakeet_engine.py's
     # `request_abort()` path (added in 1.20, verified against ORT
     # changelog). The lockfile currently resolves to 1.28.0 (pulled
-    # transitively by faster-whisper per requirements-lock.txt:1048);
+    # by the runtime pack);
     # declaring it explicitly here keeps the slim core working after
-    # faster-whisper is moved to the pack. NOTE: this is the CPU wheel
+    # the speech runtime is moved to the pack. NOTE: this is the CPU wheel
     # only, GPU users install `onnxruntime-gpu` separately (see §6.1
     # for why onnxruntime-gpu does NOT bundle NVIDIA DLLs and
     # nvidia_dll_paths.py is still required).
@@ -522,7 +522,7 @@ baseline = "pyrefly-baseline.json"
 # site-packages. The directive reported 73 false-positive
 # `missing-import` (Class A) errors for third-party deps (numpy,
 # scipy.signal, huggingface_hub, PIL, pynput.*, sounddevice, pyperclip,
-# transformers, psutil, faster_whisper, ctranslate2, pystray, win32gui,
+# transformers, psutil, pystray, win32gui,
 # win32com.client, qwen_asr). Those are NOT real code bugs, pyrefly
 # simply wasn't searching the venv. (On Windows pyrefly auto-queries the
 # interpreter for site-packages, but on the Linux CI runner the
@@ -740,7 +740,7 @@ filterwarnings = [
     # ratchet, once a voice_typer deprecation is fixed it can never
     # silently regress. The filter is scoped to ``voice_typer`` (the
     # ``module`` regex field) so third-party DeprecationWarnings (e.g.
-    # from sounddevice, faster_whisper) are NOT affected, only
+    # from sounddevice) are NOT affected, only
     # warnings raised by code inside the ``voice_typer`` package itself.
     # Listed LAST so it takes precedence (pytest prepends filters in
     # list order; the last entry is checked first by the warnings
@@ -880,7 +880,6 @@ ignore_errors = true
 [[tool.mypy.overrides]]
 module = [
     "sounddevice",
-    "faster_whisper",
     "pystray",
     "pynput.*",
     "pyperclip",
@@ -905,29 +904,23 @@ module = [
     # deps would be the stricter route, but the ignore override is the
     # pragmatic repo-wide fix: mypy is a LOCAL-only convenience gate (CI
     # skips it), and the existing list already takes the pragmatic route
-    # for libs with partial stubs (e.g. psutil). scipy/ctranslate2 are
-    # core deps; win32gui/win32com are platform-only; dbus/pyatspi are
+    # for libs with partial stubs (e.g. psutil). scipy is a core dep;
+    # win32gui/win32com are platform-only; dbus/pyatspi are
     # optional Linux deps not installed on this host.
     "scipy.*",
     "regex",
-    "ctranslate2",
     "win32gui",
     "win32com.*",
     "dbus",
     "pyatspi",
     # ERR-ERR-006 verification (PyPI, 2026-09-07): no stub packages
     # exist for onnxruntime (types-onnxruntime / onnxruntime-stubs /
-    # onnxruntime-types all 404) or faster-whisper (types-faster-whisper /
-    # faster-whisper-stubs 404), and neither distribution ships a
+    # onnxruntime-types all 404), and neither distribution ships a
     # py.typed marker, the import-untyped errors are genuine.
-    # `faster_whisper.*` (alongside the exact-module entry above)
-    # covers submodule imports such as
-    # `faster_whisper.feature_extractor` that the exact entry alone
-    # does not match. onnx-asr and tokenizers are deliberately NOT
+    # onnx-asr and tokenizers are deliberately NOT
     # listed: both installed distributions ship py.typed markers, so
     # they resolve as typed modules and need no override.
     "onnxruntime",
-    "faster_whisper.*",
 ]
 ignore_missing_imports = true
 

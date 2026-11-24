@@ -165,10 +165,6 @@ def mock_heavy_imports_session():
         mock_sd.query_devices.return_value = []
         mp.setitem(sys.modules, "sounddevice", mock_sd)
 
-        mock_whisper = mock_module("faster_whisper")
-        mp.setitem(sys.modules, "faster_whisper", mock_whisper)
-        mp.setitem(sys.modules, "faster_whisper.WhisperModel", MagicMock())
-
         mp.setitem(sys.modules, "pystray", mock_module("pystray"))
         mp.setitem(sys.modules, "pyperclip", mock_module("pyperclip"))
 

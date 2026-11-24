@@ -55,7 +55,7 @@ locally.
 > **GPU users (optional):** if you want CUDA-accelerated transcription,
 > install the GPU build of ONNX Runtime *before* `pip install -e .`
 > (`uv pip install onnxruntime-gpu`). CPU-only installs work fine,
-> `faster-whisper` and the ONNX backends both fall back to CPU
+> the GGUF runtime and the ONNX backends both fall back to CPU
 > automatically.
 
 ---
@@ -685,7 +685,7 @@ menu: most configuration lives in the desktop UI), three hotkey
 backends (Win32, macOS CGEvent, Linux `/dev/input` See ADR 0007), a
 PortAudio recorder that captures 16 kHz mono into a bounded `deque`,
 and a transcription pipeline. The pipeline dispatches to one of three
-**ASR engines**: `faster-whisper` (default, CUDA-first with CPU
+**ASR engines**: the GGUF speech runner (GPU-first with CPU
 fallback), `qwen_engine.QwenEngine` (experimental Qwen3-ASR-0.6B), or
 `parakeet_engine.ParakeetEngine` (NVIDIA Parakeet). ARCH-013 unified
 the latter two through a generic `_init_asr_engine` dispatcher. After
@@ -1045,7 +1045,7 @@ hand-rolling the React tree in component tests. Sibling files:
   `pytest-timeout`, `pytest-cov`, `hypothesis`, and `pytest-benchmark`
   (declared in `[project.optional-dependencies].test`).
 - **Headless by default:** the autouse `mock_heavy_imports` fixture in
-  `tests/conftest.py` mocks `sounddevice`, `faster_whisper`, `pynput`,
+  `tests/conftest.py` mocks `sounddevice`, `pynput`,
   `pystray`, `PIL`, and `pyperclip` so the suite runs on any CI
   runner without a display or microphone.
 - **Opt-out markers** (registered in `pytest_configure`):
@@ -1095,8 +1095,8 @@ hand-rolling the React tree in component tests. Sibling files:
   `test_ipc_server_lifecycle_fixes.py` into it),
   `gen_tauri_icons_stub` (`tests/tauri/test_gen_tauri_icons_stub.py`,
   `tests/tauri/mig18/test_build_script_glue.py`), and
-  `faster_whisper_linux`
-  (`tests/tauri/mig17/test_faster_whisper_linux.py`).
+  `gguf_runner_linux`
+  (`tests/tauri/mig17/test_nuitka_linux_build.py`).
 - **Coverage threshold:** 78 %, enforced by `--cov-fail-under=78` in
   `pyproject.toml` and `.github/workflows/build.yml` (plus
   `[tool.coverage.report].fail_under`, all three kept in lockstep by
@@ -1221,7 +1221,7 @@ consistent with what reviewers expect.
 
 Every test inherits the `mock_heavy_imports` autouse fixture in
 `tests/conftest.py`, which installs `MagicMock`s for `sounddevice`,
-`faster_whisper`, `pynput`, `pystray`, `PIL`, and `pyperclip`.  This
+`pynput`, `pystray`, `PIL`, and `pyperclip`.  This
 lets the suite run on any CI runner without a display, microphone,
 or audio stack.  Three markers opt out:
 

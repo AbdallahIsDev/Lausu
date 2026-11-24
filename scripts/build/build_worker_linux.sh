@@ -4,7 +4,7 @@
 #
 # Plan-runtime-pack-split §4.4 / §11.5, builds the runtime-pack worker exe
 # (lausu-worker-<triple>), the heavy-ML process that owns
-# onnxruntime (VAD + Parakeet) + ctranslate2/faster_whisper (Whisper
+# onnxruntime (VAD + Parakeet) + the GGUF speech runner (Whisper
 # fallback) + numpy/scipy/av/pyrnnoise + the bundled silero_vad.onnx.
 # The slim-core sidecar connects to this worker via a localhost WebSocket
 # (master plan §7) and offloads all heavy inference to it.
@@ -174,18 +174,6 @@ if [[ ! -d "$SITE/websockets" ]]; then
     echo "[build_worker_linux] ERROR: websockets not found in $SITE" >&2
     exit 1
 fi
-CT2_LIB_DIR="$SITE/ctranslate2/lib"
-CT2_LIBS_DIR="$SITE/ctranslate2/libs"
-# ctranslate2/lib is mandatory on Linux (libctranslate2.so + libiomp5.so /
-# libgomp.so live here). IF ctranslate2 is installed. The worker may or may
-# not need ctranslate2 (Phase 2b wires the Whisper fallback in); guard it so
-# a CPU-only env without ctranslate2 still produces a working worker.
-if [[ -d "$CT2_LIB_DIR" ]]; then
-    echo "[build_worker_linux] CT2_LIB_DIR=$CT2_LIB_DIR"
-else
-    echo "[build_worker_linux] NOTE: $CT2_LIB_DIR not found, ctranslate2 not installed (Whisper fallback unavailable in this build)."
-fi
-
 # ─── Verify Nuitka is installed in the pybs env ─────────────────────────────
 if ! "$PYBS_PYTHON" -c 'import nuitka' >/dev/null 2>&1; then
     echo "[build_worker_linux] Nuitka not installed in pybs env, installing..."
@@ -297,14 +285,6 @@ NUITKA_ARGS=(
     --output-filename="lausu-worker-$TRIPLE"
     voice_typer/worker/__main__.py
 )
-# Optional ctranslate2 DLL/so inclusion, only if the install exists.
-if [[ -d "$CT2_LIB_DIR" ]]; then
-    NUITKA_ARGS+=(--include-data-dir="$CT2_LIB_DIR=$CT2_LIB_DIR")
-fi
-if [[ -d "$CT2_LIBS_DIR" ]]; then
-    NUITKA_ARGS+=(--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR")
-fi
-
 set +e
 "${NUITKA_ENV[@]}" "$PYBS_PYTHON" -m nuitka "${NUITKA_ARGS[@]}" 2>&1 | tee "$BUILD_LOG"
 NUITKA_RC=${PIPESTATUS[0]}

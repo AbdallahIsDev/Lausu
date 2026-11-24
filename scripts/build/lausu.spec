@@ -212,12 +212,6 @@ _hiddenimports = [
     "transformers",
     "transformers.models",
     "accelerate",
-    # BUILD-3: faster_whisper + faster_whisper.transcribe (ADR-0020 §4.5 Phase 0
-    # verify-load target). The Nuitka sibling scripts use
-    # --include-package=faster_whisper explicitly; the PyInstaller spec should
-    # do the same defensively (even though static analysis often discovers
-    # faster_whisper via ipc_server.py imports, listing it explicitly is the
-    # safe choice: see test_pyinstaller_fallback.py GAP-1).
     "tokenizers",
     "huggingface_hub",
     # At-rest history encryption uses PyCryptodome AES-GCM. Its raw AES

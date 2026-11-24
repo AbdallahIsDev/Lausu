@@ -164,14 +164,15 @@ NUITKA_ARGS=(
     --include-package=websockets
     # PyCryptodome backs at-rest history encryption in _text_crypto.py.
     --include-package=Crypto
-    # ADR-0023 packaging: media ingest lazily imports yt_dlp / yt_dlp_ejs /
-    # av (decoder.py, downloader.py, subtitles.py, mini_update.py).
+    # ADR-0023 packaging: media ingest lazily imports yt_dlp / yt_dlp_ejs
+    # (decoder.py, downloader.py, subtitles.py, mini_update.py); decoding
+    # runs through the separately shipped LGPL FFmpeg executable.
     --include-package=yt_dlp
     --include-package=yt_dlp_ejs
     --include-package-data=yt_dlp
     --include-package-data=voice_typer.server
     # Native RNNoise: loaded via ctypes from a path, never via pyrnnoise's
-    # Python package (its audiolab->av.option import chain is broken on PyAV 17).
+    # Python package (audiolab pulls in the retired media library).
     --include-data-file="$SITE/pyrnnoise/librnnoise.dylib=librnnoise.dylib"
     # Internal plugin source (developer-mode surface): shipped as data, never
     # imported from the binary. The packaged app seeds a writable per-user

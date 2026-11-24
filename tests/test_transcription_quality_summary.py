@@ -2,22 +2,10 @@
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
-
-
-@pytest.fixture(autouse=True)
-def mock_heavy_imports(monkeypatch):
-    """Mock faster_whisper + ctranslate2 so no real model is needed."""
-    mock_fw = MagicMock()
-    monkeypatch.setitem(sys.modules, "faster_whisper", mock_fw)
-    monkeypatch.setitem(sys.modules, "faster_whisper.WhisperModel", MagicMock())
-    mock_ct2 = MagicMock()
-    mock_ct2.get_cuda_device_count.return_value = 0
-    monkeypatch.setitem(sys.modules, "ctranslate2", mock_ct2)
 
 
 class TestBuildQualitySummary:
@@ -52,9 +40,9 @@ class TestBuildQualitySummary:
 
 def _make_loaded_engine(config=None):
     """Build a TranscriptionEngine with a mocked loaded model."""
-    from voice_typer.worker.whisper import TranscriptionEngine
+    from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
-    engine = TranscriptionEngine(model_size="tiny.en", device="cpu", config=config)
+    engine = TranscriptionEngine(model_path="model.gguf", model_size="tiny.en", device="cpu", config=config)
     engine._model = MagicMock()
     return engine
 
@@ -81,13 +69,12 @@ class TestEngineQualitySummary:
         )
         # Focus: the summary, not the hallucination gate.
         monkeypatch.setattr(
-            engine,
-            "_should_reject_low_audio_hallucination",
-            lambda **kwargs: False,
+            "voice_typer.worker.asr_runner.engine.reject_low_audio_hallucination",
+            lambda *_a, **_k: False,
         )
 
         audio = np.zeros(16000, dtype=np.float32)
-        result = engine._transcribe_unlocked(audio)
+        result = engine.transcribe(audio)
 
         assert result == "hello there"
         summary = engine.last_quality_summary
@@ -109,11 +96,10 @@ class TestEngineQualitySummary:
             info,
         )
         monkeypatch.setattr(
-            engine,
-            "_should_reject_low_audio_hallucination",
-            lambda **kwargs: False,
+            "voice_typer.worker.asr_runner.engine.reject_low_audio_hallucination",
+            lambda *_a, **_k: False,
         )
-        engine._transcribe_unlocked(np.zeros(16000, dtype=np.float32))
+        engine.transcribe(np.zeros(16000, dtype=np.float32))
         assert engine.last_quality_summary is not None
 
         # Second run: segments carry no numeric probs (e.g. an abort cut
@@ -124,7 +110,7 @@ class TestEngineQualitySummary:
         empty_seg.avg_logprob = None
         empty_seg.no_speech_prob = None
         engine._model.transcribe.return_value = ([empty_seg], info)
-        engine._transcribe_unlocked(np.zeros(16000, dtype=np.float32))
+        engine.transcribe(np.zeros(16000, dtype=np.float32))
 
         assert engine.last_quality_summary is None
 

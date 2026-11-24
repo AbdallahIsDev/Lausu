@@ -20,7 +20,7 @@ If you just want to **stop the bug now**, jump to [Workarounds](#workarounds).
 |---|-------|----------|-------------|--------|
 | 1 | Tail merge timestamp drift | `streaming.py` → `_finalize_impl()` | HIGH | Words in the overlap region are duplicated when Whisper timestamps drift > 0.25 s between the streaming pass and the finalize tail pass. |
 | 2 | Window overlap dedup gaps | `streaming.py` → `AudioWindowPlanner.next_window()` | MED-HIGH | The same audio is transcribed twice; dedup misses drifted timestamps when the boundary search fails to find a silence boundary. |
-| 3 | VAD segment boundary split | `transcription.py` → `_transcribe_words_unlocked()` | MED | Whisper's internal VAD splits audio into segments; the last word of segment N may be repeated as the first word of segment N+1 (known faster-whisper behavior with `vad_filter=True` + `speech_pad_ms=200`). |
+| 3 | VAD segment boundary split | `transcription.py` → `_transcribe_words_unlocked()` | MED | Whisper's internal VAD splits audio into segments; the last word of segment N may be repeated as the first word of segment N+1 (a known decoder behavior with `vad_filter=True` + `speech_pad_ms=200`). |
 | 4 | Text cleanup limited to 4-token phrases | `text_cleanup.py` → `_remove_adjacent_duplicate_phrases()` | MED | Phrase duplicates longer than 4 tokens (e.g. "I want to do this **I want to do this**") are NOT caught. |
 | 5 | Streaming fallback to batch transcribe | `streaming.py` → `_finalize_impl()` exception handler | LOW | If the tail merge raises and the code falls back to `transcribe_with_fallback(full_audio)`, the entire audio is transcribed from scratch as a batch, partial streaming commits may then duplicate the batch result. |
 
@@ -84,7 +84,7 @@ splits audio into segments. At segment boundaries:
 
 - The last word of segment N might be repeated as the first word of
   segment N+1.
-- This is a known faster-whisper behavior when `vad_filter=True` with
+- This is a known decoder behavior when `vad_filter=True` with
   `speech_pad_ms=200`.
 - `speech_pad_ms=200` adds 200 ms of extra context around each VAD
   segment, which can cause boundary words to appear in two adjacent
@@ -147,6 +147,6 @@ the recommended starting points are:
    words. This is a backstop that catches cause #1 even when the
    timestamp-level check misses.
 3. **Investigate VAD segment-boundary dedup** for cause #3, the
-   segment-boundary repeat is a known faster-whisper behavior; a
+   segment-boundary repeat is a known decoder behavior; a
    text-level dedup pass that drops the first word of segment N+1 if
    it exactly matches the last word of segment N would close the gap.

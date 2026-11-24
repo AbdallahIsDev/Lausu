@@ -3,7 +3,7 @@
 Reads installed distribution metadata and the checked-in lockfiles read-only.
 No network access, no new dependencies, no writes to any input. The only file
 this script writes is ``docs/THIRD_PARTY_NOTICES.md`` between its markers, so
-the hand-written FFmpeg/PyAV sections survive regeneration byte-for-byte.
+the hand-written FFmpeg section survives regeneration byte-for-byte.
 """
 
 from __future__ import annotations
@@ -1353,6 +1353,26 @@ COMPONENTS: tuple[Component, ...] = (
         "upstream https://github.com/handy-computer/transcribe.cpp",
     ),
     Component(
+        "ggml (vendored in transcribe.cpp)",
+        "0.4.2 runtime",
+        "MIT",
+        "Copyright (c) 2023-2024 ggml authors",
+        "MIT",
+        detail="MIT text from the ggml project LICENSE; vendored runtime DLLs (ggml.dll, "
+        "ggml-base.dll, ggml-vulkan.dll, ggml-cuda.dll) ship beside transcribe.dll. "
+        "Upstream https://github.com/ggml-org/ggml",
+    ),
+    Component(
+        "miniz (vendored in transcribe.cpp)",
+        "3.0.2",
+        "MIT",
+        "Copyright 2013-2014 RAD Game Tools and Valve Software; "
+        "Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC",
+        "MIT",
+        detail="Full MIT text from the vendored miniz-3.0.2/LICENSE in the local PyTorch "
+        "third-party licence bundle; upstream https://github.com/richgel999/miniz",
+    ),
+    Component(
         "certifi",
         "2026.10.19",
         "MPL-2.0",
@@ -1792,7 +1812,8 @@ def render(facts: dict, metadata: dict) -> str:
     lines += [
         "Regenerate with `python scripts/generate_third_party_notices.py` (`--check` verifies",
         "the committed artifact). Deterministic, offline, stdlib-only; no legal conclusions.",
-        "The hand-written Lausu / yt-dlp / transcribe.cpp / GGUF weights / FFmpeg / RNNoise / pystray / Deno / DPDFNet2",
+        "The hand-written Lausu / yt-dlp / transcribe.cpp / GGUF weights / FFmpeg / "
+        "RNNoise / pystray / Deno / DPDFNet2",
         "sections outside these markers are preserved verbatim by regeneration.",
         "",
         "### Evidence and scope",

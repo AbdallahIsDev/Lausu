@@ -1,4 +1,9 @@
-"""``local_engine`` kwarg parity across ASR backends."""
+"""``local_engine`` kwarg parity across the remaining backends.
+
+The worker's Whisper path now runs the GGUF ctypes engine, whose
+``transcribe_with_fallback`` accepts only audio (plus kwargs forwarded to
+``transcribe``); local_engine forwarding is gone with the legacy engine.
+"""
 
 from __future__ import annotations
 
@@ -18,7 +23,6 @@ class TestLocalEngineKwargSignatures:
     @pytest.mark.parametrize(
         "import_path,class_name",
         [
-            ("voice_typer.worker.whisper", "TranscriptionEngine"),
             ("voice_typer.server.parakeet_engine", "ParakeetEngine"),
             ("voice_typer.server.qwen_engine", "QwenEngine"),
             ("voice_typer.server.cloud_engines", "CloudEngine"),
@@ -39,13 +43,6 @@ class TestLocalEngineKwargSignatures:
 
 
 class TestLocalEnginesIgnoreLocalEngine:
-    def test_whisper_unloaded_raises_runtime_error_not_type_error(self) -> None:
-        from voice_typer.worker.whisper import TranscriptionEngine
-
-        engine = TranscriptionEngine()
-        with pytest.raises(RuntimeError, match="Model not loaded"):
-            engine.transcribe_with_fallback(_audio(), local_engine=MagicMock())
-
     def test_parakeet_unloaded_raises_backend_error_not_type_error(self) -> None:
         from voice_typer.server.parakeet_engine import ParakeetEngine
         from voice_typer.server.parakeet_engine._shims import TranscriptionBackendError
@@ -63,18 +60,17 @@ class TestLocalEnginesIgnoreLocalEngine:
 
 
 class TestStreamingFinalizeWithLocalEngine:
-    def test_finalize_forwards_local_engine_to_whisper_backend(self) -> None:
-        """Reproduces the reported finalize crash chain."""
-        from voice_typer.worker.whisper import TranscriptionEngine
+    def test_finalize_forwards_local_engine_to_qwen_backend(self) -> None:
+        from voice_typer.server.qwen_engine import QwenEngine
 
         session = StreamingTranscriptionSession(
             recorder=MagicMock(),
-            transcriber=TranscriptionEngine(),
+            transcriber=QwenEngine(model_path="nonexistent-export-dir"),
             config=StreamingConfig(),
             sample_rate=16000,
             local_engine=MagicMock(),
         )
-        with pytest.raises(RuntimeError, match="Model not loaded"):
+        with pytest.raises(RuntimeError, match="not loaded"):
             session._finalize_impl_inner(
                 _audio(),
                 snapshot_committed_text="",

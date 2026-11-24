@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 import threading
 import time
 from unittest.mock import MagicMock
@@ -19,117 +18,8 @@ def _accept_mock_http_peer(accept_mock_http_peer):
 
 
 
-@pytest.fixture(autouse=True)
-def mock_faster_whisper(monkeypatch):
-    """Mock faster_whisper so no real model is loaded."""
-    mock_fw = MagicMock()
-    monkeypatch.setitem(sys.modules, "faster_whisper", mock_fw)
-    monkeypatch.setitem(sys.modules, "faster_whisper.WhisperModel", MagicMock())
-    mock_ct2 = MagicMock()
-    mock_ct2.get_cuda_device_count.return_value = 0
-    monkeypatch.setitem(sys.modules, "ctranslate2", mock_ct2)
 
 
-class TestTranscriptionEngineAbort:
-    """Whisper engine (``transcription.py``) abort API."""
-
-    def test_engine_has_abort_event_in_init(self):
-        from voice_typer.worker.whisper import TranscriptionEngine
-
-        engine = TranscriptionEngine()
-        assert hasattr(engine, "_abort_event")
-        assert isinstance(engine._abort_event, threading.Event)
-        assert not engine._abort_event.is_set()
-
-    def test_request_abort_sets_event(self):
-        from voice_typer.worker.whisper import TranscriptionEngine
-
-        engine = TranscriptionEngine()
-        assert not engine._abort_event.is_set()
-        engine.request_abort()
-        assert engine._abort_event.is_set()
-
-    def test_clear_abort_clears_event(self):
-        from voice_typer.worker.whisper import TranscriptionEngine
-
-        engine = TranscriptionEngine()
-        engine.request_abort()
-        assert engine._abort_event.is_set()
-        engine.clear_abort()
-        assert not engine._abort_event.is_set()
-
-    def test_request_abort_calls_ctranslate2_interrupt_when_available(self):
-        """When the underlying ctranslate2 Translator exposes"""
-        from voice_typer.worker.whisper import TranscriptionEngine
-
-        engine = TranscriptionEngine()
-        inner_translator = MagicMock()
-        engine._model = MagicMock()
-        engine._model.model = inner_translator
-        engine.request_abort()
-        inner_translator.interrupt.assert_called_once()
-
-    def test_request_abort_does_not_raise_when_interrupt_missing(self):
-        """Older ctranslate2 / mock models may not expose"""
-        from voice_typer.worker.whisper import TranscriptionEngine
-
-        engine = TranscriptionEngine()
-        engine._model = MagicMock()
-        # Remove the inner ``model`` attribute so ``getattr(...)`` returns None.
-        del engine._model.model
-        engine.request_abort()  # must not raise
-        assert engine._abort_event.is_set()
-
-    def test_transcribe_breaks_segment_loop_on_abort(self):
-        """When ``_abort_event`` is set, the segment loop breaks early"""
-        from voice_typer.worker.whisper import TranscriptionEngine
-
-        engine = TranscriptionEngine()
-        # Mock the model so transcribe returns a generator of 5 segments.
-
-        def make_segment(i):
-            seg = MagicMock()
-            seg.text = f"segment {i}"
-            seg.start = float(i)
-            seg.end = float(i + 1)
-            seg.avg_logprob = -0.5
-            seg.no_speech_prob = 0.1
-            return seg
-
-        def fake_transcribe(*args, **kwargs):
-            # Generator that yields 5 segments; the abort check between
-            def gen():
-                for i in range(5):
-                    yield make_segment(i)
-
-            info = MagicMock()
-            info.language = "en"
-            info.language_probability = 1.0
-            return gen(), info
-
-        engine._model = MagicMock()
-        engine._model.transcribe.side_effect = fake_transcribe
-        # Pre-set the abort event, the loop's first iteration check
-        original_transcribe = engine._model.transcribe.side_effect
-
-        def triggering_transcribe(*args, **kwargs):
-            segments, info = original_transcribe(*args, **kwargs)
-
-            def triggering_gen():
-                for i, seg in enumerate(segments):
-                    if i == 1:
-                        engine._abort_event.set()
-                    yield seg
-
-            return triggering_gen(), info
-
-        engine._model.transcribe.side_effect = triggering_transcribe
-
-        audio = np.ones(16000, dtype=np.float32) * 0.05  # 1s of audio
-        result = engine.transcribe(audio)
-        # Partial text: only "segment 0" + "segment 1" (the abort fires
-        assert "segment 0" in result
-        assert "segment 4" not in result, f"abort should have stopped the loop early, but got full result: {result!r}"
 
 
 # Parakeet (parakeet_engine.py), abort infrastructure ─────────
