@@ -17,6 +17,7 @@ from typing import Any
 from voice_typer.server.asr_setup import ensure_hf_env
 from voice_typer.server.gguf_model_registry import (
     GgufModelSpec,
+    is_frozen as _frozen,
     is_placeholder_hash,
     is_placeholder_size,
     require_complete_spec,
@@ -63,6 +64,9 @@ def download_gguf_model(
 ) -> tuple[bool, str]:
     """Download + verify one GGUF model. Returns (ok, failure_code)."""
     spec: GgufModelSpec = resolve_gguf_spec(model_key)
+    if spec.dev_only and _frozen():
+        log.error("[GGUF] refused dev-only model %s in a frozen build", model_key)
+        return (False, "dev_model_not_allowed")
 
     def report(message: str) -> None:
         log.info("[GGUF] %s: %s", model_key, message)

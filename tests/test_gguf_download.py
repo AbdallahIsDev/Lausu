@@ -43,15 +43,29 @@ def _real_spec(tmp_path: Path, payload: bytes = b"gguf-bytes") -> tuple[GgufMode
         sha256=hashlib.sha256(payload).hexdigest(),
         size_bytes=len(payload),
         license="MIT",
+        family="whisper",
+        quantization="Q8_0",
     )
     return spec, file_path
 
 
 def test_placeholder_refuses_before_network(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    spec, _ = _real_spec(tmp_path)
+    placeholder = GgufModelSpec(**{**spec.__dict__, "sha256": "FILL_ME"})
+    monkeypatch.setitem(GGUF_MODELS, "tiny", placeholder)
     hub = _FakeHub(tmp_path / "unused.gguf")
     _install_hub(monkeypatch, hub)
     ok, code = gguf_download.download_gguf_model("tiny", config=SimpleNamespace(huggingface_consent=True))
     assert (ok, code) == (False, "placeholder_in_registry")
+    assert hub.calls == []
+
+
+def test_dev_only_model_refused_in_frozen_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(gguf_download, "_frozen", lambda: True)
+    hub = _FakeHub(tmp_path / "unused.gguf")
+    _install_hub(monkeypatch, hub)
+    ok, code = gguf_download.download_gguf_model("tiny", config=SimpleNamespace(huggingface_consent=True))
+    assert (ok, code) == (False, "dev_model_not_allowed")
     assert hub.calls == []
 
 

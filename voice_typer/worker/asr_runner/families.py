@@ -7,10 +7,18 @@ started, and no "language pack" is added (C-ASR-5).
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from voice_typer.server.gguf_download import resolve_gguf_model_path
+from voice_typer.server.gguf_model_registry import DEFAULT_MODEL_KEY
 from voice_typer.server.model_language_support import PARAKEET_LANGUAGES, QWEN3_LANGUAGES
+
+log = logging.getLogger("voice_typer.worker.asr_runner")
+
+# CT2-era ids and the dev-only tiny model are never valid selections.
+LEGACY_MODEL_IDS = frozenset({"tiny", ""})
+LEGACY_REPO_PREFIX = "Systran/faster-whisper-"
 
 
 class LanguageNotSupportedError(ValueError):
@@ -24,7 +32,11 @@ def model_key_for(config: Any) -> str:
         return "parakeet"
     if backend == "qwen":
         return "qwen3-1.7b"
-    return getattr(config, "model_size", "") or "tiny"
+    selected = getattr(config, "model_size", "") or ""
+    if selected in LEGACY_MODEL_IDS or selected.startswith(LEGACY_REPO_PREFIX):
+        log.info("[GGUF] legacy model id %r migrated to %r", selected, DEFAULT_MODEL_KEY)
+        return DEFAULT_MODEL_KEY
+    return selected
 
 
 def assert_model_language(model_key: str, language: str | None) -> None:

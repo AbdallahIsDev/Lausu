@@ -20,7 +20,9 @@ from voice_typer.worker.asr_runner.families import (
         ("whisper", "large-v3-turbo", "large-v3-turbo"),
         ("parakeet", "tiny", "parakeet"),
         ("qwen", "", "qwen3-1.7b"),
-        ("cloud", "tiny", "tiny"),
+        ("cloud", "tiny", "large-v3-turbo"),
+        ("whisper", "tiny", "large-v3-turbo"),
+        ("whisper", "Systran/faster-whisper-tiny", "large-v3-turbo"),
     ],
 )
 def test_model_key_for(backend: str, model_size: str, expected: str) -> None:
