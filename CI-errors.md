@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-24T00:21:55Z
+> Generated: 2026-11-24T00:27:33Z
 > Data branch commit: `ccb2d2b`
 
 ## Currently failing
@@ -942,14 +942,14 @@
 - Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 54. Build installer — failure
@@ -957,32 +957,167 @@
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
 - Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
+- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
+- Step: Run tests with coverage
+- Category: pytest
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 55. Build installer — failure
 
+- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Event: push · Branch: main
+- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
+- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 56. Build installer — failure
+
+- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Event: push · Branch: main
+- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
+- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 57. Build installer — failure
+
+- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Event: push · Branch: main
+- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
+- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 58. Build installer — failure
+
+- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Event: push · Branch: main
+- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
+- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 59. Build installer — failure
+
+- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Event: push · Branch: main
+- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
+- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 60. Build installer — failure
+
+- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Event: push · Branch: main
+- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
+- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 61. Build installer — failure
+
+- Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
+- Event: push · Branch: main
+- Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
+- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 62. Build installer — failure
+
 - Run: [45081430214](https://github.com/AbdallahIsDev/Lausu/actions/runs/45081430214) (attempt 1)
 - Event: push · Branch: main
 - Commit: `0573fe7` — docs(adr): ONNX to GGUF migration research
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Rust clippy + cargo audit · Leg: ubuntu-22.04
+- Step: Run rustsec/audit-check@v2
+- Category: cargo test/clippy/audit
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 63. Build installer — failure
+
+- Run: [45081430214](https://github.com/AbdallahIsDev/Lausu/actions/runs/45081430214) (attempt 1)
+- Event: push · Branch: main
+- Commit: `0573fe7` — docs(adr): ONNX to GGUF migration research
+- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 64. Build installer — failure
+
+- Run: [45081430214](https://github.com/AbdallahIsDev/Lausu/actions/runs/45081430214) (attempt 1)
+- Event: push · Branch: main
+- Commit: `0573fe7` — docs(adr): ONNX to GGUF migration research
+- Job: Notify on failure · Leg: ubuntu-22.04
+- Step: Emit failure annotation
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
-### 56. CI error collector — failure
+### 65. CI error collector — failure
 
 - Run: [45076536525](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076536525) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -997,7 +1132,7 @@
 (no job log available)
 ```
 
-### 57. CI error collector — failure
+### 66. CI error collector — failure
 
 - Run: [45076441804](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076441804) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -1012,7 +1147,7 @@
 (no job log available)
 ```
 
-### 58. CI error collector — failure
+### 67. CI error collector — failure
 
 - Run: [45076235547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076235547) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1027,7 +1162,7 @@
 (no job log available)
 ```
 
-### 59. CI error collector — failure
+### 68. CI error collector — failure
 
 - Run: [45075751604](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075751604) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1042,7 +1177,7 @@
 (no job log available)
 ```
 
-### 60. CI error collector — failure
+### 69. CI error collector — failure
 
 - Run: [45075732518](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075732518) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1057,7 +1192,7 @@
 (no job log available)
 ```
 
-### 61. CI error collector — failure
+### 70. CI error collector — failure
 
 - Run: [45075544010](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075544010) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1072,7 +1207,7 @@
 (no job log available)
 ```
 
-### 62. CI error collector — failure
+### 71. CI error collector — failure
 
 - Run: [45075063722](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075063722) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -1087,7 +1222,7 @@
 (no job log available)
 ```
 
-### 63. CI error collector — failure
+### 72. CI error collector — failure
 
 - Run: [45075045477](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075045477) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1102,7 +1237,7 @@
 (no job log available)
 ```
 
-### 64. CI error collector — failure
+### 73. CI error collector — failure
 
 - Run: [45074658464](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074658464) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1117,7 +1252,7 @@
 (no job log available)
 ```
 
-### 65. CI error collector — failure
+### 74. CI error collector — failure
 
 - Run: [45074378791](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074378791) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1132,41 +1267,11 @@
 (no job log available)
 ```
 
-### 66. CI error collector — failure
+### 75. CI error collector — failure
 
 - Run: [45074366812](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074366812) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `360dbee` — fix(ci): generate collector report before switching to data branch
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 67. Client CI — failure
-
-- Run: [45074349566](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074349566) (attempt 1)
-- Event: push · Branch: main
-- Commit: `360dbee` — fix(ci): generate collector report before switching to data branch
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 68. CI error collector — failure
-
-- Run: [45074212066](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074212066) (attempt 1)
-- Event: workflow_run · Branch: main
-- Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
 - Category: other
@@ -1344,15 +1449,15 @@
 - Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `885a10c` — fix(plugins): sync extension file list for target-tab resolver
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
 - Fixed by: [45086665963](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086665963) (success)
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ### 12. CI error collector — failure
@@ -1364,22 +1469,6 @@
 - Step: 
 - Category: other
 - Fixed by: [45077114109](https://github.com/AbdallahIsDev/Lausu/actions/runs/45077114109) (success)
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 13. Client CI — failure
-
-- Run: [45074349566](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074349566) (attempt 1)
-- Event: push · Branch: main
-- Commit: `360dbee` — fix(ci): generate collector report before switching to data branch
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-- Fixed by: [45075040623](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075040623) (success)
 
 - Error excerpt:
 
