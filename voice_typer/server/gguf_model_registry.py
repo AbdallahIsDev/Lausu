@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 from dataclasses import asdict, dataclass
 from types import MappingProxyType
+from typing import TypedDict
 
 log = logging.getLogger(__name__)
 
@@ -220,10 +221,19 @@ def _model_languages(family: str) -> list[str] | None:
     return None
 
 
+class _Presentation(TypedDict, total=False):
+    required_vram_mb: int
+    description: str
+    speed_rating: str
+    accuracy_rating: str
+    wer: float
+    display_name: str
+
+
 # Editorial fields are the only hand-written part of the catalogue. Size,
 # repo id and name come from GGUF_MODELS so UI/API never drift from the file
 # the downloader verifies and inference loads.
-_MODEL_PRESENTATION: dict[str, dict[str, object]] = {
+_MODEL_PRESENTATION: dict[str, _Presentation] = {
     "tiny": {
         "required_vram_mb": 512,
         "description": "Fastest multilingual model. Low accuracy, good for testing.",
@@ -276,7 +286,7 @@ def _metadata_for_spec(spec: GgufModelSpec) -> ModelMetadata:
     return ModelMetadata(
         name=spec.model_key,
         download_size_mb=spec.size_bytes // 1_000_000,
-        required_vram_mb=int(editorial["required_vram_mb"]),
+        required_vram_mb=editorial["required_vram_mb"],
         backend=spec.family,
         multilingual=True,
         supported_languages=_model_languages(spec.family),
