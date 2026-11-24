@@ -149,7 +149,9 @@ class TestDispatchFailureSurfaces:
         def _boom(*_args, **_kwargs):
             raise ConnectionError("[Errno 11001] getaddrinfo failed")
 
-        monkeypatch.setattr("voice_typer.server.model_registry.get_model_metadata", _boom)
+        from voice_typer.server import gguf_download
+
+        monkeypatch.setattr(gguf_download, "download_gguf_model", _boom)
 
         with caplog.at_level(logging.ERROR, logger="voice_typer.server.service.model._download_dispatch"):
             result = service.download_model("tiny")
@@ -167,7 +169,9 @@ class TestDispatchFailureSurfaces:
         def _boom(*_args, **_kwargs):
             raise RuntimeError("https://user:hunter2@huggingface.co/x?token=abc123secret")
 
-        monkeypatch.setattr("voice_typer.server.model_registry.get_model_metadata", _boom)
+        from voice_typer.server import gguf_download
+
+        monkeypatch.setattr(gguf_download, "download_gguf_model", _boom)
 
         result = service.download_model("tiny")
 

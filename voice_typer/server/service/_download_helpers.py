@@ -30,6 +30,7 @@ class DownloadOutcome(TypedDict, total=False):
     cancelled: bool
     consent_required: bool
     reason: str
+    code: str
     download_already_active: bool
     queued: bool
     queue_position: int

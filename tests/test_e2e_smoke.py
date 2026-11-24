@@ -45,15 +45,15 @@ class TestEndToEndSmoke:
         # Set up HF cache with multiple model dirs
         hf_cache = temp_config / "huggingface" / "hub"
         hf_cache.mkdir(parents=True)
-        # Parakeet's ONNX export (the backend the app actually loads since
-        # the ONNX migration) plus the retired safetensors repo.
-        onnx_repo = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
-        (hf_cache / f"models--{onnx_repo.replace('/', '--')}" / "snapshots" / "abc").mkdir(parents=True)
+        # GGUF cache dirs of the active model plus the source-build fallback,
+        # derived from the registry so the probe and the test cannot drift.
+        from voice_typer.server.model_registry import get_model_metadata
+
+        active_repo = get_model_metadata("parakeet").repo_id
+        fallback_repo = get_model_metadata("tiny").repo_id
+        (hf_cache / f"models--{active_repo.replace('/', '--')}" / "snapshots" / "abc").mkdir(parents=True)
+        (hf_cache / f"models--{fallback_repo.replace('/', '--')}" / "snapshots" / "def").mkdir(parents=True)
         (hf_cache / "models--nvidia--parakeet-tdt-0.6b-v3" / "snapshots" / "old").mkdir(parents=True)
-        (hf_cache / "models--Systran--faster-whisper-tiny" / "snapshots" / "def").mkdir(parents=True)
-        # Inactive Whisper variants (removed from the catalog)
-        (hf_cache / "models--Systran--faster-whisper-small.en" / "snapshots" / "ghi").mkdir(parents=True)
-        (hf_cache / "models--Systran--faster-whisper-medium.en" / "snapshots" / "jkl").mkdir(parents=True)
         fake_cfg = MagicMock(asr_backend="parakeet", model_size="small.en")
         monkeypatch.setattr(
             "voice_typer.server.config.Config.load",
@@ -61,11 +61,9 @@ class TestEndToEndSmoke:
         )
         dirs = prewarm._active_model_cache_dirs()
         names = [d.name for d in dirs]
-        assert f"models--{onnx_repo.replace('/', '--')}" in names
+        assert f"models--{active_repo.replace('/', '--')}" in names
+        assert f"models--{fallback_repo.replace('/', '--')}" in names
         assert "models--nvidia--parakeet-tdt-0.6b-v3" not in names
-        assert "models--Systran--faster-whisper-tiny" in names
-        assert "models--Systran--faster-whisper-small.en" not in names
-        assert "models--Systran--faster-whisper-medium.en" not in names
 
     def test_onboarding_wizard_first_run_detection(self, temp_config):
         """#8: OnboardingController.is_first_run detects wizard-should-show state."""
@@ -82,12 +80,14 @@ class TestEndToEndSmoke:
     def test_download_model_pushes_progress_events(self, temp_config, monkeypatch):
         """UX-005: download_model pushes progress events via IPC."""
         import voice_typer.server.event_bus as event_bus_mod
+        from voice_typer.server import gguf_download
         from voice_typer.server.service import LausuService
 
         events = []
         monkeypatch.setattr(event_bus_mod, "publish", lambda msg: events.append(msg) or True)
-        # Mock Qwen with existing path → success path
+        monkeypatch.setattr(gguf_download, "download_gguf_model", lambda *_a, **_k: (True, ""))
         app = MagicMock()
+        app.config.huggingface_consent = True
         app.config.qwen_model_path = str(temp_config)
         os.makedirs(temp_config, exist_ok=True)
         service = LausuService(app)

@@ -165,6 +165,8 @@ class DownloadQueueMixin:
                 "model": model_name,
                 "download_already_active": True,
                 "message": f"Download of {model_name} is already in progress.",
+                # The renderer reads `error` for this warning snack.
+                "error": f"Download of {model_name} is already in progress.",
             }
         with self._download_cancel_lock:
             if model_name in self._download_queue:

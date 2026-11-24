@@ -1,15 +1,19 @@
-"""download_model dispatcher: backend branches and shared setup."""
+"""download_model dispatcher: consent, queue and the GGUF transfer path."""
 
 from __future__ import annotations
 
 import importlib
 import logging
+import threading
 from typing import TYPE_CHECKING
 
 from voice_typer.server._secrets import redact_secret, redact_url
 from voice_typer.server.asr_setup import ModelDownloadAborted
 from voice_typer.server.branding import APP_NAME
-from voice_typer.server.service._download_helpers import DownloadOutcome
+from voice_typer.server.service._download_helpers import (
+    DOWNLOAD_ABORT_JOIN_S,
+    DownloadOutcome,
+)
 
 if TYPE_CHECKING:
     from voice_typer.server.app import LausuApp
@@ -41,6 +45,14 @@ _TRANSPORT_MODULES = ("httpx2", "httpcore2", "httpx", "httpcore")
 # subclass, httpx 2.x does not, and a connect timeout is a network outage.
 _TRANSPORT_ERROR_NAMES = ("ConnectError", "ConnectTimeout")
 
+_GGUF_REASON_MESSAGES = {
+    "placeholder_in_registry": "This model's download details are incomplete. Select another model.",
+    "size_mismatch": "The downloaded model file has an unexpected size. Retry the download.",
+    "sha256_mismatch": "The downloaded model file failed verification. Retry the download.",
+    "dev_model_not_allowed": "This model is not available in this build.",
+    "model_not_allowed": "This model is not available in this build.",
+}
+
 
 def _exception_chain(exc: BaseException) -> list[BaseException]:
     """Return *exc* plus its ``__cause__``/``__context__`` chain, cycle-safe."""
@@ -57,9 +69,7 @@ def _exception_chain(exc: BaseException) -> list[BaseException]:
 def _transport_error_types() -> tuple[type[BaseException], ...]:
     """Return the connect-error classes of every installed HTTP stack.
 
-    huggingface-hub 1.x ships ``httpx``/``httpcore``, 2.x ships
-    ``httpx2``/``httpcore2``; resolve both generations by name so the
-    classification keeps working (and stays importable for the type checker)
+    Both generations are resolved by name so classification keeps working
     whichever one the environment provides.
     """
     found: list[type[BaseException]] = []
@@ -91,105 +101,187 @@ def _friendly_download_error(exc: BaseException) -> str:
     return redact_secret(redact_url(str(exc)))
 
 
+def _clear_pause_state() -> None:
+    """Release the module-level pause/abort gate on every exit path."""
+    try:
+        from voice_typer.server.asr_setup import clear_download_pause_state
+
+        clear_download_pause_state()
+    except Exception:
+        log.debug("[SERVICE] could not clear pause state", exc_info=True)
+
+
+def _cancelled_outcome(model_name: str) -> DownloadOutcome:
+    """Cancel keeps HF's resumable partial; the retry resumes from it."""
+    return {
+        "success": False,
+        "model": model_name,
+        "cancelled": True,
+        "message": f"Download of {model_name} cancelled. Partial files remain in cache; retry to resume.",
+    }
+
+
 class DownloadDispatchMixin:
 
-    """download_model dispatcher: backend branches and shared setup.
-
-    Host-state contract: the declarations below are attributes the
-    composed ``ModelMixin`` (or a sibling mixin) owns.
-
-    The TYPE_CHECKING stubs name methods the composite provides.
-    """
+    """Download dispatch: consent, single-flight and the verified GGUF path."""
 
     _app: LausuApp
 
     if TYPE_CHECKING:
-        def _download_parakeet(self, model_name: str) -> DownloadOutcome: ...
         def _download_translation(self, model_name: str) -> DownloadOutcome: ...
-        def _download_qwen(self, model_name: str) -> DownloadOutcome: ...
-        def _download_whisper_family(self, model_name: str, model_meta, *, allow_patterns=None) -> DownloadOutcome: ...
+        def _download_gguf(self, model_name: str) -> DownloadOutcome: ...
+        def _enqueue_download(self, model_name: str) -> DownloadOutcome: ...
+        def _require_huggingface_consent(self, model_name: str) -> DownloadOutcome | None: ...
+        def _register_download(self, model_name: str) -> str: ...
+        def _unregister_download(self, download_id: str) -> None: ...
+        def _is_download_cancelled(self, download_id: str) -> bool: ...
         def _start_next_queued_download(self) -> None: ...
+        def _invalidate_model_status_cache(self) -> None: ...
 
+    def _gguf_failure_outcome(self, model_name: str, reason: str) -> DownloadOutcome:
+        """Translate a verifier/downloader failure code into the IPC shape."""
+        from voice_typer.server import event_bus
+        from voice_typer.server.service import _download_helpers as _helpers
+
+        if reason == "huggingface_consent_false":
+            return self._require_huggingface_consent(model_name) or {
+                "success": False,
+                "error": "HuggingFace consent required",
+                "consent_required": True,
+                "model": model_name,
+            }
+        if reason == "huggingface_hub_missing":
+            from voice_typer.server.service.model._constants import _PARAKEET_REASON_MESSAGES
+
+            message = _PARAKEET_REASON_MESSAGES["huggingface_hub_missing"]
+            _helpers.push_progress(event_bus, model_name, 0, message)
+            _helpers.notify(self._app.tray, model_name, APP_NAME, f"Failed to download {model_name}: {message}")
+            return {
+                "success": False,
+                "model": model_name,
+                "error": message,
+                "reason": reason,
+                "code": reason,
+            }
+        message = _GGUF_REASON_MESSAGES.get(reason, f"Download failed: {reason}")
+        log.error("[SERVICE] GGUF download of '%s' failed (%s)", model_name, reason)
+        _helpers.push_progress(event_bus, model_name, 0, message)
+        _helpers.notify(self._app.tray, model_name, APP_NAME, f"Failed to download {model_name}: {message}")
+        return {
+            "success": False,
+            "model": model_name,
+            "error": message,
+            "reason": reason,
+            "code": reason,
+        }
+
+    def _download_gguf(self, model_name: str) -> DownloadOutcome:
+        """One GGUF transfer, with consent, progress polling and scoped cancel."""
+        from voice_typer.server import event_bus
+        from voice_typer.server.asr_setup import (
+            get_download_tqdm_class,
+            is_download_active,
+            request_download_abort,
+            reset_download_pause_state,
+        )
+        from voice_typer.server.gguf_download import download_gguf_model
+        from voice_typer.server.gguf_model_registry import resolve_gguf_spec
+        from voice_typer.server.model_availability import shared_hub_dir
+        from voice_typer.server.service import _download_helpers as _helpers
+
+        if is_download_active():
+            return self._enqueue_download(model_name)
+        consent_err = self._require_huggingface_consent(model_name)
+        if consent_err is not None:
+            return consent_err
+
+        spec = resolve_gguf_spec(model_name)
+        target_mb = max(1, spec.size_bytes // (1024 * 1024))
+        reset_download_pause_state()
+        _helpers.push_progress(event_bus, model_name, 0, f"Starting download for {model_name}...")
+        download_id = self._register_download(model_name)
+        errors: list[BaseException] = []
+        verdicts: list[tuple[bool, str]] = []
+
+        def transfer() -> None:
+            try:
+                try:
+                    tqdm_class = get_download_tqdm_class()
+                except ImportError:
+                    # A missing hub is reported by the downloader itself as
+                    # huggingface_hub_missing, not as an opaque import error.
+                    tqdm_class = None
+                verdicts.append(
+                    download_gguf_model(
+                        model_name,
+                        config=getattr(self._app, "config", None),
+                        tqdm_class=tqdm_class,
+                    )
+                )
+            except BaseException as exc:
+                errors.append(exc)
+
+        thread = threading.Thread(target=transfer, daemon=True, name=f"gguf-download-{model_name}")
+        thread.start()
+        try:
+            poll_outcome, _bytes_seen = _helpers.poll_download_progress(
+                thread=thread,
+                target_bytes=spec.size_bytes,
+                target_mb=target_mb,
+                model_name=model_name,
+                repo_id=spec.repo_id,
+                cache_dir=shared_hub_dir(),
+                download_id=download_id,
+                event_bus=event_bus,
+                is_cancelled_fn=self._is_download_cancelled,
+            )
+        finally:
+            self._unregister_download(download_id)
+        thread.join(timeout=DOWNLOAD_ABORT_JOIN_S)
+        if errors:
+            error = errors[0]
+            if isinstance(error, ModelDownloadAborted):
+                _clear_pause_state()
+                return _cancelled_outcome(model_name)
+            raise error
+        if poll_outcome == "cancelled":
+            request_download_abort()
+            thread.join(timeout=DOWNLOAD_ABORT_JOIN_S)
+            _clear_pause_state()
+            return _cancelled_outcome(model_name)
+        ok, reason = verdicts[0] if verdicts else (False, "download_failed")
+        if not ok:
+            _clear_pause_state()
+            return self._gguf_failure_outcome(model_name, reason)
+
+        _clear_pause_state()
+        _helpers.push_progress(event_bus, model_name, 100, f"Download of {model_name} complete")
+        try:
+            from voice_typer.server.tray_models import invalidate_model_availability_cache
+
+            invalidate_model_availability_cache()
+        except Exception:
+            log.debug("[SERVICE] failed to invalidate tray model cache", exc_info=True)
+        _helpers.notify(self._app.tray, model_name, APP_NAME, f"Model '{model_name}' downloaded successfully")
+        self._invalidate_model_status_cache()
+        return {"success": True, "model": model_name}
 
     def download_model(self, model_name: str) -> dict[str, object]:
-        """Download a model weight file via HuggingFace.
+        """Download one verified GGUF ASR model (or the text-translation model).
 
-        Downloads the specified model (tiny, large-v3-turbo,
-        large-v3, qwen, parakeet) to the local HF cache. Pushes
-        ``download_progress`` events to the renderer so the Models page
-        can update its progress bar and status text in real time, and
-        fires a tray notification on completion / failure.
-        Returns a result dict with success status.
-
-        the return annotation is widened from the
-        ``DownloadResult`` TypedDict union (removed) to
-        ``dict[str, object]`` to match the actual runtime shape. The
-        implementation returns plain ``dict`` literals (not TypedDict
-        instances); the TypedDict union gave no real protection and
-        caused 3 baselined ``bad-return`` pyrefly errors. The runtime
-        shape is verified by ``tests/test_service_fixes.py``.
-
-        now supports the turbo + distilled variants via
-        :mod:`voice_typer.server.model_registry`.  The repo_id is
-        resolved from the registry instead of being hard-coded.
-
-        the polling loop checks
-        :func:`asr_setup.is_download_paused` between iterations.  When
-        paused, progress updates freeze and a ``paused: True`` event is
-        pushed once per transition.  Resume clears the flag and pushes
-        a ``resumed: True`` event.
-
-        the Whisper, Qwen and Parakeet branches now gate on
-        :meth:`_require_huggingface_consent` before any HuggingFace
-        network call, mirroring the consent gate that already lived in
-        ``TranscriptionEngine._pre_download_model`` (transcription.py:835-849).
-        Qwen exports download from pinned HuggingFace repos, so a manual
-        ``qwen_model_path`` is only a short-circuit for users who already
-        have a variant on disk.
-
-        daemon=True is acceptable because _do_download only
-        writes to the HF cache dir, no critical cleanup. The download
-        completes or fails naturally; on force-kill the partial
-        download is resumed on next start by HuggingFace's automatic resume.
-
-        the original 558-LOC god method has been split into a
-        ~40-LOC dispatcher (this method) plus three branch methods
-        (``_download_whisper_family``, ``_download_qwen``,
-        ``_download_parakeet``).  The shared helpers
-        (:func:`push_progress`, :func:`notify`,
-        :func:`poll_download_progress`) live in
-        :mod:`voice_typer.server.service._download_helpers`.  Each
-        branch returns a :data:`DownloadOutcome` TypedDict; the
-        dispatcher converts it to a plain ``dict`` via ``dict(outcome)``
-        so the IPC layer sees the exact same runtime shape as before.
-        All 10 distinct return shapes are preserved verbatim.
-
-        The progress-polling loop (delegated to
-        :func:`poll_download_progress` in
-        :mod:`voice_typer.server.service._download_helpers`) walks
-        ONLY the per-repo subdir to keep I/O bounded::
-
-            model_dir = cache_dir / f"models--{repo_id.replace('/', '--')}"
-            ... = sum(f.stat().st_size for f in model_dir.rglob("*") if f.is_file())
-
-        (Regression guard, kept as a docstring snippet so the
-        ``tests/test_perf_fixes.py::TestDownloadPollScopedToModelDir``
-        source-pin still trips if a future refactor re-widens the
-        rglob to walk the whole ``cache_dir``.)
+        Consent, single-flight queueing, progress events and scoped cancellation
+        are shared across every model; the transfer itself belongs to
+        :meth:`_download_gguf`. The frozen gate runs before any consent check,
+        cache probe or network call.
         """
         try:
-            # ADR-0030: the one text-translation model is downloaded from its
-            # HF repo into the shared hub cache via the SAME IPC command, but
-            # stays out of MODEL_REGISTRY (that registry pins ASR models only).
             from voice_typer.server.translation.catalogue import TRANSLATION_MODEL_ID
 
             if model_name == TRANSLATION_MODEL_ID:
-                outcome = self._download_translation(model_name)
-                return dict(outcome)
+                return dict(self._download_translation(model_name))
 
-            # A frozen build must refuse dev-only and unknown ids before any
-            # consent check, cache probe or network call (dev_model_not_allowed).
             from voice_typer.server.gguf_model_registry import (
+                GGUF_MODELS,
                 is_dev_only_model_key,
                 is_frozen,
                 production_models,
@@ -208,73 +300,30 @@ class DownloadDispatchMixin:
                     "code": code_value,
                     "error": reason,
                 }
+            if model_name not in GGUF_MODELS:
+                from voice_typer.server.ipc.error_codes import ErrorCodes
 
-            # ADR-0031: every local ASR model is a GGUF file. Route all of them
-            # through the verified GGUF downloader; the legacy CT2/ONNX
-            # download branches below are unreachable and will be removed.
-            from voice_typer.server.gguf_download import download_gguf_model
-
-            ok, reason = download_gguf_model(model_name, config=getattr(self, "_config", None))
-            return {"success": ok, "model": model_name, "error": reason, "code": reason}
-
-            # consult the model registry so we support
-            from voice_typer.server.model_registry import get_model_metadata
-
-            model_meta = get_model_metadata(model_name)
-            is_whisper_family = model_meta is not None and model_meta.backend in ("whisper", "distil-whisper")
-            if is_whisper_family:
-                outcome = self._download_whisper_family(model_name, model_meta)
-            elif model_meta is not None and model_meta.backend == "qwen":
-                outcome = self._download_qwen(model_name)
-            elif model_name == "parakeet":
-                outcome = self._download_parakeet(model_name)
-            else:
-                log.warning(
-                    "[SERVICE] Unknown model requested for download: '%s'",
-                    model_name,
-                )
+                log.warning("[SERVICE] Unknown model requested for download: '%s'", model_name)
                 return {
                     "success": False,
                     "model": model_name,
                     "error": f"Unknown model: {model_name}",
+                    "code": ErrorCodes.NOT_SUPPORTED,
                 }
-            return dict(outcome)  # Convert TypedDict to regular dict for IPC
+            return dict(self._download_gguf(model_name))
         except ModelDownloadAborted:
-            # An abort unwinding the transfer surfaces here as a
-            log.info(
-                "[SERVICE] Download of '%s' aborted via transfer gate",
-                model_name,
-            )
-            try:
-                from voice_typer.server.asr_setup import clear_download_pause_state
-
-                clear_download_pause_state()
-            except Exception:
-                log.debug("[SERVICE] could not clear pause flag on abort", exc_info=True)
-            return {
-                "success": False,
-                "model": model_name,
-                "cancelled": True,
-                "message": f"Download of {model_name} cancelled. Partial files remain in cache; retry to resume.",
-            }
+            log.info("[SERVICE] Download of '%s' aborted via transfer gate", model_name)
+            _clear_pause_state()
+            return dict(_cancelled_outcome(model_name))
         except Exception as exc:
             log.exception("download_model failed for %s: %s", model_name, exc)
             friendly = _friendly_download_error(exc)
-            # The per-download Event cleanup is handled by the
-            try:
-                from voice_typer.server.asr_setup import clear_download_pause_state
-
-                clear_download_pause_state()
-            except Exception:
-                log.debug("[SERVICE] could not clear pause flag on failure", exc_info=True)
+            _clear_pause_state()
             from voice_typer.server import event_bus
-            from voice_typer.server.service._download_helpers import (
-                notify as _notify_helper,
-                push_progress as _push_progress_helper,
-            )
+            from voice_typer.server.service import _download_helpers as _helpers
 
-            _push_progress_helper(event_bus, model_name, 0, f"Download failed: {friendly}")
-            _notify_helper(
+            _helpers.push_progress(event_bus, model_name, 0, f"Download failed: {friendly}")
+            _helpers.notify(
                 self._app.tray,
                 model_name,
                 APP_NAME,
@@ -286,7 +335,7 @@ class DownloadDispatchMixin:
                 "error": friendly,
             }
         finally:
-            # Queue drain: EVERY exit path (success, failure, cancel,
+            # Every exit (success, failure, consent, cancel) advances the queue.
             try:
                 self._start_next_queued_download()
             except Exception:

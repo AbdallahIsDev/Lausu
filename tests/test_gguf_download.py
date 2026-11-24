@@ -109,6 +109,53 @@ def test_mismatch_codes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None
         assert (ok, code) == (False, expected)
 
 
+def test_transport_error_propagates_for_friendly_mapping(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The dispatcher owns user-facing error text, so the real cause must escape."""
+    spec, _ = _real_spec(tmp_path)
+    _use_spec(monkeypatch, spec)
+
+    def failing_download(**kwargs):
+        raise ConnectionError("[Errno 11001] getaddrinfo failed")
+
+    hub = ModuleType("huggingface_hub")
+    hub.hf_hub_download = failing_download
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+    monkeypatch.setattr(gguf_download, "ensure_hf_env", lambda: None)
+
+    with pytest.raises(ConnectionError, match="getaddrinfo failed"):
+        gguf_download.download_gguf_model("tiny", config=SimpleNamespace(huggingface_consent=True))
+
+
+def test_gated_tqdm_class_is_forwarded_to_the_transfer(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    spec, path = _real_spec(tmp_path)
+    _use_spec(monkeypatch, spec)
+    calls: list[dict] = []
+
+    def fake_download(**kwargs):
+        calls.append(kwargs)
+        if kwargs.get("local_files_only"):
+            raise FileNotFoundError("not cached")
+        return str(path)
+
+    hub = ModuleType("huggingface_hub")
+    hub.hf_hub_download = fake_download
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+    monkeypatch.setattr(gguf_download, "ensure_hf_env", lambda: None)
+
+    class GatedTqdm:
+        pass
+
+    ok, code = gguf_download.download_gguf_model(
+        "tiny", config=SimpleNamespace(huggingface_consent=True), tqdm_class=GatedTqdm
+    )
+    assert (ok, code) == (True, "")
+    assert calls[-1]["tqdm_class"] is GatedTqdm
+
+
 def test_inference_lookup_is_local_only(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     spec, path = _real_spec(tmp_path)
     _use_spec(monkeypatch, spec)

@@ -303,7 +303,9 @@ class TestQueueDrain:
             return {"success": True, "model": name}
 
         monkeypatch.setattr(svc, "download_model", _recording_download)
-        monkeypatch.setattr(svc, "_download_parakeet", lambda name: {"success": True, "model": name})
+        from voice_typer.server import gguf_download
+
+        monkeypatch.setattr(gguf_download, "download_gguf_model", lambda *_a, **_k: (True, ""))
         svc._download_queue.append("tiny")
         clear_download_pause_state()
 

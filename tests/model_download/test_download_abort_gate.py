@@ -192,7 +192,7 @@ def _make_service(tmp_config_dir):
     from voice_typer.server import service as svc_mod
 
     class FakeApp:
-        config = type("FakeConfig", (), {})()
+        config = type("FakeConfig", (), {"huggingface_consent": True})()
         _microphones: list = []
         tray = MagicMock()
 
@@ -291,20 +291,60 @@ class TestParakeetGateLifecycle:
 
     def test_abort_unwinds_parakeet_to_cancelled_outcome(self, tmp_config_dir, monkeypatch):
         import voice_typer.server.asr_setup as asr
+        from voice_typer.server import gguf_download
 
         asr.clear_download_pause_state()
 
-        def fake_dpw(*args, **kwargs):
+        def fake_download(*args, **kwargs):
             raise asr.ModelDownloadAborted("cancelled mid-transfer")
 
-        monkeypatch.setattr(asr, "download_parakeet_weights", fake_dpw)
+        monkeypatch.setattr(gguf_download, "download_gguf_model", fake_download)
         svc = _make_service(tmp_config_dir)
-        monkeypatch.setattr(svc, "_require_huggingface_consent", lambda name: None)
 
         outcome = svc.download_model("parakeet")
         assert outcome["cancelled"] is True
         assert outcome["success"] is False
         assert outcome["model"] == "parakeet"
+        assert "Partial files remain in cache" in outcome["message"]
+        assert asr.is_download_active() is False
+
+
+class TestGgufCancelKeepsResumablePartial:
+    def test_cancel_preserves_partial_blob(self, tmp_config_dir, monkeypatch):
+        import time
+
+        import voice_typer.server.asr_setup as asr
+        from voice_typer.server import gguf_download
+
+        asr.clear_download_pause_state()
+        partial = tmp_config_dir / "gguf-partial"
+        started = threading.Event()
+
+        def fake_download(*_args, **_kwargs):
+            partial.write_bytes(b"\x00" * 4096)
+            started.set()
+            for _ in range(200):
+                asr.check_download_gate()
+                time.sleep(0.01)
+            return (True, "")
+
+        monkeypatch.setattr(gguf_download, "download_gguf_model", fake_download)
+        svc = _make_service(tmp_config_dir)
+        outcomes: dict = {}
+
+        def run_download():
+            outcomes["result"] = svc.download_model("parakeet")
+
+        worker = threading.Thread(target=run_download, daemon=True)
+        worker.start()
+        assert started.wait(timeout=5.0), "fake transfer never started"
+        assert svc.cancel_model_download()["cancelled"] is True
+        worker.join(timeout=10.0)
+
+        assert not worker.is_alive(), "download did not unwind after cancel"
+        assert outcomes["result"]["cancelled"] is True
+        assert partial.is_file(), "cancel must keep HF's resumable partial"
+        assert partial.read_bytes() == b"\x00" * 4096
         assert asr.is_download_active() is False
 
 

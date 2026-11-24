@@ -1,4 +1,4 @@
-"""regression: service.download_model must gate HuggingFace"""
+"""download_model must gate every GGUF download on HuggingFace consent."""
 
 from unittest.mock import MagicMock
 
@@ -16,225 +16,133 @@ def captured_events(monkeypatch):
     return events
 
 
+@pytest.fixture
+def gguf_calls(monkeypatch):
+    """Record GGUF transfer calls, never touching the network."""
+    from voice_typer.server import gguf_download
+
+    calls: list[dict] = []
+
+    def fake_download(model_name, **kwargs):
+        calls.append({"model": model_name, **kwargs})
+        return (True, "")
+
+    monkeypatch.setattr(gguf_download, "download_gguf_model", fake_download)
+    return calls
+
+
 def _build_service(*, consent: bool) -> LausuService:
     """Build a LausuService with a mock app + explicit consent flag."""
     app = MagicMock()
     app.config.huggingface_consent = consent
+    app.config.qwen_model_path = None
     app.tray.notify = MagicMock()
     return LausuService(app)
 
 
-class TestWhisperBranchConsentGate:
-    """Whisper-family download must be gated on huggingface_consent."""
+def _progress_events(captured_events):
+    return [e for e in captured_events if e.get("type") == "download_progress"]
 
-    def test_whisper_download_blocked_without_consent(self, captured_events, monkeypatch):
-        """When consent=False, snapshot_download is never called and the"""
-        sd_calls: list[dict] = []
 
-        def fake_snapshot(*args, **kwargs):
-            sd_calls.append(kwargs)
-            return "/fake/path"
+def _consent_events(captured_events):
+    return [e for e in captured_events if e.get("type") == "consent_required"]
 
-        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
 
+class TestGGUFDownloadConsentGate:
+    """Every GGUF ASR model is gated before any network call."""
+
+    @pytest.mark.parametrize("model_name", ["tiny", "parakeet", "large-v3"])
+    def test_download_blocked_without_consent(
+        self, model_name, captured_events, gguf_calls
+    ):
+        """No consent: refuse with the consent outcome, never start a transfer."""
         service = _build_service(consent=False)
-        result = service.download_model("tiny")
+        result = service.download_model(model_name)
 
-        # Consent-gate return shape.
         assert result["success"] is False
         assert result["consent_required"] is True
         assert "consent" in result["error"].lower()
-        assert result["model"] == "tiny"
-        # snapshot_download must NOT have been invoked, not even the
-        assert sd_calls == [], f"snapshot_download must not be called when consent=False; got: {sd_calls}"
-        consent_events = [e for e in captured_events if e.get("type") == "consent_required"]
+        assert result["model"] == model_name
+        assert gguf_calls == [], f"no transfer may start without consent; got: {gguf_calls}"
+        consent_events = _consent_events(captured_events)
         assert consent_events, f"Expected at least one consent_required event; got: {captured_events}"
         assert consent_events[0]["data"]["provider"] == "huggingface"
-        assert consent_events[0]["data"]["model"] == "tiny"
-        # No download_progress events should fire on the blocked path
-        progress_events = [e for e in captured_events if e.get("type") == "download_progress"]
-        assert progress_events == []
+        assert consent_events[0]["data"]["model"] == model_name
+        assert _progress_events(captured_events) == []
 
-    def test_whisper_download_proceeds_with_consent(self, captured_events, monkeypatch):
-        """When consent=True, snapshot_download IS invoked (existing flow preserved)."""
-        sd_calls: list[dict] = []
-
-        def fake_snapshot(*args, **kwargs):
-            sd_calls.append(kwargs)
-            # Succeed on both the local_files_only cache check AND any
-            return "/fake/path"
-
-        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
-
+    @pytest.mark.parametrize("model_name", ["tiny", "parakeet", "large-v3"])
+    def test_download_proceeds_with_consent(self, model_name, captured_events, gguf_calls):
+        """Consent granted: the shared GGUF downloader runs."""
         service = _build_service(consent=True)
-        result = service.download_model("tiny")
+        result = service.download_model(model_name)
 
-        # Existing flow preserved.
         assert result["success"] is True
-        assert result["model"] == "tiny"
-        assert sd_calls, "snapshot_download must be invoked when consent=True (existing flow preserved)"
-        # No consent_required event should fire on the happy path.
-        consent_events = [e for e in captured_events if e.get("type") == "consent_required"]
-        assert consent_events == []
-
-
-class TestParakeetBranchConsentGate:
-    """Parakeet download must be gated on huggingface_consent."""
-
-    def test_parakeet_download_blocked_without_consent(self, captured_events, monkeypatch):
-        """When consent=False, download_parakeet_weights is never called."""
-        dpw_calls: list[tuple] = []
-
-        def fake_download_parakeet_weights(*args, **kwargs):
-            dpw_calls.append((args, kwargs))
-            return True
-
-        monkeypatch.setattr(
-            "voice_typer.server.asr_setup.download_parakeet_weights",
-            fake_download_parakeet_weights,
-        )
-
-        service = _build_service(consent=False)
-        result = service.download_model("parakeet")
-
-        # Consent-gate return shape.
-        assert result["success"] is False
-        assert result["consent_required"] is True
-        assert "consent" in result["error"].lower()
-        assert result["model"] == "parakeet"
-        # download_parakeet_weights must NOT have been invoked.
-        assert dpw_calls == [], f"download_parakeet_weights must not be called when consent=False; got: {dpw_calls}"
-        # A consent_required event must have been published.
-        consent_events = [e for e in captured_events if e.get("type") == "consent_required"]
-        assert consent_events, f"Expected at least one consent_required event; got: {captured_events}"
-        assert consent_events[0]["data"]["provider"] == "huggingface"
-        assert consent_events[0]["data"]["model"] == "parakeet"
-
-    def test_parakeet_download_proceeds_with_consent(self, captured_events, monkeypatch):
-        """When consent=True, download_parakeet_weights IS invoked."""
-        dpw_calls: list[tuple] = []
-
-        def fake_download_parakeet_weights(*args, **kwargs):
-            dpw_calls.append((args, kwargs))
-            return True
-
-        monkeypatch.setattr(
-            "voice_typer.server.asr_setup.download_parakeet_weights",
-            fake_download_parakeet_weights,
-        )
-
-        service = _build_service(consent=True)
-        result = service.download_model("parakeet")
-
-        # Existing flow preserved.
-        assert result["success"] is True
-        assert result["model"] == "parakeet"
-        assert dpw_calls, "download_parakeet_weights must be invoked when consent=True (existing flow preserved)"
-        # No consent_required event should fire on the happy path.
-        consent_events = [e for e in captured_events if e.get("type") == "consent_required"]
-        assert consent_events == []
+        assert result["model"] == model_name
+        assert [call["model"] for call in gguf_calls] == [model_name]
+        assert _consent_events(captured_events) == []
 
 
 class TestConsentGateIsAdditive:
     """The consent gate must not change non-download branches."""
 
-    def test_unknown_model_still_returns_error(self, captured_events):
-        """An unknown model name still returns success=False without"""
+    def test_unknown_model_still_returns_error(self, captured_events, gguf_calls):
+        """An unknown model name still returns success=False without network."""
         service = _build_service(consent=False)
         result = service.download_model("nonexistent-model")
+
         assert result["success"] is False
         assert "Unknown model" in result["error"]
-        # No consent_required event should fire for unknown models.
-        consent_events = [e for e in captured_events if e.get("type") == "consent_required"]
-        assert consent_events == []
+        assert gguf_calls == []
+        assert _consent_events(captured_events) == []
 
-    def test_qwen_branches_require_consent(self, captured_events, monkeypatch):
-        """Both Qwen variants download their ONNX export from HF, so a
-        missing consent blocks them before any network call."""
-        sd_calls: list[dict] = []
-
-        def fake_snapshot(*args, **kwargs):
-            sd_calls.append(kwargs)
-            return "/fake/path"
-
-        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
-
+    def test_qwen_variants_require_consent(self, captured_events, gguf_calls):
+        """Both Qwen variants download GGUF weights from HF."""
         for model_name in ("qwen3-1.7b", "qwen3-0.6b"):
             service = _build_service(consent=False)
-            service._app.config.qwen_model_path = None
             result = service.download_model(model_name)
             assert result["success"] is False
             assert result["consent_required"] is True
             assert result["model"] == model_name
-
-        assert sd_calls == [], f"snapshot_download must not run before consent; got: {sd_calls}"
-        gated = [e["data"]["model"] for e in captured_events if e.get("type") == "consent_required"]
+        assert gguf_calls == []
+        gated = [e["data"]["model"] for e in _consent_events(captured_events)]
         assert gated == ["qwen3-1.7b", "qwen3-0.6b"]
 
-    def test_qwen_not_configured_with_consent_downloads_repo(self, captured_events, monkeypatch):
-        """Without a manual path, Qwen falls through to the HF downloader
-        for its own variant repo (no config-error branch any more)."""
-        sd_calls: list[dict] = []
-
-        def fake_snapshot(*args, **kwargs):
-            sd_calls.append(kwargs)
-            return "/fake/path"
-
-        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
-
+    def test_qwen_with_consent_uses_registered_gguf_repo(self, captured_events, gguf_calls):
+        """Without a manual path, the registered GGUF repo is downloaded."""
         service = _build_service(consent=True)
-        service._app.config.qwen_model_path = None
         result = service.download_model("qwen3-0.6b")
 
         assert result["success"] is True
         assert result["model"] == "qwen3-0.6b"
-        assert sd_calls, "snapshot_download must be invoked with consent"
-        assert {call["repo_id"] for call in sd_calls} == {"andrewleech/qwen3-asr-0.6b-onnx"}
-        consent_events = [e for e in captured_events if e.get("type") == "consent_required"]
-        assert consent_events == []
+        assert [call["model"] for call in gguf_calls] == ["qwen3-0.6b"]
+        assert _consent_events(captured_events) == []
 
-    def test_qwen_matching_override_skips_download_and_consent(self, captured_events, monkeypatch, tmp_path):
-        """A manual dir holding the selected variant is used as-is: no
-        HuggingFace call and therefore no consent requirement."""
-        sd_calls: list[dict] = []
-
-        def fake_snapshot(*args, **kwargs):
-            sd_calls.append(kwargs)
-            return "/fake/path"
-
-        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
+    def test_legacy_manual_path_does_not_bypass_consent(self, captured_events, gguf_calls, tmp_path):
+        """GGUF weights resolve from the hub cache only: a legacy ONNX dir
+        cannot short-circuit the consent gate or the verified downloader."""
         (tmp_path / "config.json").write_text('{"decoder": {"hidden_size": 1024}}', encoding="utf-8")
-
         service = _build_service(consent=False)
         service._app.config.qwen_model_path = str(tmp_path)
         result = service.download_model("qwen3-0.6b")
 
-        assert result["success"] is True
-        assert result["model"] == "qwen3-0.6b"
-        assert result["message"] == "Qwen model already cached"
-        assert sd_calls == []
-        assert [e for e in captured_events if e.get("type") == "consent_required"] == []
+        assert result["success"] is False
+        assert result["consent_required"] is True
+        assert gguf_calls == []
+        assert _consent_events(captured_events)[0]["data"]["model"] == "qwen3-0.6b"
 
 
 class TestConsentGateDefensive:
-    """if ``self._app.config`` is None (degenerate path), consent"""
+    """A missing config fails closed."""
 
-    def test_missing_config_blocks_whisper_download(self, captured_events, monkeypatch):
-        """When config is None, the gate treats consent as False and blocks."""
-        sd_calls: list[dict] = []
-
-        def fake_snapshot(*args, **kwargs):
-            sd_calls.append(kwargs)
-            return "/fake/path"
-
-        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
-
+    def test_missing_config_blocks_download(self, captured_events, gguf_calls):
+        """When config is None the gate treats consent as False."""
         app = MagicMock()
-        app.config = None  # degenerate path
+        app.config = None
         app.tray.notify = MagicMock()
         service = LausuService(app)
 
         result = service.download_model("tiny")
         assert result["success"] is False
         assert result["consent_required"] is True
-        assert sd_calls == []
+        assert gguf_calls == []
+        assert _consent_events(captured_events)

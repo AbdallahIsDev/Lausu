@@ -21,23 +21,16 @@ def _dedent_method_source(method) -> str:
     return textwrap.dedent(src)
 
 
-def test_download_model_delegates_to_three_branch_methods() -> None:
-    """name. A revert to inline whisper/qwen/parakeet logic would remove"""
+def test_download_model_delegates_to_shared_downloaders() -> None:
+    """Every ASR model shares one GGUF branch; translation stays separate."""
     src = inspect.getsource(ModelMixin.download_model)
-    assert "_download_whisper_family" in src, (
-        "download_model must delegate to _download_whisper_family for "
-        "whisper / distil-whisper variants. A revert to inline logic "
-        "would re-create the 558-LOC god method."
+    assert "_download_gguf" in src, (
+        "download_model must delegate to the shared _download_gguf branch. "
+        "Inlining the transfer would re-create a god method and fork consent, "
+        "queue and cancel handling."
     )
-    assert "_download_qwen" in src, (
-        "download_model must delegate to _download_qwen for the Qwen "
-        "backend. A revert to inline logic would re-create the 558-LOC "
-        "god method."
-    )
-    assert "_download_parakeet" in src, (
-        "download_model must delegate to _download_parakeet for the "
-        "Parakeet backend. A revert to inline logic would re-create "
-        "the 558-LOC god method."
+    assert "_download_translation" in src, (
+        "The text-translation model must keep its own branch outside the ASR catalogue."
     )
 
 

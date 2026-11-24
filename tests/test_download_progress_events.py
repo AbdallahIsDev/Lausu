@@ -1,7 +1,6 @@
-"""UX-005: E2E test for model download progress reporting."""
+"""download_model progress-event contract for the GGUF transfer path."""
 
-import os
-from unittest.mock import MagicMock
+import time
 
 import pytest
 from voice_typer.server.service import LausuService
@@ -9,9 +8,12 @@ from voice_typer.server.service import LausuService
 
 @pytest.fixture
 def service():
-    """Build a LausuService with a mock app."""
+    """Build a LausuService with consent already granted."""
+    from unittest.mock import MagicMock
+
     app = MagicMock()
     app.config.qwen_model_path = None
+    app.config.huggingface_consent = True
     app.tray.notify = MagicMock()
     return LausuService(app)
 
@@ -26,121 +28,141 @@ def captured_events(monkeypatch):
     return events
 
 
+@pytest.fixture
+def fake_gguf_download(monkeypatch):
+    """Replace the network transfer; return the recorded call arguments."""
+    from voice_typer.server import gguf_download
+
+    calls: list[dict] = []
+
+    def install(outcome=(True, ""), error=None):
+        def fake(model_name, **kwargs):
+            calls.append({"model": model_name, **kwargs})
+            if error is not None:
+                raise error
+            return outcome
+
+        monkeypatch.setattr(gguf_download, "download_gguf_model", fake)
+        return calls
+
+    install()
+    return install, calls
+
+
 class TestDownloadModelPushesProgressEvents:
-    """UX-005: download_model pushes progress events to the renderer."""
+    """download_model pushes progress events to the renderer."""
 
     def test_unknown_model_returns_error_no_progress(self, service, captured_events):
         """An unknown model name returns success=False without progress events."""
         result = service.download_model("nonexistent-model")
         assert result["success"] is False
         assert "Unknown model" in result["error"]
+        assert [e for e in captured_events if e.get("type") == "download_progress"] == []
 
-    def test_qwen_already_cached_pushes_progress_100(self, service, captured_events, tmp_path):
-        """Qwen with an existing model_path pushes progress=100."""
-        service._app.config.qwen_model_path = str(tmp_path)
-        os.makedirs(tmp_path, exist_ok=True)
+    def test_qwen_already_cached_pushes_progress_100(self, service, captured_events, fake_gguf_download):
+        """A verified cache hit reports completion with a terminal 100 event."""
+        install, _calls = fake_gguf_download
+        install(outcome=(True, ""))
+
         result = service.download_model("qwen3-1.7b")
         assert result["success"] is True
-        # Find the progress event with progress=100
         progress_events = [e for e in captured_events if e.get("type") == "download_progress"]
-        assert any(e["data"]["progress"] == 100 for e in progress_events), (
-            f"Expected progress=100 event, got: {progress_events}"
-        )
+        assert any(e["data"]["progress"] == 100 for e in progress_events), progress_events
 
-    def test_qwen_without_override_delegates_to_hf_downloader(self, service, captured_events, monkeypatch):
-        """Qwen with no local path downloads from HuggingFace (consent-gated)."""
-        sentinel = {"success": False, "model": "qwen3-1.7b", "reason": "consent_required"}
-        monkeypatch.setattr(service, "_download_whisper_family", lambda *a, **k: sentinel)
-        service._app.config.qwen_model_path = None
+    def test_qwen_without_override_delegates_to_hf_downloader(self, service, captured_events, fake_gguf_download):
+        """Without a manual path the registered GGUF repo is downloaded."""
+        _install, calls = fake_gguf_download
+
         result = service.download_model("qwen3-1.7b")
-        assert result == sentinel
+        assert result["success"] is True
+        assert len(calls) == 1
+        assert calls[0]["model"] == "qwen3-1.7b"
+        assert calls[0]["config"] is service._app.config
 
-    def test_progress_event_shape(self, service, captured_events, tmp_path):
+    def test_progress_event_shape(self, service, captured_events, fake_gguf_download):
         """Each download_progress event must have the correct shape."""
-        service._app.config.qwen_model_path = str(tmp_path)
-        os.makedirs(tmp_path, exist_ok=True)
         service.download_model("qwen3-1.7b")
-        for event in captured_events:
-            if event.get("type") == "download_progress":
-                assert "data" in event
-                assert "model" in event["data"]
-                assert "progress" in event["data"]
-                assert "status" in event["data"]
-                assert isinstance(event["data"]["progress"], int)
-                assert 0 <= event["data"]["progress"] <= 100
-                assert event["data"]["model"] == "qwen3-1.7b"
+        progress_events = [e for e in captured_events if e.get("type") == "download_progress"]
+        assert progress_events
+        for event in progress_events:
+            assert "data" in event
+            assert "model" in event["data"]
+            assert "progress" in event["data"]
+            assert "status" in event["data"]
+            assert isinstance(event["data"]["progress"], int)
+            assert 0 <= event["data"]["progress"] <= 100
+            assert event["data"]["model"] == "qwen3-1.7b"
 
 
 class TestWhisperDownloadWithProgressEvents:
-    """Whisper download path, mocks snapshot_download + TranscriptionEngine."""
+    """Whisper-family GGUF transfers report progress and notify the tray."""
 
-    def test_whisper_already_cached_skips_download(
-        self,
-        service,
-        captured_events,
-        monkeypatch,
-    ):
-        """When snapshot_download(local_files_only=True) succeeds, push 100 and verify."""
-
-        # Mock huggingface_hub.snapshot_download to succeed on local_files_only
-        def fake_snapshot(*args, **kwargs):
-            return "/fake/path"
-
-        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
-
-        # Mock TranscriptionEngine to avoid actually loading weights
-        fake_engine = MagicMock()
-        fake_engine.load = MagicMock()
-        fake_engine.unload = MagicMock()
-        monkeypatch.setattr(
-            "voice_typer.worker.asr_runner.GgufTranscriptionEngine",
-            lambda **kw: fake_engine,
-        )
+    def test_whisper_already_cached_skips_download(self, service, captured_events, fake_gguf_download):
+        """A cache hit pushes 100 and fires the success notification."""
+        install, calls = fake_gguf_download
+        install(outcome=(True, ""))
 
         result = service.download_model("tiny")
         assert result["success"] is True
         assert result["model"] == "tiny"
-
-        # Verify progress events were pushed
+        assert len(calls) == 1
         progress_events = [e for e in captured_events if e.get("type") == "download_progress"]
-        assert len(progress_events) > 0, "No progress events pushed"
-        # Final event should be progress=100
-        assert progress_events[-1]["data"]["progress"] == 100, (
-            f"Final progress should be 100, got: {progress_events[-1]}"
-        )
-
-        # Tray notification should fire on success
+        assert progress_events
+        assert progress_events[-1]["data"]["progress"] == 100
         assert service._app.tray.notify.called
         notify_args = service._app.tray.notify.call_args
         assert "tiny" in notify_args[0][1]
 
     def test_whisper_download_failure_pushes_error_progress_and_notifies(
-        self,
-        service,
-        captured_events,
-        monkeypatch,
+        self, service, captured_events, fake_gguf_download
     ):
-        """When the download fails, push progress=0 with the error and notify."""
-
-        # Mock snapshot_download to fail
-        def fake_snapshot(*args, **kwargs):
-            if kwargs.get("local_files_only"):
-                raise RuntimeError("not cached")
-            raise RuntimeError("network error")
-
-        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
-
-        # The production ``_download_with_retry`` (in asr_utils.py) retries
-        monkeypatch.setattr("time.sleep", lambda *a, **kw: None)
+        """A transfer error pushes progress=0 and fires the failure notification."""
+        install, _calls = fake_gguf_download
+        install(error=RuntimeError("network error"))
 
         result = service.download_model("tiny")
         assert result["success"] is False
         assert "network error" in result["error"]
-
-        # Tray notification should fire on failure
         assert service._app.tray.notify.called
-        # Progress event with progress=0 (failure) should be pushed
         progress_events = [e for e in captured_events if e.get("type") == "download_progress"]
-        assert any(e["data"]["progress"] == 0 for e in progress_events), (
-            f"Expected progress=0 failure event, got: {progress_events}"
-        )
+        assert any(e["data"]["progress"] == 0 for e in progress_events), progress_events
+
+
+class TestGgufProgressPoll:
+    """The poll follows the real HF cache blob path (dev-only tiny included)."""
+
+    def test_growing_gguf_blob_moves_the_progress_bar(self, service, captured_events, monkeypatch, tmp_path):
+        import sys
+        from types import ModuleType
+
+        from voice_typer.server import gguf_download, model_availability
+
+        cache = tmp_path / "hub"
+        blob_dir = cache / "models--handy-computer--whisper-tiny-gguf" / "blobs"
+        blob_dir.mkdir(parents=True)
+        blob = blob_dir / "gguf-partial"
+
+        def fake_download(model_name, **kwargs):
+            with blob.open("wb") as stream:
+                for _ in range(12):
+                    stream.write(b"\x00" * (1024 * 1024))
+                    stream.flush()
+                    time.sleep(0.02)
+            return (True, "")
+
+        monkeypatch.setattr(gguf_download, "download_gguf_model", fake_download)
+        monkeypatch.setattr(model_availability, "shared_hub_dir", lambda: cache)
+
+        # The GGUF downloader imports the hub inside the transfer; a stub keeps
+        # this test offline even when a real hub is installed.
+        hub = ModuleType("huggingface_hub")
+        hub.hf_hub_download = lambda **_kw: ""
+        monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+
+        result = service.download_model("tiny")
+        assert result["success"] is True
+        progress_events = [
+            e["data"] for e in captured_events if e.get("type") == "download_progress"
+        ]
+        moving = [e for e in progress_events if e["progress"] > 10 and e.get("downloaded_bytes", 0) > 0]
+        assert moving, f"poll never observed the growing GGUF blob: {progress_events}"

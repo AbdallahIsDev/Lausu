@@ -28,11 +28,11 @@ class TestDownloadPollScopedToModelDir:
 
     def test_poll_uses_per_repo_subdir_construction(self):
         """Source guard: the polling loop must construct"""
-        from voice_typer.server.service import LausuService
+        from voice_typer.server.service._download_helpers import poll_download_progress
 
-        src = inspect.getsource(LausuService.download_model)
+        src = inspect.getsource(poll_download_progress)
         assert 'model_dir = cache_dir / f"models--{repo_id.replace' in src, (
-            "XV-2: download_model must construct the per-repo subdir "
+            "XV-2: the progress poll must construct the per-repo subdir "
             "via cache_dir / f\"models--{repo_id.replace('/', '--')}\" "
             "before walking it."
         )
@@ -45,21 +45,20 @@ class TestDownloadPollScopedToModelDir:
         )
 
     def test_poll_does_not_stat_unrelated_repos(self, tmp_config_dir, monkeypatch):
-        """End-to-end: when the HF cache contains an unrelated repo's"""
+        """The GGUF progress poll walks only the target repo's cache dir."""
+        import threading as _threading
 
-        # Build a fake HF hub cache with TWO repos:
+        from voice_typer.server.service._download_helpers import poll_download_progress
+
         cache_root = tmp_config_dir / "huggingface" / "hub"
         other_repo = cache_root / "models--unrelated--other" / "snapshots" / "rev1"
         other_repo.mkdir(parents=True)
-        other_file = other_repo / "model.safetensors"
-        other_file.write_bytes(b"\x00" * 4096)  # 4 KB sentinel file
+        (other_repo / "model.safetensors").write_bytes(b"\x00" * 4096)
 
-        target_repo = cache_root / "models--org--target" / "snapshots" / "rev1"
+        target_repo = cache_root / "models--org--target" / "blobs"
         target_repo.mkdir(parents=True)
-        target_file = target_repo / "model.safetensors"
-        target_file.write_bytes(b"\x01" * 8192)  # 8 KB
+        (target_repo / "gguf-blob").write_bytes(b"\x01" * 8192)
 
-        # Track every explicit Path.stat call during the poll.
         stat_paths: list[str] = []
         real_stat = Path.stat
 
@@ -69,88 +68,34 @@ class TestDownloadPollScopedToModelDir:
 
         monkeypatch.setattr(Path, "stat", spy_stat)
 
-        fake_meta = MagicMock()
-        fake_meta.repo_id = "org/target"
-        fake_meta.backend = "whisper"
-        fake_meta.download_size_mb = 1
-        monkeypatch.setattr(
-            "voice_typer.server.model_registry.get_model_metadata",
-            lambda name: fake_meta,
-        )
-
-        # Stub huggingface_hub.snapshot_download: the local-files-only
-        def fake_snapshot_download(*args, **kwargs):
-            if kwargs.get("local_files_only"):
-                raise FileNotFoundError("not cached, drive into polling branch")
-            return None
-
-        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot_download)
-
-        # Stub the retry wrapper so the download thread stays alive just
-        import threading as _threading
-
-        _dl_barrier = _threading.Event()
-
-        def _fake_download_with_retry(fn, **kwargs):
-            # Block briefly so the main thread's first ``t.is_alive()``
-            _dl_barrier.wait(timeout=0.5)
-
-        monkeypatch.setattr(
-            "voice_typer.server.transcription._download_with_retry",
-            _fake_download_with_retry,
-        )
-
-        # Stub the asr_setup pause helpers (imported locally inside
-        monkeypatch.setattr("voice_typer.server.asr_setup.clear_download_pause_state", lambda: None)
-        monkeypatch.setattr("voice_typer.server.asr_setup.is_download_paused", lambda: False)
-        monkeypatch.setattr("voice_typer.server.asr_setup.reset_download_pause_state", lambda: None)
-        monkeypatch.setattr("voice_typer.server.asr_setup.wait_while_paused", lambda timeout_s=1.0: None)
-
-        monkeypatch.setattr(
-            "voice_typer.server.segmented_download.plan_segmented_files",
-            lambda **kwargs: [],
-        )
-
-        monkeypatch.setattr(
-            "voice_typer.server.tray_models.invalidate_model_availability_cache",
-            lambda: None,
-        )
-
-        # Stub event_bus.publish so _push_progress doesn't touch real
-        monkeypatch.setattr("voice_typer.server.event_bus.publish", lambda event: None)
-
-        svc = _make_service(tmp_config_dir)
-        # Stub the per-download cancellation plumbing.
-        monkeypatch.setattr(svc, "_register_download", lambda name: "dlid")
-        monkeypatch.setattr(svc, "_unregister_download", lambda dlid: None)
-        monkeypatch.setattr(svc, "_is_download_cancelled", lambda dlid: False)
-        # Stub the HF consent gate (return None = consent granted).
-        monkeypatch.setattr(svc, "_require_huggingface_consent", lambda name: None)
-        # Stub model-status cache invalidation (success path).
-        monkeypatch.setattr(svc, "_invalidate_model_status_cache", lambda: None)
-
-        # Drive download_model: the polling loop runs at least once
+        release = _threading.Event()
+        transfer = _threading.Thread(target=release.wait, args=(0.2,), daemon=True)
+        transfer.start()
         try:
-            svc.download_model("target-model")
-        except Exception:
-            # Any residual stubbing gap is fine, the stat spy has
-            pass
+            outcome, total = poll_download_progress(
+                thread=transfer,
+                target_bytes=1024 * 1024,
+                target_mb=1,
+                model_name="target-model",
+                repo_id="org/target",
+                cache_dir=cache_root,
+                download_id="dlid",
+                event_bus=MagicMock(),
+                is_cancelled_fn=lambda _id: False,
+            )
         finally:
-            # Release the barrier so no thread lingers past the test.
-            _dl_barrier.set()
+            release.set()
+            transfer.join(timeout=2.0)
 
-        # The unrelated repo's file must never appear in stat_paths.
+        assert outcome == "complete"
+        assert total >= 8192
         assert not any("models--unrelated--other" in p for p in stat_paths), (
-            "XV-2: download_model's progress loop stat'd a file in an "
-            "UNRELATED repo (models--unrelated--other). The polling loop "
-            "must only walk the per-repo subdir. Stats seen: "
-            f"{stat_paths[:5]}..."
+            "XV-2: the GGUF progress poll stat'd a file in an UNRELATED repo. "
+            f"Stats seen: {stat_paths[:5]}..."
         )
-        # And at least one file in the target repo WAS stat'd (proving
         assert any("models--org--target" in p for p in stat_paths), (
-            "XV-2: expected the target repo's file to be stat'd during "
-            "the progress poll, but it wasn't. Stats seen: "
-            f"{stat_paths[:5]}..."
+            "XV-2: expected the target repo's blob to be stat'd during the "
+            f"progress poll. Stats seen: {stat_paths[:5]}..."
         )
 
 

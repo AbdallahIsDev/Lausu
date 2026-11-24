@@ -41,24 +41,25 @@ def test_qwen_override_short_circuit_includes_model_field(tmp_path) -> None:
 
 
 def test_qwen_without_override_delegates_to_shared_downloader(monkeypatch) -> None:
-    """No matching override means the pinned HF export is downloaded."""
-    from voice_typer.server._model_integrity import ALLOW_PATTERNS_QWEN
+    """Every registered model, Qwen included, uses the shared GGUF downloader."""
+    from voice_typer.server import gguf_download
+    from voice_typer.server.gguf_model_registry import resolve_gguf_spec
 
     service = _make_service()
     service._app.config.qwen_model_path = None
-    calls: dict = {}
+    calls: list[dict] = []
 
-    def fake_family(model_name, meta, *, allow_patterns=None):
-        calls["args"] = (model_name, meta, allow_patterns)
-        return {"success": True, "model": model_name}
+    def fake_download(model_name, **kwargs):
+        calls.append({"model": model_name, **kwargs})
+        return (True, "")
 
-    monkeypatch.setattr(service, "_download_whisper_family", fake_family)
-    result = service._download_qwen("qwen3-0.6b")
+    monkeypatch.setattr(gguf_download, "download_gguf_model", fake_download)
+    result = service.download_model("qwen3-0.6b")
     assert result == {"success": True, "model": "qwen3-0.6b"}
-    model_name, meta, patterns = calls["args"]
-    assert model_name == "qwen3-0.6b"
-    assert meta.repo_id == "andrewleech/qwen3-asr-0.6b-onnx"
-    assert patterns == ALLOW_PATTERNS_QWEN
+    assert len(calls) == 1
+    assert calls[0]["model"] == "qwen3-0.6b"
+    assert calls[0]["config"] is service._app.config
+    assert resolve_gguf_spec("qwen3-0.6b").family == "qwen"
 
 
 def test_generic_exception_return_includes_model_field(monkeypatch) -> None:
@@ -68,14 +69,13 @@ def test_generic_exception_return_includes_model_field(monkeypatch) -> None:
     def _boom(*_args, **_kwargs):
         raise RuntimeError("synthetic registry failure")
 
-    monkeypatch.setattr(
-        "voice_typer.server.model_registry.get_model_metadata",
-        _boom,
-    )
-    result = service.download_model("tiny.en")
+    from voice_typer.server import gguf_download
+
+    monkeypatch.setattr(gguf_download, "download_gguf_model", _boom)
+    result = service.download_model("tiny")
     assert result["success"] is False
     assert "synthetic registry failure" in result["error"]
-    assert result["model"] == "tiny.en", "generic-exception return must include `model`."
+    assert result["model"] == "tiny", "generic-exception return must include `model`."
 
 
 def test_all_download_model_return_paths_include_model() -> None:

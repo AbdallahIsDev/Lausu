@@ -84,6 +84,7 @@ def download_gguf_model(
     *,
     progress_callback: Callable[[str], None] | None = None,
     config: Any = None,
+    tqdm_class: type | None = None,
 ) -> tuple[bool, str]:
     """Download + verify one GGUF model. Returns (ok, failure_code)."""
     spec, error = _resolved_spec_or_error(model_key)
@@ -127,11 +128,12 @@ def download_gguf_model(
         log.debug("[GGUF] cache probe missed; downloading")
 
     report(f"downloading {spec.filename}")
-    try:
-        downloaded = Path(hf_hub_download(repo_id=spec.repo_id, filename=spec.filename))
-    except Exception:
-        log.exception("[GGUF] download failed for %s", spec.repo_id)
-        return (False, "download_failed")
+    # The caller needs the real transport error to build the user-facing
+    # message; a bare failure code hides DNS/offline detail. The pause/abort
+    # gate lives in tqdm.update, so pass the gated class to the transfer.
+    downloaded = Path(
+        hf_hub_download(repo_id=spec.repo_id, filename=spec.filename, tqdm_class=tqdm_class)
+    )
 
     if downloaded.stat().st_size != spec.size_bytes:
         return (False, "size_mismatch")

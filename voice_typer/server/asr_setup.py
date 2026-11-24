@@ -153,8 +153,12 @@ def force_http_download_path() -> None:
 # SEC-audit-005 / CRIT-5 / SEC-2: allow-list imported from the shared
 from voice_typer.server._model_integrity import (  # noqa: E402
     ALLOW_PATTERNS_PARAKEET as _HF_ALLOW_PATTERNS,
-    ALLOW_PATTERNS_PARAKEET_ONNX as _HF_ALLOW_PATTERNS_PARAKEET_ONNX,
+    ALLOW_PATTERNS_PARAKEET_ONNX as _HF_ALLOW_PATTERNS_LEGACY,
 )
+
+# Legacy cache id still written by older builds; kept only so their cached
+# layout resolves during migration. New downloads use the GGUF catalogue.
+_LEGACY_PARAKEET_CACHE_REPO_ID = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
 
 # removed the module-level ``_CONFIG_DIR`` cache.
 
@@ -364,8 +368,8 @@ def download_parakeet_weights(
             progress_callback("huggingface_hub not installed, cannot download weights")
         return (False, "huggingface_hub_missing", None)
 
-    # The engine is ONNX-only post-migration (parakeet_engine.py). The
-    repo_id = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
+    # Only reached by callers still serving a pre-GGUF cache layout.
+    repo_id = _LEGACY_PARAKEET_CACHE_REPO_ID
 
     # SEC-audit-005: Use pinned revision from MODEL_HASHES manifest
     from voice_typer.server.security import MODEL_HASHES
@@ -383,7 +387,7 @@ def download_parakeet_weights(
             revision=parakeet_revision,
             # ``snapshot_download`` declares ``list[str] | str | None``; a
             # frozenset is accepted at runtime but rejected by the overloads.
-            allow_patterns=list(_HF_ALLOW_PATTERNS_PARAKEET_ONNX),
+            allow_patterns=list(_HF_ALLOW_PATTERNS_LEGACY),
             local_files_only=True,
         )
         # allow_patterns is a superset of the pinned manifest files;
@@ -439,14 +443,14 @@ def download_parakeet_weights(
     if progress_callback:
         progress_callback(msg)
 
-    # Segmented fast lane for the big ONNX files (same design as the
+    # Segmented fast lane for the large files (same design as the
     from voice_typer.server import segmented_download as segdl
     from voice_typer.server.security import MODEL_HASHES as _MH
 
     seg_plan = segdl.plan_segmented_files(
         repo_id=repo_id,
         revision=parakeet_revision,
-        allow_patterns=_HF_ALLOW_PATTERNS_PARAKEET_ONNX,
+        allow_patterns=_HF_ALLOW_PATTERNS_LEGACY,
         file_hashes=(_MH.get(repo_id, {}) or {}).get("files", {}),
     )
     seg_names = [p.filename for p in seg_plan] if seg_plan else []
@@ -465,7 +469,7 @@ def download_parakeet_weights(
             revision=parakeet_revision,
             # ``snapshot_download`` declares ``list[str] | str | None``; a
             # frozenset is accepted at runtime but rejected by the overloads.
-            allow_patterns=list(_HF_ALLOW_PATTERNS_PARAKEET_ONNX),
+            allow_patterns=list(_HF_ALLOW_PATTERNS_LEGACY),
             # Segmented fast lane owns the big files, exclude them here.
             ignore_patterns=seg_names or None,
             # pause/abort gate: see get_download_tqdm_class.
@@ -483,7 +487,7 @@ def download_parakeet_weights(
                 snapshot_download(
                     repo_id=repo_id,
                     revision=parakeet_revision,
-                    allow_patterns=sorted(_HF_ALLOW_PATTERNS_PARAKEET_ONNX),
+                    allow_patterns=sorted(_HF_ALLOW_PATTERNS_LEGACY),
                     local_files_only=True,
                 )
             except Exception as e:
@@ -499,7 +503,7 @@ def download_parakeet_weights(
                     delays=tuple(2**i for i in range(_MAX_DOWNLOAD_ATTEMPTS)),
                     repo_id=repo_id,
                     revision=parakeet_revision,
-                    allow_patterns=_HF_ALLOW_PATTERNS_PARAKEET_ONNX,
+                    allow_patterns=_HF_ALLOW_PATTERNS_LEGACY,
                     tqdm_class=get_download_tqdm_class(),
                 )
     except Exception as e:
