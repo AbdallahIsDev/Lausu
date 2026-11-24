@@ -219,9 +219,7 @@ def mock_heavy_imports(monkeypatch, request):
         mock_pil = mock_module("PIL")
         monkeypatch.setitem(sys.modules, "PIL", mock_pil)
         monkeypatch.setitem(sys.modules, "PIL.Image", mock_module("PIL.Image"))
-        monkeypatch.setitem(
-            sys.modules, "PIL.ImageDraw", mock_module("PIL.ImageDraw")
-        )
+        monkeypatch.setitem(sys.modules, "PIL.ImageDraw", mock_module("PIL.ImageDraw"))
     else:
         for _key in ("PIL", "PIL.Image", "PIL.ImageDraw"):
             _existing = sys.modules.get(_key)

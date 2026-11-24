@@ -41,9 +41,7 @@ class TestLoadRoute:
             "data": {"loaded": True, "backend": "whisper", "device_info": "cpu (int8)", "error": None},
         }
         assert route_frame(frame, published.append, lambda i, r: seen.append((i, r))) == "load_result"
-        assert seen == [
-            (11, {"loaded": True, "backend": "whisper", "device_info": "cpu (int8)", "error": None})
-        ]
+        assert seen == [(11, {"loaded": True, "backend": "whisper", "device_info": "cpu (int8)", "error": None})]
         assert published == []
 
     def test_non_numeric_id_skips_resolver(self):
@@ -118,6 +116,7 @@ class _StubEngine:
 class TestTranscriberLoad:
     def test_success_caches_engine(self, monkeypatch):
         import voice_typer.worker.asr_runner as engine_mod
+
         monkeypatch.setattr(
             "voice_typer.worker.asr_runner.gguf_model_path_for_key",
             lambda size, lang: "/models/test.gguf",
@@ -133,6 +132,7 @@ class TestTranscriberLoad:
 
     def test_cached_engine_short_circuits(self, monkeypatch):
         import voice_typer.worker.asr_runner as engine_mod
+
         monkeypatch.setattr(
             "voice_typer.worker.asr_runner.gguf_model_path_for_key",
             lambda size, lang: "/models/test.gguf",
@@ -154,6 +154,7 @@ class TestTranscriberLoad:
 
     def test_missing_model_returns_error(self, monkeypatch):
         import voice_typer.worker.asr_runner as engine_mod
+
         monkeypatch.setattr(
             "voice_typer.worker.asr_runner.gguf_model_path_for_key",
             lambda size, lang: "/models/test.gguf",
@@ -171,6 +172,7 @@ class TestTranscriberLoad:
 
     def test_runtime_error_never_raises(self, monkeypatch):
         import voice_typer.worker.asr_runner as engine_mod
+
         monkeypatch.setattr(
             "voice_typer.worker.asr_runner.gguf_model_path_for_key",
             lambda size, lang: "/models/test.gguf",
@@ -201,9 +203,7 @@ def _handles(ws):
     def _launch(_fn, _rid):
         raise AssertionError("load path must not use the transcribe tail")
 
-    return _CommandHandles(
-        websocket=ws, samples={}, aborted=set(), streams={}, complete=_complete, launch=_launch
-    )
+    return _CommandHandles(websocket=ws, samples={}, aborted=set(), streams={}, complete=_complete, launch=_launch)
 
 
 class TestHandler:
@@ -214,9 +214,7 @@ class TestHandler:
 
     async def test_missing_model_size_sends_error(self):
         ws = _FakeWS()
-        await handle_load_whisper_model_async(
-            {"cmd": "load_whisper_model", "id": 4, "data": {}}, _handles(ws)
-        )
+        await handle_load_whisper_model_async({"cmd": "load_whisper_model", "id": 4, "data": {}}, _handles(ws))
         assert len(ws.sent) == 1
         frame = json.loads(ws.sent[0])
         assert frame["type"] == "load_whisper_model_result"
@@ -235,9 +233,7 @@ class TestHandler:
                 calls.append((model_size, device, language))
                 return {"loaded": True, "backend": "whisper", "device_info": "cpu (int8)", "error": None}
 
-        monkeypatch.setattr(
-            commands_mod, "get_transcriber", lambda: _FakeTranscriber(), raising=False
-        )
+        monkeypatch.setattr(commands_mod, "get_transcriber", lambda: _FakeTranscriber(), raising=False)
         import voice_typer.worker._transcribe as transcribe_mod
 
         monkeypatch.setattr(transcribe_mod, "get_transcriber", lambda: _FakeTranscriber())

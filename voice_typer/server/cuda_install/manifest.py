@@ -117,9 +117,7 @@ REQUIRED_DLLS: tuple[str, ...] = (
     "nvrtc64_120_0.dll",
 )
 
-REQUIRED_ORT_FILES: tuple[str, ...] = (
-    "onnxruntime_providers_cuda.dll",
-)
+REQUIRED_ORT_FILES: tuple[str, ...] = ("onnxruntime_providers_cuda.dll",)
 
 
 def ort_artifact(python_version: tuple[int, int] | None = None) -> Artifact | None:

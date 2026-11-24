@@ -382,15 +382,6 @@ jobs:
           ls -la "$PYBS_DIR"
           "$PYBS_DIR/python/bin/python3" --version
 
-      - name: Install faster-whisper + ctranslate2 + websockets into pybs env
-        # ADR-0020 §4.4: Nuitka needs faster_whisper + ctranslate2 + websockets
-        run: |
-          set -euo pipefail
-          PYBS_PY="$PWD/.python-build-standalone/python/bin/python3"
-          "$PYBS_PY" -m pip install --quiet \
-            faster-whisper ctranslate2 websockets numpy
-          "$PYBS_PY" -c "import faster_whisper, ctranslate2, websockets; print('OK')"
-
       - name: Build native key-listener (Linux, x86_64)
         if: env.BUILD_ARCH == 'x86_64'
         run: bash scripts/build/build_native_listener_linux.sh

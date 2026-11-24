@@ -33,9 +33,7 @@ class TestAllBackendsAcceptAudioStatsKwarg:
         from voice_typer.worker.asr_runner import GgufTranscriptionEngine as TranscriptionEngine
 
         sig = inspect.signature(TranscriptionEngine.transcribe_with_fallback)
-        assert "kwargs" in sig.parameters, (
-            "the GGUF engine forwards optional audio_stats through **kwargs"
-        )
+        assert "kwargs" in sig.parameters, "the GGUF engine forwards optional audio_stats through **kwargs"
 
     def test_parakeet_transcribe_with_fallback_accepts_audio_stats(self):
         import inspect
@@ -139,9 +137,7 @@ class TestCloudEngineIgnoresAudioStats:
         assert result == "local text"
         # The fallback leg also carries the call's SCOPED abort source (None
         # for dictation), so a media job's Event reaches the local decode.
-        local_engine.transcribe.assert_called_once_with(
-            audio, audio_stats=(0.7, 0.9, 10.0), abort_event=None
-        )
+        local_engine.transcribe.assert_called_once_with(audio, audio_stats=(0.7, 0.9, 10.0), abort_event=None)
 
     def test_no_local_engine_still_works_without_audio_stats(self):
         """Backwards compat: calling without audio_stats must still"""

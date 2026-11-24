@@ -38,10 +38,6 @@ class TestAsrLanguageParam:
         assert asr_language_param(" ar ") == "ar"
 
 
-
-
-
-
 class TestWorkerHopSendsNormalizedLanguage:
     """The worker hop announces auto as ``None``, never a coerced ``"en"``."""
 

@@ -210,7 +210,7 @@ class OnboardingMixin(ServiceMixinBase):
         """Get model options for the onboarding wizard."""
         from voice_typer.server.onboarding import OnboardingController
 
-        return {"models": OnboardingController.MODEL_OPTIONS}
+        return {"models": OnboardingController.visible_model_options()}
 
     def onboarding_get_model_catalog(self) -> dict:
         """Get the full rich-metadata model catalog for the"""

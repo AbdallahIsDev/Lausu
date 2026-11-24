@@ -70,13 +70,7 @@ class TestNvidiaDllPathManagerIsolation:
             mod._nvidia_dll_path_handles = orig_handles
 
 
-
-
-
-
 # ─── load-path cache gate (_probe_cache / _require_model_downloaded) ─
-
-
 
 
 # Late import so the autouse fixture can install the mock first.

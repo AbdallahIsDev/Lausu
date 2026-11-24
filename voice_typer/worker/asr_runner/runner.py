@@ -60,7 +60,19 @@ class _Segment(ctypes.Structure):
     ]
 
 
+class _LoadParams(ctypes.Structure):
+    _fields_ = [
+        ("struct_size", ctypes.c_uint64),
+        ("backend", ctypes.c_int),
+        ("device", ctypes.c_void_p),
+        ("no_mmap", ctypes.c_bool),
+    ]
+
+
 _ABORT_CB = ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_void_p)
+_BACKEND_REQUEST = {"auto": 0, "cpu": 1, "metal": 2, "vulkan": 3, "cpu_accel": 4, "cuda": 5, "rocm": 6}
+_INITIALISED: set[str] = set()
+_LEAKED_SESSIONS: list[ctypes.c_void_p] = []
 
 
 def library_dir(
@@ -108,6 +120,10 @@ def _bind(lib: ctypes.CDLL) -> None:
     lib.transcribe_status_string.restype = ctypes.c_char_p
     lib.transcribe_set_abort_callback.argtypes = [ctypes.c_void_p, _ABORT_CB, ctypes.c_void_p]
     lib.transcribe_set_abort_callback.restype = None
+    lib.transcribe_init_backends.argtypes = [ctypes.c_char_p]
+    lib.transcribe_init_backends.restype = ctypes.c_int
+    lib.transcribe_model_load_params_init.argtypes = [ctypes.POINTER(_LoadParams)]
+    lib.transcribe_model_load_params_init.restype = None
 
 
 class GgufRunner:
@@ -130,6 +146,13 @@ class GgufRunner:
             os.add_dll_directory(str(directory))
         lib = ctypes.CDLL(str(path))
         _bind(lib)
+        directory_key = str(directory.resolve())
+        if directory_key not in _INITIALISED:
+            status = lib.transcribe_init_backends(str(directory).encode("utf-8"))
+            if status != OK:
+                log.error("[GGUF] backend init failed: status=%d", status)
+                raise RunnerError("The speech runtime backends could not be loaded.")
+            _INITIALISED.add(directory_key)
         return lib, directory
 
     def transcribe(
@@ -152,12 +175,19 @@ class GgufRunner:
             def _abort(_user_data: Any) -> bool:
                 return abort.is_set()
 
-            status = lib.transcribe_open(self.model_path.encode("utf-8"), None, None, ctypes.byref(session))
+            load_params: _LoadParams | None = None
+            if backend and backend in _BACKEND_REQUEST:
+                load_params = _LoadParams()
+                lib.transcribe_model_load_params_init(ctypes.byref(load_params))
+                load_params.backend = _BACKEND_REQUEST[backend]
+            params_arg = ctypes.byref(load_params) if load_params is not None else None
+            status = lib.transcribe_open(self.model_path.encode("utf-8"), params_arg, None, ctypes.byref(session))
             if status != OK or not session.value:
                 message = lib.transcribe_status_string(status)
                 log.error("[GGUF] model load failed: status=%d %s", status, message)
                 raise RunnerError("The speech model could not be loaded.")
 
+            leaked = False
             try:
                 if abort.is_set():
                     raise RunnerError("Transcription was stopped.")
@@ -182,6 +212,13 @@ class GgufRunner:
                 if thread.is_alive():
                     abort.set()
                     thread.join(5.0)
+                    if thread.is_alive():
+                        # The native call still owns this session. Freeing it
+                        # now is a use-after-free; keep it alive until process
+                        # exit and never swap its callback.
+                        _LEAKED_SESSIONS.append(session)
+                        log.error("[GGUF] native run still active after abort grace; session retained")
+                        raise RunnerError("Speech recognition took too long and was stopped.")
                     raise RunnerError("Speech recognition took too long and was stopped.")
                 if not box:
                     raise RunnerError("Speech recognition stopped unexpectedly.")

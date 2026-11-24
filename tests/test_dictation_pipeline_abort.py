@@ -17,11 +17,6 @@ def _accept_mock_http_peer(accept_mock_http_peer):
     """Mocked responses expose a MagicMock socket peer (see the conftest fixture)."""
 
 
-
-
-
-
-
 # Parakeet (parakeet_engine.py), abort infrastructure ─────────
 
 

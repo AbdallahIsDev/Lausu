@@ -49,18 +49,6 @@ class TestNvidiaDllPaths:
         assert added == [str(cublas_bin), str(nvrtc_bin), str(cudart_bin), str(cudnn_bin)]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 # TestCudaDll001TorchLib removed 2026-08-15: the ``("torch", "lib")``
 
 
@@ -121,8 +109,6 @@ class TestRecorderStoresAudioStats:
         assert rec._last_audio_stats == (0.5, 0.5, 0.0)
 
 
-
-
 class TestPipelinePassesStatsThrough:
     """NEW-PERF-010: DictationPipeline must pass audio_stats through."""
 
@@ -151,8 +137,6 @@ class TestPipelinePassesStatsThrough:
         assert "audio_stats=self._audio_stats" in source, (
             "DictationPipeline._transcribe must pass audio_stats to transcribe_with_fallback"
         )
-
-
 
 
 class TestVadParametersSharedConstant:

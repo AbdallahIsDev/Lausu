@@ -54,7 +54,6 @@ class TestReleaseGpuMemoryHelper:
 class TestEnginesCallReleaseGpuMemory:
     """Each ASR engine's unload() must call release_gpu_memory()."""
 
-
     def test_parakeet_engine_unload_calls_release(self):
         """ParakeetEngine.unload() must invoke release_gpu_memory()."""
         import inspect
@@ -78,7 +77,6 @@ class TestEnginesCallReleaseGpuMemory:
         assert "release_gpu_memory()" in source, (
             "QwenEngine.unload() must call release_gpu_memory() to drop the ORT session reference (NEW-MEM-001)"
         )
-
 
 
 class TestReleaseGpuMemoryFunctional:

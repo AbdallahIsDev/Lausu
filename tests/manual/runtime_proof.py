@@ -91,7 +91,8 @@ def run_runtime_proof():
         config.sample_rate,
     )
 
-    transcriber = TranscriptionEngine(model_path="model.gguf", 
+    transcriber = TranscriptionEngine(
+        model_path="model.gguf",
         model_size=config.model_size,
         device=config.device,
         language=config.language,

@@ -746,8 +746,6 @@ class TestIsGpuRuntimeErrorClassHierarchy:
         assert engine._is_gpu_runtime_error(exc) is True
 
 
-
-
 class TestFreeNvidiaDllHandles:
     """_free_nvidia_dll_path_handles() releases DLL handles."""
 

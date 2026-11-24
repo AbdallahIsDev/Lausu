@@ -45,8 +45,7 @@ def apply_pending_activation(app: Any) -> bool:
     if not snapshot.get("stack_complete"):
         state.write_failure(REASON_NOT_READY)
         log.warning(
-            "[CUDA] installed stack is not complete (state=%s, active=%s ready=%s); "
-            "staying on CPU",
+            "[CUDA] installed stack is not complete (state=%s, active=%s ready=%s); staying on CPU",
             snapshot.get("state"),
             backend,
             snapshot.get("active_backend_gpu_ready"),
@@ -141,8 +140,7 @@ def _evict_stale_onnxruntime() -> None:
     stale = [
         name
         for name, module in list(sys.modules.items())
-        if (name == "onnxruntime" or name.startswith("onnxruntime."))
-        and not _module_under(module, target)
+        if (name == "onnxruntime" or name.startswith("onnxruntime.")) and not _module_under(module, target)
     ]
     if not stale:
         return
@@ -169,9 +167,7 @@ def _module_under(module: Any, target: str) -> bool:
     if not isinstance(origin, str) or not origin:
         return False
     try:
-        return os.path.normcase(os.path.abspath(origin)).startswith(
-            os.path.normcase(target) + os.sep
-        )
+        return os.path.normcase(os.path.abspath(origin)).startswith(os.path.normcase(target) + os.sep)
     except Exception:
         return False
 

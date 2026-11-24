@@ -215,15 +215,11 @@ def test_slim_conf_external_bin_is_sidecar_and_media_pair_without_worker():
     assert slim_conf.is_file(), f"missing slim config: {slim_conf}"
     conf = json.loads(slim_conf.read_text(encoding="utf-8"))
     external_bin = conf.get("bundle", {}).get("externalBin", [])
-    assert "bin/python-sidecar" in external_bin, (
-        f"the slim config must keep the sidecar; got: {external_bin!r}"
-    )
+    assert "bin/python-sidecar" in external_bin, f"the slim config must keep the sidecar; got: {external_bin!r}"
     assert not any("worker" in entry for entry in external_bin), (
         f"the slim config must NOT ship the worker (runtime pack owns it); got: {external_bin!r}"
     )
-    assert "bin/ffmpeg" in external_bin, (
-        f"the slim config must ship the win64-only LGPL ffmpeg; got: {external_bin!r}"
-    )
+    assert "bin/ffmpeg" in external_bin, f"the slim config must ship the win64-only LGPL ffmpeg; got: {external_bin!r}"
     assert "bin/ffprobe" not in external_bin, (
         f"ffprobe is not shipped; duration probing uses ffmpeg; got: {external_bin!r}"
     )

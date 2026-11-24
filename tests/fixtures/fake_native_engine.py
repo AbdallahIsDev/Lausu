@@ -42,6 +42,12 @@ class FakeLibrary:
         self.freed = False
         self.run_count = 0
 
+    def transcribe_init_backends(self, _directory):
+        return 0
+
+    def transcribe_model_load_params_init(self, _params):
+        return None
+
     def transcribe_open(self, _path, _load, _session, out):
         if self.fail_open:
             return 4

@@ -209,6 +209,14 @@ class DownloadDispatchMixin:
                     "error": reason,
                 }
 
+            # ADR-0031: every local ASR model is a GGUF file. Route all of them
+            # through the verified GGUF downloader; the legacy CT2/ONNX
+            # download branches below are unreachable and will be removed.
+            from voice_typer.server.gguf_download import download_gguf_model
+
+            ok, reason = download_gguf_model(model_name, config=getattr(self, "_config", None))
+            return {"success": ok, "model": model_name, "error": reason, "code": reason}
+
             # consult the model registry so we support
             from voice_typer.server.model_registry import get_model_metadata
 

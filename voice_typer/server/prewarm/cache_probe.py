@@ -409,7 +409,10 @@ def _active_model_cache_dirs() -> list[Path]:
 
         # Always include the declared Whisper fallback (tiny) so the
         if not (active_backend == "whisper" and active_model_size == _WHISPER_FALLBACK_MODEL_SIZE):
-            target_repo_ids.add("Systran/faster-whisper-tiny")
+            from voice_typer.server.gguf_model_registry import is_frozen
+
+            if not is_frozen():
+                target_repo_ids.add("Systran/faster-whisper-tiny")
 
         # Map repo IDs to cache dir paths and filter to existing ones.
         from voice_typer.server.model_availability import shared_hub_dir

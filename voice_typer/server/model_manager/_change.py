@@ -86,6 +86,9 @@ class ChangeMixin(ChangeEventsMixin):
 
         Returns
         """
+        from voice_typer.server.gguf_model_registry import normalize_model_key
+
+        model_size = normalize_model_key(model_size)
         # cancel any pending idle-unload timer before starting
         self.cancel_idle_unload_timer()
         old_backend = self._app.config.asr_backend

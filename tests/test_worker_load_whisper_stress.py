@@ -166,9 +166,7 @@ class TestMalformedFrames:
 
     async def test_handler_missing_model_size_sends_loaded_false(self):
         ws = _FakeWS()
-        await handle_load_whisper_model_async(
-            {"cmd": "load_whisper_model", "id": 21, "data": {}}, _handles(ws)
-        )
+        await handle_load_whisper_model_async({"cmd": "load_whisper_model", "id": 21, "data": {}}, _handles(ws))
         assert len(ws.sent) == 1
         frame = json.loads(ws.sent[0])
         assert frame["type"] == "load_whisper_model_result"
@@ -209,6 +207,7 @@ class TestAbortSemantics:
 class TestTranscriberCache:
     def test_transcriber_cache_hit_fast(self, monkeypatch):
         import voice_typer.worker.asr_runner as engine_mod
+
         monkeypatch.setattr(
             "voice_typer.worker.asr_runner.gguf_model_path_for_key",
             lambda size, lang: "/models/test.gguf",
@@ -229,6 +228,7 @@ class TestTranscriberCache:
 
     def test_cache_miss_on_language_change_rebuilds(self, monkeypatch):
         import voice_typer.worker.asr_runner as engine_mod
+
         monkeypatch.setattr(
             "voice_typer.worker.asr_runner.gguf_model_path_for_key",
             lambda size, lang: "/models/test.gguf",

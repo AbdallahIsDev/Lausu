@@ -77,14 +77,12 @@ class AsrBackendRegistry(RegistryCore):
 
     # Maps backend name -> (module_path, class_name) for lazy import.
     # C7: "whisper" is worker-backed (no faster_whisper in this process).
-    # parakeet/qwen keep their in-process ONNX engines as the fallback;
-    # the worker-first hook below serves them from the pack worker when
-    # one is connected (the model then lives in the worker across
-    # sidecar restarts).
+    # parakeet/qwen are worker-backed too: all local ASR runs in the
+    # separate process through the transcribe.cpp native library.
     _BACKEND_SPECS: dict[str, tuple[str, str]] = {
         "whisper": ("voice_typer.server.worker_backed_asr", "WorkerBackedAsr"),
-        "qwen": ("voice_typer.server.qwen_engine", "QwenEngine"),
-        "parakeet": ("voice_typer.server.parakeet_engine", "ParakeetEngine"),
+        "qwen": ("voice_typer.server.worker_backed_asr", "WorkerBackedAsr"),
+        "parakeet": ("voice_typer.server.worker_backed_asr", "WorkerBackedAsr"),
         # Cloud holds no local weights: it is constructed from the live Config
         # (provider + that provider's key + model) and re-resolves on every
         # load/transcribe, so it needs no model path here. See

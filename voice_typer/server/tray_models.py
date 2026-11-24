@@ -282,6 +282,9 @@ def build_models_submenu_data(
         qwen_model_path = cfg.get("qwen_model_path") if cfg else None
 
     # Models to check, mirrors MODEL_REGISTRY (Whisper family:
+    from voice_typer.server.gguf_model_registry import is_frozen, production_models
+
+    allowed = set(production_models()) if is_frozen() else None
     candidates = [
         ("tiny", "whisper", "Systran/faster-whisper-tiny"),
         ("large-v3", "whisper", "Systran/faster-whisper-large-v3"),
@@ -296,6 +299,8 @@ def build_models_submenu_data(
     config_dir = config_dir_fn()
 
     for name, backend, repo_id in candidates:
+        if allowed is not None and name not in allowed:
+            continue
         downloaded = False
         if backend == "qwen":
             # Qwen is a built-in ONNX backend now (qwen_onnx_model.py —
