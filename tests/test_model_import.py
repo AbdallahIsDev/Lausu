@@ -8,10 +8,26 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from voice_typer.server.gguf_model_registry import (
+    get_model_metadata,
+    resolve_gguf_spec,
+)
 
-_REPO_TINY = "Systran/faster-whisper-tiny"
-_REPO_TURBO = "dropbox-dash/faster-whisper-large-v3-turbo"
-_REPO_PARKEET = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
+
+def _repo_id(model_key: str) -> str:
+    meta = get_model_metadata(model_key)
+    assert meta is not None
+    return meta.repo_id
+
+
+_REPO_TINY = _repo_id("tiny")
+_REPO_TURBO = _repo_id("large-v3-turbo")
+_REPO_PARKEET = _repo_id("parakeet")
+_MODEL_KEY_BY_REPO = {
+    _REPO_TINY: "tiny",
+    _REPO_TURBO: "large-v3-turbo",
+    _REPO_PARKEET: "parakeet",
+}
 
 
 def _hf_cache_dir_name(repo_id: str) -> str:
@@ -20,14 +36,11 @@ def _hf_cache_dir_name(repo_id: str) -> str:
 
 
 def _make_model_cache_dir(parent: Path, repo_id: str) -> Path:
-    """Create a minimal HF cache subdirectory structure under ``parent``."""
-    dir_name = _hf_cache_dir_name(repo_id)
-    model_dir = parent / dir_name
-    model_dir.mkdir(parents=True, exist_ok=True)
-    (model_dir / "blobs").mkdir(exist_ok=True)
-    (model_dir / "refs").mkdir(exist_ok=True)
-    (model_dir / "snapshots").mkdir(exist_ok=True)
-    (model_dir / ".no_exist").write_text("placeholder")
+    """Create a GGUF snapshot in the HF cache layout under ``parent``."""
+    model_dir = parent / _hf_cache_dir_name(repo_id)
+    snapshot = model_dir / "snapshots" / "rev1"
+    snapshot.mkdir(parents=True)
+    (snapshot / resolve_gguf_spec(_MODEL_KEY_BY_REPO[repo_id]).filename).write_bytes(b"gguf")
     return model_dir
 
 
@@ -79,7 +92,8 @@ class TestImportModelHappyPath:
 
         assert (app_hf / tiny_dir.name).exists(), f"tiny cache dir not found at {app_hf / tiny_dir.name}"
         assert (app_hf / turbo_dir.name).exists(), f"large-v3-turbo cache dir not found at {app_hf / turbo_dir.name}"
-        assert (app_hf / tiny_dir.name / ".no_exist").read_text() == "placeholder"
+        gguf_file = app_hf / tiny_dir.name / "snapshots" / "rev1" / resolve_gguf_spec("tiny").filename
+        assert gguf_file.read_bytes() == b"gguf"
 
     def test_imports_multiple_models_from_registry(self, service, tmp_path, monkeypatch):
         """Import multiple models of different backends (whisper + parakeet)."""
@@ -144,8 +158,8 @@ class TestImportModelEdgeCases:
         (src_dir / "my_models").mkdir()
         (src_dir / "random_data").mkdir()
         (src_dir / "models--Unknown--Model").mkdir()  # unknown model
-        # Removed-from-catalog repos are NOT recognized either.
-        (src_dir / "models--Systran--faster-whisper-small.en").mkdir()
+        # Unregistered GGUF repos are NOT recognized either.
+        (src_dir / "models--handy-computer--unregistered-model").mkdir()
 
         result = service.import_model(str(src_dir))
 
@@ -155,7 +169,7 @@ class TestImportModelEdgeCases:
         assert result["errors"] == []
 
     def test_selected_dir_is_itself_a_model_cache_dir(self, service, tmp_path, monkeypatch):
-        """User selects a ``models--Systran--faster-whisper-tiny`` directory"""
+        """User selects a GGUF model-cache directory directly"""
         app_hf = tmp_path / "app_hf" / "huggingface" / "hub"
         # import_model writes to the shared hub (model_availability.shared_hub_dir);
         # redirect it into tmp so tests never touch the real HF cache.

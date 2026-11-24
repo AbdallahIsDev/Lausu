@@ -460,7 +460,10 @@ class TestQwenTrayAvailabilityAlignsWithModelsPage:
 
     def test_visible_when_hf_cache_holds_repo(self, tmp_path, monkeypatch):
         """HF cache holding the Qwen ONNX repo dir → Qwen listed"""
-        repo_dir = tmp_path / "huggingface" / "hub" / "models--andrewleech--qwen3-asr-1.7b-onnx"
+        from voice_typer.server.model_registry import get_model_metadata
+
+        repo_id = get_model_metadata("qwen3-1.7b").repo_id
+        repo_dir = tmp_path / "huggingface" / "hub" / f"models--{repo_id.replace('/', '--')}"
         repo_dir.mkdir(parents=True)
         monkeypatch.setattr(
             "voice_typer.server.transcription_download.is_model_snapshot_complete",
@@ -518,7 +521,7 @@ class TestQwenTrayAvailabilityAlignsWithModelsPage:
         """A cached 0.6B export must not make the 1.7B row look downloaded."""
         monkeypatch.setattr(
             "voice_typer.server.transcription_download.is_model_snapshot_complete",
-            lambda repo_id: repo_id == "andrewleech/qwen3-asr-0.6b-onnx",
+            lambda repo_id: repo_id == "handy-computer/Qwen3-ASR-0.6B-gguf",
         )
         data = self._rows(tmp_path, self._make_config(qwen_model_path=None))
         flags = {row[0]: row[1] for row in data if row[0].startswith("qwen")}

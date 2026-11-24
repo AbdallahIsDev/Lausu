@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from voice_typer.server import model_availability
+from voice_typer.server.gguf_model_registry import get_model_metadata, resolve_gguf_spec
 from voice_typer.server.qwen_layout import (
     DEFAULT_QWEN_VARIANT,
     VARIANT_HIDDEN_SIZES,
@@ -24,9 +25,16 @@ from voice_typer.server.qwen_layout import (
     resolve_qwen_model_dir,
 )
 
-_PINNED_1_7B = "df916193ac67e59347769891a21e10d81d12acdd"
-_REPO_1_7B = "andrewleech/qwen3-asr-1.7b-onnx"
-_REPO_0_6B = "andrewleech/qwen3-asr-0.6b-onnx"
+_REPO_1_7B = get_model_metadata("qwen3-1.7b").repo_id
+_REPO_0_6B = get_model_metadata("qwen3-0.6b").repo_id
+
+
+def _cache_dir_name(repo_id: str) -> str:
+    return f"models--{repo_id.replace('/', '--')}"
+
+
+def _write_gguf(directory: Path, model_key: str) -> None:
+    (directory / resolve_gguf_spec(model_key).filename).write_bytes(b"gguf")
 
 
 def _write_config(directory: Path, payload: dict) -> Path:
@@ -152,22 +160,22 @@ class TestCachedModelDir:
         monkeypatch.setattr(model_availability, "shared_hub_dir", lambda: hub)
         return hub
 
-    def test_finds_the_pinned_snapshot(self, tmp_path, _isolated_hub):
-        snapshot = _write_export(
-            _isolated_hub / "models--andrewleech--qwen3-asr-1.7b-onnx" / "snapshots" / _PINNED_1_7B
-        )
+    def test_finds_the_registered_snapshot(self, tmp_path, _isolated_hub):
+        snapshot = _write_export(_isolated_hub / _cache_dir_name(_REPO_1_7B) / "snapshots" / "rev1")
+        _write_gguf(snapshot, "qwen3-1.7b")
         found = cached_qwen_model_dir(_REPO_1_7B)
         assert found == snapshot
 
     def test_ignores_incomplete_snapshots(self, tmp_path, _isolated_hub):
         _write_export(
-            _isolated_hub / "models--andrewleech--qwen3-asr-1.7b-onnx" / "snapshots" / _PINNED_1_7B,
+            _isolated_hub / _cache_dir_name(_REPO_1_7B) / "snapshots" / "rev1",
             complete=False,
         )
         assert cached_qwen_model_dir(_REPO_1_7B) is None
 
     def test_other_repo_is_not_shared(self, tmp_path, _isolated_hub):
-        _write_export(_isolated_hub / "models--andrewleech--qwen3-asr-1.7b-onnx" / "snapshots" / _PINNED_1_7B)
+        snapshot = _write_export(_isolated_hub / _cache_dir_name(_REPO_1_7B) / "snapshots" / "rev1")
+        _write_gguf(snapshot, "qwen3-1.7b")
         assert cached_qwen_model_dir(_REPO_0_6B) is None
 
 
@@ -189,7 +197,8 @@ class TestResolveModelDir:
         assert resolve_qwen_model_dir("qwen3-1.7b", str(override)) is None
 
     def test_cache_is_used_when_no_override(self, tmp_path, _isolated_hub):
-        snapshot = _write_export(_isolated_hub / "models--andrewleech--qwen3-asr-0.6b-onnx" / "snapshots" / "rev1")
+        snapshot = _write_export(_isolated_hub / _cache_dir_name(_REPO_0_6B) / "snapshots" / "rev1")
+        _write_gguf(snapshot, "qwen3-0.6b")
         assert resolve_qwen_model_dir("qwen3-0.6b", None) == str(snapshot)
 
     def test_unknown_name_resolves_to_the_default_variant(self, tmp_path):

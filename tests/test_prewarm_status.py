@@ -200,12 +200,16 @@ class TestSharedHubFallback:
         from types import SimpleNamespace
 
         import voice_typer.server.model_availability as model_availability
+        from voice_typer.server.gguf_model_registry import get_model_metadata, resolve_gguf_spec
         from voice_typer.server.prewarm import cache_probe
 
+        meta = get_model_metadata("large-v3")
+        assert meta is not None
+        leaf = f"models--{meta.repo_id.replace('/', '--')}"
         shared_hub = tmp_path / "shared" / "hub"
-        snap = shared_hub / "models--Systran--faster-whisper-large-v3" / "snapshots" / "abc"
+        snap = shared_hub / leaf / "snapshots" / "abc"
         snap.mkdir(parents=True)
-        (snap / "model.bin").write_bytes(b"\x00" * 8192)
+        (snap / resolve_gguf_spec("large-v3").filename).write_bytes(b"\x00" * 8192)
 
         monkeypatch.setattr(
             cache_probe,
@@ -221,4 +225,4 @@ class TestSharedHubFallback:
 
         dirs = cache_probe._active_model_cache_dirs()
 
-        assert dirs == [shared_hub / "models--Systran--faster-whisper-large-v3"]
+        assert dirs == [shared_hub / leaf]

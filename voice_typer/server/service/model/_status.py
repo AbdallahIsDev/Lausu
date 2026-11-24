@@ -51,8 +51,8 @@ class StatusMixin:
                 "downloaded": downloaded,
             }
 
-        # Qwen variants: a matching manual override path OR the pinned HF
-        # cache snapshot (``qwen_layout`` knows both).
+        # Qwen variants: a matching manual override path OR the registered
+        # GGUF cache snapshot, probed by the shared availability function.
         from voice_typer.server.qwen_layout import override_matches_variant
 
         qwen_path = getattr(config, "qwen_model_path", None)
@@ -62,7 +62,6 @@ class StatusMixin:
             status[meta.name] = {
                 "downloaded": override_matches_variant(meta.name, qwen_path)
                 or model_availability.is_available(meta.repo_id, _config_dir()),
-                # The Qwen backend is ONNX-only (qwen_onnx_model.py);
                 "deps_ok": True,
             }
 
@@ -75,7 +74,6 @@ class StatusMixin:
             parakeet_in_cache = False
         status["parakeet"] = {
             "downloaded": bool(parakeet_path and os.path.isdir(parakeet_path)) or parakeet_in_cache,
-            # The Parakeet backend is ONNX-only (parakeet_engine.py via
             "deps_ok": True,
         }
 

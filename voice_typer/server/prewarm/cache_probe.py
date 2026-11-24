@@ -37,7 +37,7 @@ _CACHE_RATIO_HIT_THRESHOLD_US = 50.0
 _WHISPER_FALLBACK_MODEL_SIZE = "tiny"
 
 # Weight-file suffixes warmed by :func:`_warm_model_weights` and probed
-_MODEL_WEIGHTS_SUFFIXES: frozenset[str] = frozenset({".bin", ".onnx", ".safetensors"})
+_MODEL_WEIGHTS_SUFFIXES: frozenset[str] = frozenset({".gguf", ".bin", ".onnx", ".safetensors"})
 
 # A weight/file is considered "already hot" at this sampled cache
 _PREWARM_SKIP_HOT_RATIO = 0.9
@@ -133,7 +133,7 @@ def _cached_active_config():
         return None
 
 
-# Plan §6.2: the warm list for the ONNX-only runtime
+# Runtime libraries whose files dominate cold import cost.
 _WORKER_WARM_PACKAGES: tuple[str, ...] = (
     "onnxruntime",
     "ctranslate2",
@@ -370,49 +370,30 @@ def _active_model_cache_dirs() -> list[Path]:
         active_backend = getattr(cfg, "asr_backend", "whisper")
         active_model_size = getattr(cfg, "model_size", "tiny")
 
-        # Build the set of HF repo IDs whose cache dirs we want to warm.
+        # One registry drives every cache dir probed by prewarm.
+        from voice_typer.server.gguf_model_registry import is_frozen
+        from voice_typer.server.model_registry import get_model_metadata as _get_meta
+
         target_repo_ids: set[str] = set()
 
         if active_backend == "parakeet":
-            try:
-                from voice_typer.server.parakeet_engine import _PARAKERT_ONNX_REPO_ID
-
-                target_repo_ids.add(_PARAKERT_ONNX_REPO_ID)
-            except Exception:
-                # Previously a bare ``except Exception: pass``. Log at
-                log.debug(
-                    "[PREWARM] Parakeet model ID lookup failed; skipping Parakeet in cache probe",
-                    exc_info=True,
-                )
+            meta = _get_meta("parakeet")
+            if meta is not None and meta.repo_id:
+                target_repo_ids.add(meta.repo_id)
         elif active_backend == "qwen":
-            # Qwen exports live in the HF cache under their variant repo
-            # (a manual qwen_model_path is outside the cache and needs no
-            # prewarm).
-            from voice_typer.server.qwen_layout import qwen_repo_id
+            meta = _get_meta(active_model_size)
+            if meta is not None and meta.backend == "qwen" and meta.repo_id:
+                target_repo_ids.add(meta.repo_id)
+        elif active_model_size:
+            meta = _get_meta(active_model_size)
+            if meta is not None and meta.backend in ("whisper", "distil-whisper") and meta.repo_id:
+                target_repo_ids.add(meta.repo_id)
 
-            qwen_repo = qwen_repo_id(active_model_size)
-            if qwen_repo:
-                target_repo_ids.add(qwen_repo)
-        else:
-            # Whisper backend: warm the
-            if active_model_size:
-                try:
-                    from voice_typer.server.model_registry import get_model_metadata as _get_meta
-
-                    _meta = _get_meta(active_model_size)
-                    if _meta is None:
-                        target_repo_ids.add(f"Systran/faster-whisper-{active_model_size}")
-                    elif _meta.backend in ("whisper", "distil-whisper") and _meta.repo_id:
-                        target_repo_ids.add(_meta.repo_id)
-                except Exception:
-                    target_repo_ids.add(f"Systran/faster-whisper-{active_model_size}")
-
-        # Always include the declared Whisper fallback (tiny) so the
-        if not (active_backend == "whisper" and active_model_size == _WHISPER_FALLBACK_MODEL_SIZE):
-            from voice_typer.server.gguf_model_registry import is_frozen
-
-            if not is_frozen():
-                target_repo_ids.add("Systran/faster-whisper-tiny")
+        # Source builds keep the dev-only fallback; frozen builds never do.
+        if not is_frozen() and active_model_size != _WHISPER_FALLBACK_MODEL_SIZE:
+            fallback_meta = _get_meta(_WHISPER_FALLBACK_MODEL_SIZE)
+            if fallback_meta is not None and fallback_meta.repo_id:
+                target_repo_ids.add(fallback_meta.repo_id)
 
         # Map repo IDs to cache dir paths and filter to existing ones.
         from voice_typer.server.model_availability import shared_hub_dir

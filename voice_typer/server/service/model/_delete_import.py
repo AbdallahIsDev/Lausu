@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from voice_typer.server._secrets import redact_secret, redact_url
@@ -138,6 +139,8 @@ class DeleteImportMixin:
     ) -> tuple[dict[str, str], ModelMetadata | None]:
         """Move the active selection off ``exclude_name`` (shared core)."""
         updates: dict[str, str] = {}
+        # Deliberate choice: switch to an installed production model when one
+        # exists; otherwise clear the selection into the no-model state.
         replacement = self._pick_downloaded_fallback_model(exclude_name)
         if replacement is not None:
             # ``_pick_downloaded_fallback_model`` never returns a distil
@@ -281,6 +284,25 @@ class DeleteImportMixin:
                 return meta
         return None
 
+    @staticmethod
+    def _has_gguf_snapshot(model_dir: str, model_key: str) -> bool:
+        """Only a registered GGUF snapshot is an importable model cache."""
+        from voice_typer.server.gguf_model_registry import resolve_gguf_spec
+
+        try:
+            spec = resolve_gguf_spec(model_key)
+        except KeyError:
+            return False
+        snapshots = Path(model_dir) / "snapshots"
+        try:
+            return any(
+                (snapshot / spec.filename).is_file()
+                for snapshot in snapshots.iterdir()
+                if snapshot.is_dir()
+            )
+        except OSError:
+            return False
+
     def import_model(self, dir_path: str) -> dict:
         """Scan a directory for HuggingFace model cache folders and import
 
@@ -310,14 +332,18 @@ class DeleteImportMixin:
 
         # Check if the selected directory itself is a model cache dir
         base_name = os.path.basename(dir_path)
-        if base_name in dir_to_model:
+        if base_name in dir_to_model and self._has_gguf_snapshot(dir_path, dir_to_model[base_name]):
             candidates.append((dir_path, base_name))
 
         # Scan one level deep for model cache subdirectories
         try:
             for entry in os.listdir(dir_path):
                 entry_path = os.path.join(dir_path, entry)
-                if os.path.isdir(entry_path) and entry in dir_to_model:
+                if (
+                    os.path.isdir(entry_path)
+                    and entry in dir_to_model
+                    and self._has_gguf_snapshot(entry_path, dir_to_model[entry])
+                ):
                     candidates.append((entry_path, entry))
         except PermissionError:
             return {

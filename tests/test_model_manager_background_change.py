@@ -14,7 +14,7 @@ from voice_typer.server.model_manager import ModelManager
 def _make_mm_with_mock_backend(
     *,
     backend_name: str = "whisper",
-    model_size: str = "tiny.en",
+    model_size: str = "tiny",
 ) -> tuple[ModelManager, MagicMock, MagicMock, MagicMock]:
     """Construct a ModelManager backed by a mock registry + mock engine."""
     app = MagicMock(name="app")
@@ -92,13 +92,13 @@ class TestChangeModelReturnsImmediately:
 
     def test_change_model_returns_dict_with_loading_status(self):
         """The ack dict must carry 'status', 'previous', 'pending'."""
-        mm, app, engine, _ = _make_mm_with_mock_backend(backend_name="whisper", model_size="tiny.en")
-        ack = mm.change_model("medium.en")
+        mm, app, engine, _ = _make_mm_with_mock_backend(backend_name="whisper", model_size="tiny")
+        ack = mm.change_model("large-v3")
         assert ack["status"] == "loading"
         assert ack["previous"]["backend"] == "whisper"
-        assert ack["previous"]["model_size"] == "tiny.en"
+        assert ack["previous"]["model_size"] == "tiny"
         assert ack["pending"]["backend"] == "whisper"
-        assert ack["pending"]["model_size"] == "medium.en"
+        assert ack["pending"]["model_size"] == "large-v3"
 
 
 class TestSetActiveBackendReturnsImmediately:

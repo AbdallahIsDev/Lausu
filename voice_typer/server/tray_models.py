@@ -12,12 +12,6 @@ log = logging.getLogger(__name__)
 # Availability verdicts are owned by the shared
 _hf_env_ensured: bool = False
 
-# Qwen's HuggingFace repo id, informational only: the backend
-_QWEN_REPO_ID = "andrewleech/qwen3-asr-1.7b-onnx"
-
-# Parakeet Ultra's ONNX export repo (int8, torch-free), informational
-_PARAKEET_REPO_ID = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
-
 # Native tray menus are text-only: pystray's ``MenuItem`` has no image
 _FAMILY_MENU_GLYPHS: dict[str, str] = {
     "whisper": "✱",
@@ -169,7 +163,7 @@ def _check_qwen_model_downloaded(config_dir, qwen_model_path, model_name: str = 
     """Return True if ``model_name``'s Qwen weights are on disk.
 
     A manual ``qwen_model_path`` counts only when its ``config.json``
-    reports the same variant; otherwise the pinned HF snapshot decides.
+    reports the same variant; otherwise the shared GGUF probe decides.
     """
     from voice_typer.server import model_availability
     from voice_typer.server.qwen_layout import override_matches_variant, qwen_repo_id
@@ -177,7 +171,8 @@ def _check_qwen_model_downloaded(config_dir, qwen_model_path, model_name: str = 
     name = model_name if is_qwen_variant_name(model_name) else DEFAULT_QWEN_VARIANT
     if override_matches_variant(name, qwen_model_path):
         return True
-    return model_availability.is_available(qwen_repo_id(name) or _QWEN_REPO_ID, config_dir)
+    repo_id = qwen_repo_id(name)
+    return repo_id is not None and model_availability.is_available(repo_id, config_dir)
 
 
 def _check_parakeet_model_downloaded(config_dir, parakeet_model_path) -> bool:
@@ -185,9 +180,13 @@ def _check_parakeet_model_downloaded(config_dir, parakeet_model_path) -> bool:
     if isinstance(parakeet_model_path, str) and Path(parakeet_model_path).is_dir():
         return True
     from voice_typer.server import model_availability
+    from voice_typer.server.model_registry import get_model_metadata
 
+    meta = get_model_metadata("parakeet")
+    if meta is None or not meta.repo_id:
+        return False
     return model_availability.is_available(
-        _PARAKEET_REPO_ID, config_dir, extra_watch_dirs=[parakeet_model_path] if parakeet_model_path else None
+        meta.repo_id, config_dir, extra_watch_dirs=[parakeet_model_path] if parakeet_model_path else None
     )
 
 
@@ -281,19 +280,12 @@ def build_models_submenu_data(
         current_backend = cfg.get("asr_backend", "whisper") if cfg else "whisper"
         qwen_model_path = cfg.get("qwen_model_path") if cfg else None
 
-    # Models to check, mirrors MODEL_REGISTRY (Whisper family:
+    # One catalogue drives both the tray and the Models page.
     from voice_typer.server.gguf_model_registry import is_frozen, production_models
+    from voice_typer.server.model_registry import MODEL_REGISTRY
 
     allowed = set(production_models()) if is_frozen() else None
-    candidates = [
-        ("tiny", "whisper", "Systran/faster-whisper-tiny"),
-        ("large-v3", "whisper", "Systran/faster-whisper-large-v3"),
-        # Turbo lives under the canonical dropbox-dash org, not Systran.
-        ("large-v3-turbo", "whisper", "dropbox-dash/faster-whisper-large-v3-turbo"),
-        ("parakeet", "parakeet", "nvidia/parakeet-tdt-0.6b-v3"),
-        ("qwen3-1.7b", "qwen", None),
-        ("qwen3-0.6b", "qwen", None),
-    ]
+    candidates = [(meta.name, meta.backend, meta.repo_id) for meta in MODEL_REGISTRY.values()]
 
     results = []
     config_dir = config_dir_fn()
@@ -303,10 +295,8 @@ def build_models_submenu_data(
             continue
         downloaded = False
         if backend == "qwen":
-            # Qwen is a built-in ONNX backend now (qwen_onnx_model.py —
             downloaded = _check_qwen_model_downloaded(config_dir, qwen_model_path, name)
         elif repo_id:
-            # cached check with 5-second TTL, avoids
             downloaded = _check_hf_model_downloaded(repo_id, config_dir)
         else:
             downloaded = False

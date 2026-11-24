@@ -132,7 +132,7 @@ class TestDeleteModelUsesRegistryUnconditionally:
         service = self._make_service()
         meta = get_model_metadata("parakeet")
         assert meta is not None, "parakeet must be in MODEL_REGISTRY"
-        assert meta.repo_id == "Masterx/parakeet-tdt-0.6b-ultra-onnx"
+        assert meta.repo_id == "handy-computer/parakeet-ultra-gguf"
 
         import voice_typer.server.config as cfg_mod
 
@@ -151,7 +151,7 @@ class TestDeleteModelUsesRegistryUnconditionally:
         service = self._make_service()
         meta = get_model_metadata("qwen3-1.7b")
         assert meta is not None, "qwen3-1.7b must be in MODEL_REGISTRY"
-        assert meta.repo_id == "andrewleech/qwen3-asr-1.7b-onnx"
+        assert meta.repo_id == "handy-computer/Qwen3-ASR-1.7B-gguf"
 
         result = service.delete_model("qwen3-1.7b")
         assert result["success"] is False
@@ -271,7 +271,7 @@ class TestModelStatusReportsBothQwenVariants:
         monkeypatch.setattr(
             model_availability,
             "is_available",
-            lambda repo_id, _dir, **kw: repo_id == "andrewleech/qwen3-asr-0.6b-onnx",
+            lambda repo_id, _dir, **kw: repo_id == "handy-computer/Qwen3-ASR-0.6B-gguf",
         )
         status = self._make_service()._compute_model_status()
         assert status["qwen3-1.7b"]["downloaded"] is False
@@ -368,6 +368,13 @@ class TestDeleteStaleActiveModel:
             "voice_typer.server.transcription_download.is_model_snapshot_complete",
             lambda repo_id: (cache_dir / f"models--{repo_id.replace('/', '--')}").is_dir(),
         )
+        from voice_typer.server import model_availability
+
+        monkeypatch.setattr(
+            model_availability,
+            "is_available",
+            lambda repo_id, _dir, **kw: repo_id == fallback_meta.repo_id,
+        )
 
         app = self._make_app(model_size="tiny")
         service = LausuService(app)
@@ -405,6 +412,13 @@ class TestDeleteStaleActiveModel:
             "voice_typer.server.transcription_download.is_model_snapshot_complete",
             lambda repo_id: (cache_dir / f"models--{repo_id.replace('/', '--')}").is_dir(),
         )
+        from voice_typer.server import model_availability
+
+        monkeypatch.setattr(
+            model_availability,
+            "is_available",
+            lambda repo_id, _dir, **kw: repo_id == fallback_meta.repo_id,
+        )
 
         app = self._make_app(model_size="tiny")
         app.config.save_strict = Mock(side_effect=RuntimeError("disk full"))
@@ -432,6 +446,9 @@ class TestDeleteStaleActiveModel:
             "voice_typer.server.model_availability.snapshot_search_dirs",
             lambda config_dir, repo_id: [cache_dir / f"models--{repo_id.replace('/', '--')}"],
         )
+        from voice_typer.server import model_availability
+
+        monkeypatch.setattr(model_availability, "is_available", lambda *_a, **_kw: False)
         app = self._make_app(model_size="tiny")
         service = LausuService(app)
 
@@ -471,6 +488,13 @@ class TestDeleteStaleActiveModel:
             "voice_typer.server.transcription_download.is_model_snapshot_complete",
             lambda repo_id: (cache_dir / f"models--{repo_id.replace('/', '--')}").is_dir(),
         )
+        from voice_typer.server import model_availability
+
+        monkeypatch.setattr(
+            model_availability,
+            "is_available",
+            lambda repo_id, _dir, **kw: repo_id == fallback_meta.repo_id,
+        )
 
         app = self._make_app(model_size="tiny")
         service = LausuService(app)
@@ -504,6 +528,9 @@ class TestDeleteStaleActiveModel:
             "voice_typer.server.transcription_download.is_model_snapshot_complete",
             lambda repo_id: (cache_dir / f"models--{repo_id.replace('/', '--')}").is_dir(),
         )
+        from voice_typer.server import model_availability
+
+        monkeypatch.setattr(model_availability, "is_available", lambda *_a, **_kw: False)
 
         app = self._make_app(model_size="tiny")
         service = LausuService(app)

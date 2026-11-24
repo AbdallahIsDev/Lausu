@@ -369,9 +369,9 @@ class TestChangeModelAckShape:
         # qwen
         ack = mm.change_model("qwen3-1.7b")
         assert ack["pending"]["backend"] == "qwen"
-        ack = mm.change_model("base.en")
+        ack = mm.change_model("large-v3")
         assert ack["pending"]["backend"] == "whisper"
-        assert ack["pending"]["model_size"] == "base.en"
+        assert ack["pending"]["model_size"] == "large-v3"
 
 
 class TestChangeModelNoop:
@@ -412,10 +412,10 @@ class TestChangeModelNoop:
         engine = mm._registry.get("whisper")
         engine.is_loaded = True
 
-        ack = mm.change_model("base.en")
+        ack = mm.change_model("large-v3")
 
         assert ack["status"] == "loading"
-        mm._change_model_background.assert_called_once_with("base.en", old_backend="whisper", old_model_size="tiny")
+        mm._change_model_background.assert_called_once_with("large-v3", old_backend="whisper", old_model_size="tiny")
 
 
 class TestLRUEviction:
