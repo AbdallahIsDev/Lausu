@@ -1197,3 +1197,108 @@ for you…". No partial flag fired. These are sanity results, not WER claims.
 - Old CT2/ONNX Whisper/Parakeet model folders are NOT deleted; delete only after
   owner confirmation. Then smoke-test dictation, media, CPU/Vulkan, installer
   layout with 7-Zip, and flip the gate after a clean real build.
+
+
+---
+
+## PHASE 1 FINAL STATE (cloud, 2026-11-24, part 4)
+
+### Verified on this machine (Windows, existing spike files only — no downloads)
+
+- **Install path.** `gguf_download.install_gguf_model_from_file()` verifies exact
+  byte size + SHA-256 and commits with an atomic rename into the Hugging Face
+  cache layout the downloader reads (`gguf_download.py`). Windows root:
+  `%USERPROFILE%\.cache\huggingface\hub\models--<repo with / -> -->\snapshots\<rev>\<filename>`;
+  no app marker file. The owner's Parakeet GGUF was COPIED there (spike untouched):
+  `...\models--handy-computer--parakeet-ultra-gguf\snapshots\007a5976...\parakeet-ultra-Q8_0.gguf`,
+  SHA-256 `007a5976...a0a59` matching the registry. App status payload:
+  parakeet `downloaded=True`; the other four production models and dev-only
+  `tiny` `False` (live harness + `tests/test_model_registry.py`,
+  `test_dev_model_frozen.py`). Commits `864093f73`, `341166d72`.
+- **UI.** `ModelCardActions.tsx` shows Download when `downloaded=false`, Select
+  when installed, Active when selected; `useModelConfig.ts:351` maps the server's
+  `download_size_mb` into the button label; `useModelSelection.ts` persists
+  `{asr_backend, model_size}` through `set_config`. Client typecheck, biome,
+  build and 81 targeted Models tests green. The Download path targets the
+  pinned `handy-computer/*` repo + exact filename and returns size/sha failure
+  codes; on cancel the app keeps the resumable HF partial (documented at
+  `_download_dispatch.py:258`) — no app-level GGUF cancel was added.
+- **Config-driven end-to-end.** Set `asr_backend=parakeet`, `model_size=parakeet`
+  in `Config`, saved, reloaded: `gguf_model_path_for()` resolved the installed
+  file; `WorkerTranscriber.transcribe_file()` returned JFK 108 chars (2.52 s)
+  and the 480.49 s WAV 10,493 chars (7.13 s), no error.
+- **Real-DLL wrapper probes** (`TRANSCRIBE_LIBRARY` -> spike DLL, installed model):
+  cancel after 3 s five times — native thread returned every time, "Transcription
+  was stopped.", next run 108 chars, RSS 196 -> 206 MB; bad inputs — missing /
+  garbage / truncated model, missing DLL dir, wrong DLL, tampered `header_hash`
+  each produced a clear error and the next valid call succeeded; language —
+  auto/empty pass `None`, `en` passes `en`, `xx` is rejected by the native layer
+  and now maps to a language-specific error; 0.5 s timeout aborted, no session
+  leaked, next run succeeded. Fake-native tests pin the 2-leak bound and the
+  refusal after it. Commits `557f15117`, `ca3cd5b45`.
+- **Speed investigation.** One parameter at a time on the same DLL/model/WAV:
+
+  | case | CPU decode | Vulkan total |
+  |---|---:|---:|
+  | spike (model once, 8 threads, SEGMENT) | 27.2 / 27.6 s | 15.7 s cold, 4.98 s warm |
+  | raw API, open-per-call, default session, AUTO | 27.18 s | 5.54 / 5.02 s |
+  | raw API, 8 threads, SEGMENT | 28.2 / 27.8 s | 5.22 / 5.35 s |
+  | raw API, model once, 8 threads, SEGMENT | 26.57 / 27.36 s | 5.43 / 5.27 s |
+  | production wrapper (warm) | 28.41 / 29.34 s | 7.08 / 6.63 s |
+
+  Earlier 33.21 s / 8.05 s numbers were taken on a cold page cache in a fresh
+  process (plus first Vulkan pipeline warm-up). Threads, timestamps and
+  load-per-call account for at most ~1.5 s; **no wrapper defect found**, so no
+  tuning was applied. The wrapper's extra ~1 s on Vulkan is Python float-array
+  conversion + thread hand-off.
+- **Cleanup.** Metadata sizes/repo ids/family derive from `GGUF_MODELS`; drift
+  tests pin it and the client skeleton. Legacy wording removed from bench,
+  workflow (2 quoted lines reported to owner), entitlements text, product
+  comments and product docs; bench's two live `faster_whisper` imports replaced
+  with `GgufRunner`. Guard test now scans bench prose/imports and docs/API.md.
+  Commits `2e84bb480`, `1acace5af`, `7fc997e41`.
+- **Verification on final HEAD.** ruff check + format clean on all 41 files in
+  our commits; pyrefly shows no error in any of our files; ruff and slim-core
+  ratchets hold; verify_windows_bundle self-test, notices, version sync,
+  branding, i18n completeness (92 passed) green; hygiene checks on changed
+  files (final newline, line endings, trailing whitespace, JSON, size, merge
+  markers) clean; targeted pytest **1295 passed / 600 skipped**.
+
+### Classification of outstanding gate noise
+
+- `mypy_ratchet_check.py`: only `func-returns-value 0 -> 1` at
+  `voice_typer/server/asr/registry.py:264`; that file was last touched by
+  `544a33ff2` (2026-11-12) and is not in this migration's range — environment /
+  other work, not ours. All our files add zero mypy errors.
+- pyrefly total varies with another session's concurrent plugin commit
+  (`e9a3576b0`); none of the reported errors are in files we touched.
+- Worktree also contains another session's uncommitted `review.md`, plugin
+  files, and four regenerated `src-tauri/icons/*.png` (from `npm run build`).
+  None were committed or modified by this handoff.
+
+### UNVERIFIED
+
+- Four remaining production models are NOT on disk: no real runs, no hash check
+  on downloaded bytes. Do not download them without the owner's approval.
+- Cancel/failure paths were exercised against the spike DLL, not the frozen
+  `resources/transcribe-cpp` bundle; the sixth self-check marker, installer
+  layout with 7-Zip, `ENFORCE_NO_GPL_DLLS=1`, and the first real Windows build
+  remain OPEN.
+- Full pytest suite was NOT run here at the owner's instruction (owner runs it).
+
+### OWNER / LOCAL AGENT CHECKLIST
+
+1. Run the full backend suite yourself from the repo root (PowerShell):
+
+   ```powershell
+   & .\.venv\Scripts\python.exe -m pytest tests/ -n auto --dist=loadgroup -q --no-cov --tb=short > C:\Users\11\AppData\Local\Temp\opencode\owner-full-pytest.txt 2>&1
+   ```
+
+   Send back the file path plus its last ~40 lines and any `FAILED`/`ERROR`
+   node ids; classify as ours / other session / known flaky before shipping.
+2. Download the four remaining models with hash verification (~4.4 GB total)
+   and run the production wrapper on each; cancel and corrupt-input probes too.
+3. Smoke test dictation, Media, CPU/Vulkan after the install; run the first real
+   Windows build; check the installer layout with 7-Zip and the sixth marker.
+4. Delete the old CT2/ONNX Whisper/Parakeet model folders only after owner
+   confirmation; flip `ENFORCE_NO_GPL_DLLS=1` only after a clean real build.
