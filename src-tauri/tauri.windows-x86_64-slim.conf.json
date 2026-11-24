@@ -47,10 +47,10 @@
     "targets": ["nsis", "msi"],
     "externalBin": [
       "bin/python-sidecar",
-      "bin/ffmpeg",
-      "bin/transcribe-cli"
+      "bin/ffmpeg"
     ],
     "resources": [
+      "resources/transcribe-cpp",
       "../docs/THIRD_PARTY_NOTICES.md",
       "resources/native/windows-key-listener.exe",
       "icons/tray/"

@@ -48,10 +48,10 @@
     "externalBin": [
       "bin/python-sidecar",
       "bin/lausu-worker",
-      "bin/ffmpeg",
-      "bin/transcribe-cli"
+      "bin/ffmpeg"
     ],
     "resources": [
+      "resources/transcribe-cpp",
       "../docs/THIRD_PARTY_NOTICES.md",
       "resources/native/windows-key-listener.exe",
       "icons/tray/"

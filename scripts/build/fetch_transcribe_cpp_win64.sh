@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Fetch and verify the pinned transcribe.cpp Windows x86_64 runner.
-# Mirrors scripts/build/fetch_ffmpeg_lgpl_win64.sh: hash + size gate first,
-# install beside the Nuitka sidecar in src-tauri/bin. No model is downloaded.
+# Fetch and verify the pinned transcribe.cpp Windows x86_64 native bundle.
+# The archive contains DLLs only (NO CLI executable); they ship as bundle
+# resources, beside the sidecar under resources/transcribe-cpp.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 MANIFEST="$ROOT/scripts/transcribe-cpp-win64.json"
-BIN_DIR="$ROOT/src-tauri/bin"
 
 read_field() {
   python -c 'import json,sys; d=json.load(open(sys.argv[1],encoding="utf-8")); print(d[sys.argv[2]])' "$MANIFEST" "$1"
@@ -42,21 +41,24 @@ if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
 fi
 
 tar -xzf "$ARCHIVE" -C "$WORK"
-mkdir -p "$INSTALL_DIR" "$BIN_DIR"
-python - "$MANIFEST" "$WORK" "$INSTALL_DIR" "$BIN_DIR" <<'PY'
+mkdir -p "$INSTALL_DIR"
+python - "$MANIFEST" "$WORK" "$INSTALL_DIR" <<'PY'
 import json
 import shutil
 import sys
 from pathlib import Path
 
-manifest, work, install_dir, bin_dir = map(Path, sys.argv[1:5])
+manifest, work, install_dir = map(Path, sys.argv[1:4])
 names = json.loads(manifest.read_text(encoding="utf-8"))["install_names"]
 for name in names:
     sources = [p for p in work.rglob(name) if p.is_file()]
     if not sources:
-        raise SystemExit(f"Runner archive is missing expected file: {name}")
-    for target_dir in (install_dir, bin_dir):
-        shutil.copy2(sources[0], target_dir / name)
+        raise SystemExit(f"Native bundle is missing expected file: {name}")
+    shutil.copy2(sources[0], install_dir / name)
+contracts = list(work.rglob("contract.json"))
+if not contracts:
+    raise SystemExit("Native bundle is missing contract.json")
+shutil.copy2(contracts[0], install_dir / "contract.json")
 PY
 
-echo "transcribe.cpp runner installed into $INSTALL_DIR and $BIN_DIR"
+echo "transcribe.cpp native bundle installed into $INSTALL_DIR"

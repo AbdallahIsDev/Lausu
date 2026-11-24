@@ -24,14 +24,15 @@ def test_manifest_has_real_pinned_asset() -> None:
     assert data["sha256"] == "6094102cf57b404b050707ceb258b12ce647b92e801b5d46077214e5b030c8aa"
     assert data["download_url"].endswith(data["asset_name"])
     assert data["license"] == "MIT"
-    assert data["install_dir"] == "src-tauri/bin"
+    assert data["install_dir"] == "src-tauri/resources/transcribe-cpp"
 
 
 def test_manifest_carries_source_offer_fields() -> None:
     data = _manifest()
     for key in ("source_offer_url", "build_scripts_source_url", "upstream_repo_url", "install_names"):
         assert data.get(key), key
-    assert "transcribe-cli.exe" in data["install_names"]
+    assert "transcribe.dll" in data["install_names"]
+    assert "contract.json" not in data["install_names"]  # copied separately by the fetch script
 
 
 def test_fetch_script_gates_hash_and_size() -> None:

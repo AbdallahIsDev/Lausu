@@ -80,23 +80,7 @@ class TestBundleBinariesVsStubRegistry:
         }
         binaries = {r for r in bundle.get("resources", []) if r.startswith("resources/native/")}
         declared = sidecars | binaries
-        # Windows-x64-only runner: declared in the per-arch configs, not base.
-        for rel in WINDOWS_X64_RUNNER_CONFIGS:
-            per_arch = json.loads((SRC_TAURI / rel).read_text(encoding="utf-8"))
-            declared |= {
-                f"{base}-{triple}.exe"
-                for base in per_arch["bundle"].get("externalBin", [])
-                if base in RUNNER_EXTERNAL_BIN
-                for triple in ("x86_64-pc-windows-msvc",)
-            }
         dev_only = {p.relative_to(SRC_TAURI).as_posix() for p in stub._local_dev_stub_paths()}
-        # Runner stubs are Windows-x64-only; the GNU mirror is also dev-only.
-        dev_only |= {
-            p[0].relative_to(SRC_TAURI).as_posix()
-            for p in stub._runner_stub_specs()
-            if p[0].name.endswith("-x86_64-pc-windows-gnu.exe")
-        }
-
         overlap = set(stub.LOCAL_DEV_TRIPLES) & set(stub.SIDECAR_TRIPLES)
         assert not overlap, (
             "LOCAL_DEV_TRIPLES overlaps SIDECAR_TRIPLES; the dev-only "
@@ -529,12 +513,6 @@ WINDOWS_X64_FFMPEG_CONFIGS: set[str] = {
 FFMPEG_EXTERNAL_BIN: tuple[str, ...] = ("bin/ffmpeg",)
 UNSHIPPED_FFMPEG_TOOLS: tuple[str, ...] = ("bin/ffprobe",)
 
-# ADR-0031: the GGUF runner is a sibling executable shipped ONLY in the two
-# Windows-x64 configs. The stub generator emits its stubs for that triple plus
-# the documented local GNU mirror; macOS/Linux never see a dead stub.
-RUNNER_EXTERNAL_BIN: tuple[str, ...] = ("bin/transcribe-cli",)
-WINDOWS_X64_RUNNER_CONFIGS: set[str] = WINDOWS_X64_FFMPEG_CONFIGS
-
 
 def _resource_relevant(resource: str, platform: str, triples: set[str]) -> bool:
     """True if ``resource`` (from the base config) matters to the platform."""
@@ -618,8 +596,6 @@ class TestPerArchConfigsStayLockedToBase:
                 # The two Windows x64 configs declare the full set themselves
                 # (arrays REPLACE); the LGPL ffmpeg binary is the only delta.
                 expected = expected + list(FFMPEG_EXTERNAL_BIN)
-                if rel in WINDOWS_X64_RUNNER_CONFIGS and "bin/transcribe-cli" not in expected:
-                    expected = expected + list(RUNNER_EXTERNAL_BIN)
                 leaked = set(cfg_external_bin) & set(UNSHIPPED_FFMPEG_TOOLS)
                 assert not leaked, (
                     f"{rel} declares unshipped media tools {sorted(leaked)}: "

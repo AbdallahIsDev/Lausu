@@ -62,9 +62,9 @@ class _GgufModelAdapter:
         segments = [_DecodedSegment(seg.start, seg.end, seg.text) for seg in result.segments]
         if not segments and result.text:
             segments = [_DecodedSegment(0.0, len(audio) / 16000.0, result.text)]
-        language_used = language or ""
-        if language_used:
-            log.info("[GGUF] language=%s (configured; not detected)", language_used)
+        language_used = result.language or language or ""
+        if language and language_used == language:
+            log.info("[GGUF] language=%s (configured; not detected)", language)
         return segments, _DecodedInfo(language_used)
 
 
@@ -129,7 +129,7 @@ class GgufTranscriptionEngine:
             if self._model is not None:
                 return
             runner = GgufRunner(self.model_path)
-            _ = runner.executable  # resolve early; fail before a record starts
+            runner._loader()  # resolve + bind the DLL early; fail before a record starts
             self._model = _GgufModelAdapter(self, runner)
 
     def unload(self) -> None:

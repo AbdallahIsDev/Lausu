@@ -12,13 +12,22 @@
   "source_offer_url": "https://github.com/handy-computer/transcribe.cpp/tree/v0.4.2",
   "build_scripts_source_url": "https://github.com/handy-computer/transcribe.cpp/tree/v0.4.2/scripts",
   "upstream_repo_url": "https://github.com/handy-computer/transcribe.cpp",
-  "install_dir": "src-tauri/bin",
+  "install_dir": "src-tauri/resources/transcribe-cpp",
   "install_names": [
-    "transcribe-cli.exe",
     "transcribe.dll",
     "ggml.dll",
     "ggml-base.dll",
-    "ggml-vulkan.dll"
+    "ggml-vulkan.dll",
+    "ggml-cpu-x64.dll",
+    "ggml-cpu-sse42.dll",
+    "ggml-cpu-haswell.dll",
+    "ggml-cpu-sandybridge.dll",
+    "ggml-cpu-skylakex.dll",
+    "ggml-cpu-cascadelake.dll",
+    "ggml-cpu-cannonlake.dll",
+    "ggml-cpu-alderlake.dll",
+    "ggml-cpu-icelake.dll"
   ],
-  "retention_note": "Pinned to the immutable v0.4.2 GitHub release asset. Name, byte size and SHA-256 were read from the upstream release API (https://api.github.com/repos/handy-computer/transcribe.cpp/releases/latest) with Firecrawl on 2026-11-24; nothing is guessed. The CPU+Vulkan build is the only Windows artifact needed; the CUDA build is NOT shipped (ADR-0031 Windows CUDA support UNVERIFIED)."
+  "retention_note": "Pinned to the immutable v0.4.2 GitHub release asset. Name, byte size and SHA-256 were read from the upstream release API (https://api.github.com/repos/handy-computer/transcribe.cpp/releases/latest) with Firecrawl on 2026-11-24; nothing is guessed. The CPU+Vulkan build is the only Windows artifact needed; the CUDA build is NOT shipped (ADR-0031 Windows CUDA support UNVERIFIED).",
+  "note": "Windows v0.4.2 cpu+vulkan native bundle. DLLs only; no CLI executable. Verified by inspecting the pinned archive on 2026-11-24."
 }
