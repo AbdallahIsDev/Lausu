@@ -157,7 +157,7 @@ def test_ci_workflow_has_gate_status_block_with_9_runbook_checks(
     for keyword in (
         "externalBin",
         "handshake",
-        "faster-whisper",
+        "speech runner",
         "enigo",
         "libnotify",
         "shutdown",
