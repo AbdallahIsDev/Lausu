@@ -1133,3 +1133,34 @@ IPC validation and the download endpoint (`dev_model_not_allowed`, no network),
 and print `SELFCHECK: PASS no-dev-models`. The Windows bundle gate requires that
 marker and the pinned `resources/transcribe-cpp` native bundle. Source builds keep
 `tiny` available for development.
+
+
+---
+
+## PHASE 1 COMPLETION RESULT / HANDOFF (cloud, 2026-11-24, part 2)
+
+Done on `main`: `69dd1711a` (single GGUF registry + dev-only tiny enforced at
+catalogue, download endpoint, config migration, IPC validator, client UI, default
+selection, self-check marker and bundle gate), `04ef97c98` (runner ABI hash check),
+`39bccdfbb` (legacy faster-whisper / CTranslate2 / PyAV engine stack and tests
+removed; guard test added).
+
+Dev-only rule: `tiny` is a developer download-UI test model only. Production
+catalogue is exactly the five owner models. The sixth frozen marker
+`SELFCHECK: PASS no-dev-models` can only be proven by a real Windows build —
+UNVERIFIED until then.
+
+### Remaining (LOCAL agent / follow-up)
+
+- Real DLL run: point `TRANSCRIBE_LIBRARY` at the shipped native bundle, run
+  the wrapper against a real model, record timestamps/latency/WER; UNVERIFIED.
+- Frozen build: confirm `resources/transcribe-cpp` in the signed installer,
+  the sixth marker, both extraction-dir name scans, then flip
+  `ENFORCE_NO_GPL_DLLS=1` after a clean real build. UNVERIFIED.
+- GPU: Vulkan/CPU backend selection and Windows GPU path are UNVERIFIED;
+  current behavior offers CPU safely when the contract is unreadable.
+- Some historical product comments still mention the removed libraries; a
+  no-import guard test (tests/test_no_legacy_asr_imports.py) is green, but a
+  future cleanup should remove those comments from voice_typer/ and client/.
+- Old CT2/ONNX Whisper/Parakeet model folders on disk are NOT deleted here;
+  delete only after owner confirmation.
