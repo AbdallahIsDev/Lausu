@@ -47,7 +47,8 @@
     "targets": ["nsis", "msi"],
     "externalBin": [
       "bin/python-sidecar",
-      "bin/ffmpeg"
+      "bin/ffmpeg",
+      "bin/transcribe-cli"
     ],
     "resources": [
       "../docs/THIRD_PARTY_NOTICES.md",

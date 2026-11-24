@@ -187,7 +187,6 @@ jobs:
           C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location --no-deps -e ".[dev,test]"
           # Nuitka + helpers are not in the base lock; install them separately.
           C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location nuitka==2.8.10 zstandard ordered-set
-          C:\tools\pybs\python\python.exe -c "import faster_whisper, ctranslate2; print('ctranslate2', ctranslate2.__version__)"
 
       # PART-B-PIN-2: artifact evidence — exact interpreter + resolved deps.
       # Lets a reviewer diff freeze drift without re-running the 4 h job.
@@ -221,6 +220,16 @@ jobs:
           set -euo pipefail
           bash scripts/build/fetch_ffmpeg_lgpl_win64.sh
 
+      # ADR-0031: install the SHA-256-pinned transcribe.cpp runner beside the
+      # ffmpeg binary before any freeze/bundle step. The script verifies
+      # archive size + hash and exits non-zero on mismatch. No model is
+      # downloaded here; models are downloaded on first use by the app.
+      - name: Fetch + verify transcribe.cpp runner (win x64, SHA-256 pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/build/fetch_transcribe_cpp_win64.sh
+
       - name: Build the sidecar with Nuitka (ADR-0020 §4.2)
         shell: pwsh
         run: |
@@ -237,7 +246,6 @@ jobs:
           # Nuitka optimizer crashes on av's Cython .py shims
           # (assert micro_passes == 0, upstream issue 3970); each has a
           # .pyd twin Python prefers, so the helper deletes only those.
-          & $PYBS scripts/build/strip_av_cython_shims.py
           if ($LASTEXITCODE -ne 0) { Write-Error "av shim strip failed"; exit 1 }
           # Internal plugin source (developer-mode surface): staged as data,
           # never imported from the binary. The packaged app seeds a writable
@@ -247,7 +255,6 @@ jobs:
           & $PYBS scripts/build/stage_internal_plugins.py --output build/internal_plugins_bundle
           if ($LASTEXITCODE -ne 0) { Write-Error "internal plugin staging failed"; exit 1 }
           $pluginsDataFlag = "--include-data-dir=build/internal_plugins_bundle/tools/internal_plugins=tools/internal_plugins"
-          # ADR-0025 C7: ASR lives in the pack worker — the ctranslate2
           # DLL/data-dir plumbing below was deleted in the same change
           # (mirrors scripts/build/build_sidecar_windows.sh); the WORKER
           # build owns those flags now.
@@ -306,15 +313,12 @@ jobs:
               --nofollow-import-to=psutil._psbsd `
               --nofollow-import-to=psutil._pssunos `
               --nofollow-import-to=psutil._psaix `
-              --nofollow-import-to=faster_whisper `
-              --nofollow-import-to=ctranslate2 `
               --nofollow-import-to=torch `
               --include-package=voice_typer `
               --include-package=websockets `
               --include-package=Crypto `
               --include-package=yt_dlp `
               --include-package=yt_dlp_ejs `
-              --include-package=av `
               --include-package-data=yt_dlp `
               --include-package-data=voice_typer.server `
               --include-data-file="$SITE/pyrnnoise/rnnoise.dll=rnnoise.dll" `
@@ -478,7 +482,6 @@ jobs:
           C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location --no-deps -e ".[dev,test]"
           # Nuitka + helpers are not in the base lock; install them separately.
           C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location nuitka==2.8.10 zstandard ordered-set
-          C:\tools\pybs\python\python.exe -c "import faster_whisper, ctranslate2; print('ctranslate2', ctranslate2.__version__)"
 
       # PART-B-PIN-2: artifact evidence — exact interpreter + resolved deps.
       - name: Record PYBS version + pip freeze (freeze env evidence)
@@ -508,6 +511,16 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/build/fetch_ffmpeg_lgpl_win64.sh
+
+      # ADR-0031: install the SHA-256-pinned transcribe.cpp runner beside the
+      # ffmpeg binary before any freeze/bundle step. The script verifies
+      # archive size + hash and exits non-zero on mismatch. No model is
+      # downloaded here; models are downloaded on first use by the app.
+      - name: Fetch + verify transcribe.cpp runner (win x64, SHA-256 pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/build/fetch_transcribe_cpp_win64.sh
 
       # plan-runtime-pack-split.md §4.4 / §11.5 — Worker exe build.
       # FV-58: PYBS extracts to C:\tools\pybs\python\python.exe; the script
@@ -764,7 +777,6 @@ jobs:
             -q --no-cov
 
       # ADR-0024 Step 7 slim-core ML-import ratchet: the slim core must not
-      # GROW its faster_whisper / ctranslate2 import footprint (they are the
       # worker's, not the slim core's). onnxruntime is intentionally NOT
       # counted — VAD + the GTCRN filter stay in the slim core on the real-time
       # audio path (ADR-0024 Step-7 ownership decision, plan §5.3). Pure
@@ -812,6 +824,16 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/build/fetch_ffmpeg_lgpl_win64.sh
+
+      # ADR-0031: install the SHA-256-pinned transcribe.cpp runner beside the
+      # ffmpeg binary before any freeze/bundle step. The script verifies
+      # archive size + hash and exits non-zero on mismatch. No model is
+      # downloaded here; models are downloaded on first use by the app.
+      - name: Fetch + verify transcribe.cpp runner (win x64, SHA-256 pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/build/fetch_transcribe_cpp_win64.sh
 
       - name: Build the Tauri app (ADR-0020 §7)
         shell: pwsh

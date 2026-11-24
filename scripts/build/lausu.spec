@@ -218,9 +218,6 @@ _hiddenimports = [
     # do the same defensively (even though static analysis often discovers
     # faster_whisper via ipc_server.py imports, listing it explicitly is the
     # safe choice: see test_pyinstaller_fallback.py GAP-1).
-    "faster_whisper",
-    "faster_whisper.transcribe",
-    "ctranslate2",
     "tokenizers",
     "huggingface_hub",
     # At-rest history encryption uses PyCryptodome AES-GCM. Its raw AES

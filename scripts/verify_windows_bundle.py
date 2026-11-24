@@ -60,7 +60,9 @@ GPL_DLL_GLOBS = ("avcodec*.dll", "libx264*.dll", "libx265*.dll")
 ONEFILE_SPEC_RE = re.compile(r"--onefile-tempdir-spec=[\"']([^\"'\n]+)[\"']")
 PRODUCT_NAME_RE = re.compile(r"--product-name=[\"']?([^\"'\s]+)")
 ONEFILE_EXTRACT_DIR_ENV = "LAUSU_ONEFILE_EXTRACT_DIR"
+WORKER_ONEFILE_EXTRACT_DIR_ENV = "LAUSU_WORKER_ONEFILE_EXTRACT_DIR"
 FREEZE_SCRIPT = REPO_ROOT / "scripts" / "build" / "build_sidecar_windows.sh"
+WORKER_FREEZE_SCRIPT = REPO_ROOT / "scripts" / "build" / "build_worker_windows.sh"
 
 
 class ExtractionHit(NamedTuple):
@@ -278,11 +280,14 @@ def expand_onefile_cache_spec(spec: str, cache_dir: str, product: str | None = N
     return Path(cache_dir) / suffix
 
 
-def onefile_extraction_dir(explicit: str | None = None) -> Path | None:
+def onefile_extraction_dir(
+    explicit: str | None = None,
+    script: Path | None = None,
+) -> Path | None:
     """Resolve the extraction dir left on disk after the frozen self-check."""
     if explicit:
         return Path(explicit).expanduser()
-    spec = pinned_onefile_tempdir_spec()
+    spec = pinned_onefile_tempdir_spec(script)
     if spec is None:
         return None
     if os.name == "nt":
@@ -291,7 +296,7 @@ def onefile_extraction_dir(explicit: str | None = None) -> Path | None:
         cache = str(Path.home() / "Library" / "Caches")
     else:
         cache = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    product = freeze_product_name()
+    product = freeze_product_name(script)
     if "{VERSION}" in spec:
         root = expand_onefile_cache_spec(spec.split("/{VERSION}/")[0], cache, product)
         if root is None or not root.is_dir():
@@ -304,6 +309,11 @@ def onefile_extraction_dir(explicit: str | None = None) -> Path | None:
         )
         return candidates[-1] if candidates else None
     return expand_onefile_cache_spec(spec, cache, product)
+
+
+def worker_onefile_extraction_dir(explicit: str | None = None) -> Path | None:
+    """Resolve the worker onefile extraction dir (LausuWorker product)."""
+    return onefile_extraction_dir(explicit, WORKER_FREEZE_SCRIPT)
 
 
 def extraction_dll_scan(root: Path) -> tuple[list[ExtractionHit], list[ExtractionHit]]:
@@ -329,7 +339,13 @@ def extraction_dll_scan(root: Path) -> tuple[list[ExtractionHit], list[Extractio
     return gpl, av_libs
 
 
-def gpl_gate(sidecar: Path, target: str, enforce: str, extraction_dir: Path | None = None) -> list[str]:
+def gpl_gate(
+    sidecar: Path,
+    target: str,
+    enforce: str,
+    extraction_dir: Path | None = None,
+    worker_extraction_dir: Path | None = None,
+) -> list[str]:
     """Name scan of the onefile payload is authoritative; byte scan is not."""
     worker = REPO_ROOT / "src-tauri" / "bin" / f"lausu-worker-{target}.exe"
     loose = _find_files(_bundle_roots(target), lambda p: p.suffix.lower() == ".dll")
@@ -340,6 +356,11 @@ def gpl_gate(sidecar: Path, target: str, enforce: str, extraction_dir: Path | No
             f"or set {ONEFILE_EXTRACT_DIR_ENV} to the pinned cached extraction dir"
         )
     gpl_hits, av_hits = extraction_dll_scan(extraction_dir)
+    worker_hits: list[ExtractionHit] = []
+    worker_dir = worker_extraction_dir
+    if worker_dir is not None and worker_dir.is_dir():
+        worker_hits, _ = extraction_dll_scan(worker_dir)
+    gpl_hits += worker_hits
     enforce_on = enforce.strip() == "1"
     has_files = extraction_dir.is_dir() and any(path.is_file() for path in extraction_dir.rglob("*"))
     reason = ""
@@ -381,6 +402,19 @@ def gpl_gate(sidecar: Path, target: str, enforce: str, extraction_dir: Path | No
         lines += [f"| `{hit.path}` |" for hit in av_hits]
     else:
         lines.append("No DLLs under av.libs.")
+    lines += [
+        "",
+        f"worker onefile extraction-dir name scan (root: {worker_dir})",
+        "",
+    ]
+    if worker_dir is not None and worker_dir.is_dir():
+        if worker_hits:
+            lines += ["| DLL | matched |", "| --- | --- |"]
+            lines += [f"| `{hit.path.name}` | `{hit.reason}` |" for hit in worker_hits]
+        else:
+            lines.append("No GPL-named DLLs found in the worker extraction dir.")
+    else:
+        lines.append("Worker extraction dir not available; worker onefile is byte-scanned only.")
     lines.append("")
     sightings = bool(rows or gpl_hits)
     if not has_files:
@@ -399,7 +433,8 @@ def gpl_gate(sidecar: Path, target: str, enforce: str, extraction_dir: Path | No
     print("\n".join(lines), flush=True)
     return [
         f"GPL DLL scan: {len(rows)} exe-string token(s), {len(gpl_hits)} "
-        f"extraction-name hit(s), {len(av_hits)} av.libs DLL(s), enforce={enforce!r}"
+        f"extraction-name hit(s) ({len(worker_hits)} in worker), "
+        f"{len(av_hits)} av.libs DLL(s), enforce={enforce!r}"
     ]
 
 
@@ -463,6 +498,14 @@ def self_test() -> int:
         gpl_hits, av_hits = extraction_dll_scan(root)
         assert {hit.path.name for hit in gpl_hits} == {"avcodec-62-xxxx.dll", "libx264-165-xxxx.dll"}, gpl_hits
         assert {hit.path.name for hit in av_hits} == {"avutil-59.dll"}, av_hits
+        # Worker onefile has its own product/extraction dir; the same name
+        # scan must catch a GPL DLL there (byte scan alone is blind).
+        assert freeze_product_name(WORKER_FREEZE_SCRIPT) == "LausuWorker"
+        worker_root = Path(tmp) / "worker-onefile-tmp"
+        worker_root.mkdir()
+        (worker_root / "libx265-7e74-xxxx.dll").write_bytes(b"")
+        worker_hits, _ = extraction_dll_scan(worker_root)
+        assert {hit.path.name for hit in worker_hits} == {"libx265-7e74-xxxx.dll"}, worker_hits
     with tempfile.TemporaryDirectory() as tmp:
         assert extraction_dll_scan(Path(tmp)) == ([], [])
         # An empty/missing extraction dir is never reported as "clean".
@@ -495,6 +538,14 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             f"Override the Nuitka onefile extraction dir (env: {ONEFILE_EXTRACT_DIR_ENV}). "
             "Default: derive from the pinned --onefile-tempdir-spec."
+        ),
+    )
+    parser.add_argument(
+        "--worker-onefile-extract-dir",
+        default=os.environ.get(WORKER_ONEFILE_EXTRACT_DIR_ENV),
+        help=(
+            f"Override the worker onefile extraction dir (env: {WORKER_ONEFILE_EXTRACT_DIR_ENV}). "
+            "Default: derive from the worker freeze script's pinned tempdir spec."
         ),
     )
     parser.add_argument("--self-test", action="store_true", help="run pure logic checks only")
@@ -531,7 +582,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     collect(
         "GPL DLL scan",
-        lambda: gpl_gate(sidecar, args.target, args.enforce_no_gpl_dlls, extraction_dir),
+        lambda: gpl_gate(
+            sidecar,
+            args.target,
+            args.enforce_no_gpl_dlls,
+            extraction_dir,
+            worker_onefile_extraction_dir(args.worker_onefile_extract_dir),
+        ),
     )
     if args.summary is not None:
         collect(

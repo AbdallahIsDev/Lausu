@@ -21,8 +21,6 @@
 # ADR-0020 §4.3 mandates:
 #   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin
 #   - --standalone --onefile
-#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2
-#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir
 #     copies below were deleted in the same change, the WORKER build owns
 #     them now)
 #   - --include-package=voice_typer --include-package=websockets
@@ -42,7 +40,6 @@
 #     `build_native_listener_macos.sh`. Ad-hoc signing lets the parent
 #     `.app` re-sign --deep during the Tauri bundle step.
 #
-# (C7: the slim sidecar excludes ctranslate2; the note about its wheel
 # layout that lived here moved to the WORKER build, which still bundles it.)
 # =============================================================================
 set -euo pipefail
@@ -116,7 +113,6 @@ echo "[build_sidecar_macos] SITE=$SITE"
 # Nuitka optimizer crashes on av's Cython .py shims
 # (assert micro_passes == 0, upstream issue 3970); each has a
 # precompiled twin Python prefers, so the helper deletes only those.
-"$PY" "$PROJECT_ROOT/scripts/build/strip_av_cython_shims.py" \
     || { echo "ERROR: av shim strip failed" >&2; exit 1; }
 
 # ─── Prepare output dir ──────────────────────────────────────────────────────
@@ -163,8 +159,6 @@ NUITKA_ARGS=(
     # onnxruntime's guarded probe import drags torch into Nuitka, which
     # crashes on torch 2.13 (full story in build_sidecar_windows.sh).
     --nofollow-import-to=transformers
-    --nofollow-import-to=faster_whisper
-    --nofollow-import-to=ctranslate2
     --nofollow-import-to=torch
     --include-package=voice_typer
     --include-package=websockets
@@ -174,7 +168,6 @@ NUITKA_ARGS=(
     # av (decoder.py, downloader.py, subtitles.py, mini_update.py).
     --include-package=yt_dlp
     --include-package=yt_dlp_ejs
-    --include-package=av
     --include-package-data=yt_dlp
     --include-package-data=voice_typer.server
     # Native RNNoise: loaded via ctypes from a path, never via pyrnnoise's

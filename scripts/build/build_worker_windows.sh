@@ -184,7 +184,6 @@ echo "[build_worker_windows] nuitka=$NUITKA_VER"
 # Nuitka optimizer crashes on av's Cython .py shims
 # (assert micro_passes == 0, upstream issue 3970); voice_typer follows
 # av lazily, so the worker needs the same strip as the sidecar.
-"$PY" "$PROJECT_ROOT/scripts/build/strip_av_cython_shims.py" \
     || { echo "ERROR: av shim strip failed" >&2; exit 1; }
 
 # ─── Prepare output dir ──────────────────────────────────────────────────────

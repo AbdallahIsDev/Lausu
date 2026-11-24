@@ -80,6 +80,7 @@ def test_missing_av_dir_returns_zero(tmp_path: Path):
         "scripts/build/build_worker_windows.sh",
     ],
 )
-def test_build_entries_invoke_shim_strip(entry: str):
+def test_build_entries_do_not_invoke_shim_strip(entry: str):
+    # ADR-0031: PyAV is gone, so the Cython-shim workaround must be gone too.
     text = (PROJECT_ROOT / entry).read_text(encoding="utf-8")
-    assert "strip_av_cython_shims" in text, f"{entry} must strip av shims pre-Nuitka"
+    assert "strip_av_cython_shims" not in text, f"{entry} must not strip av shims (PyAV removed)"

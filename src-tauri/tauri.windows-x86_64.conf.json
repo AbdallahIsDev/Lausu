@@ -48,7 +48,8 @@
     "externalBin": [
       "bin/python-sidecar",
       "bin/lausu-worker",
-      "bin/ffmpeg"
+      "bin/ffmpeg",
+      "bin/transcribe-cli"
     ],
     "resources": [
       "../docs/THIRD_PARTY_NOTICES.md",

@@ -1905,3 +1905,72 @@ Tests: new node:test tab-resolution suite + control-plane /ensure-tab/hasTab cas
 Live scenarios A-G NOT executed: extension service-worker changes require an owner reload at chrome://extensions (verifier confirms registration + files synced), and the plugin profile exposes no CDP port for automation.
 
 New rule: C-PLUGIN-3 (transport readiness is not resource readiness) added and announced.
+
+
+## 2026-11-24 - stop retry for a reloading target tab
+
+Live log: cycle #9 stop failed with `BridgeError: the target tab is still loading` (page-not-ready) 0.0s after start. Root cause: `control_plane.js` treated a transient page-not-ready as fatal and called `relay.setRecording(false)` immediately, so no retry could work and a 409 awaited any later attempt. A start that clicked "New chat" re-injects the content script; the stop landed during that reload.
+
+Fix: `control_plane.js` `stopRequest()` retries page-not-ready up to twice (400ms, 1000ms) while keeping `relay.recording` true; genuine failures still clear it and return the usual envelope. `relay.wait` is a test seam. New node:test case pins the retry. 31/31 focused bridge node tests green.
+
+Note: the running Node daemon must be restarted (plugin switch or app restart) to pick up control_plane.js.
+
+
+## 2026-11-24 - extension reload froze the plugin (daemon liveness)
+
+Live evidence: after the owner clicked Reload in chrome://extensions, cycles #12/#13 each blocked ~82 s in ensure_daemon, then failed "the bridge did not come up"; daemon.err.log showed repeated EADDRINUSE on 127.0.0.1:17875. Root cause: GET /status waits on the tab, which became slow when the extension reload broke content-script ports in already-open tabs. Python's 1.5 s alive() probe classified the live-but-slow daemon as dead and spawned doomed second daemons, then burned 40 x (1.5+0.5) s.
+
+Fix: DaemonClient.alive() uses a 6 s timeout; DaemonClient.listening() is a transport-only loopback probe; ensure_daemon takes listening_fn and NEVER spawns when the port is already owned (a listening-but-slow daemon gets 3 short polls then an honest error). Both plugin entry modules pass _CLIENT.listening. Also stopped logging "bridge ready" when the daemon actually failed.
+
+Tests: new tests/plugins/test_plugin_daemon_liveness.py (4 cases); shared_bridge_contract spawn test patches listening to False; 102 scoped plugin tests green; ruff clean.
+
+Recovery after an extension reload still requires reloading the existing platform tab so the new content script injects (Chrome does not re-inject into open tabs). App restart loads the Python fix.
+
+
+## 2026-11-24 - shared dictation profile renamed (was google-stt-profile)
+
+Owner asked to drop the Google-only name from the shared browser profile. Renamed to `voice-typer-internal-plugins/dictation-profile` in install.json (with legacyProfileRelativePath kept as the migration source), both config.example.json files, setup PS1 fallbacks, verify_profile_launch.py, README, design note, plan doc, tests and node test fixtures.
+
+Safe migration: install_paths.py / install_paths.js expose legacy_profile_dir(), targetProfileDir(), profile_dir() (effective) and migrate_profile() — an atomic same-volume rename that never copies/deletes and fails cleanly while Chrome holds the folder. run.js calls migrateProfile() on daemon boot before config load; config_store.normalize now takes profileDir from the install authority instead of a stale per-plugin snapshot. Legacy name remains only in install.json, docs, backup blocklist and .gitignore.
+
+Owner-approved move executed: confirmed no plugin-profile Chrome processes remained, moved google-stt-profile -> dictation-profile, verified Default/Secure Preferences present, updated both runtime config.json profileDir values, re-synced the extension and regenerated config; verify_extension_install.py reports install healthy and registration intact.
+
+Tests: new tests/plugins/test_profile_rename.py + node test/install_paths.test.js pin effective path, preservation, idempotence; tests/plugins + packaging 164 passed; node bridge suite 70/71 (1 pre-existing stale config_store.test.js:80 manifest.settings pin); ruff clean.
+
+
+## 2026-11-24 - stale daemon launched the legacy profile after the rename
+
+Owner report: on Anthropic the hotkey opened a BRAND-NEW Chrome profile asking for sign-in; switching to Google used the real migrated profile. Evidence: both google-stt-profile (recreated 00:53) and dictation-profile (00:55) existed; every current plugin chrome.exe pointed at dictation-profile. Root cause: the Anthropic Node daemon started before the rename held the old profileDir in memory, so launch_profile_if_due() spawned Chrome at the now-vacant legacy path and Chrome created an empty profile there. The Google daemon had been restarted and read the updated config.json.
+
+Fix: session.launch_profile_if_due() treats a configured path equal to legacy_profile_dir() as stale and substitutes the authoritative authoritative profile_dir() from install.json at call time (new test in test_profile_rename.py). 52 scoped plugin tests green, ruff clean.
+
+The stray legacy folder (~104 MB, fresh history, no migrated credentials) was left in place deliberately: it may contain sign-in data from the bad launch, so deleting it is the owner's call. It is inert now that launch never targets that path.
+
+
+## 2026-11-24 - closing the profile mid-capture: clean abort + immediate relaunch
+
+Owner log: closing the dictation Chrome profile mid-recording made the platform watchdog see state=no-page, then POST /stop into a dead browser -> 409 not-recording + traceback; the next hotkey waited out the 30 s launch cooldown and failed after 15 s before a third press relaunched.
+
+Fix (shared session.py + both plugin entry modules):
+- _watch_platform now treats browser=disconnected / state=no-page as a closed window: marks cycle inactive, stops meter, restores ducked volume, publishes idle, logs one WARN with captured duration, and notifies plain copy. It never POSTs /stop when there is no page to answer it.
+- launch_profile_if_due takes bypass_fn; each plugin supplies _profile_missing(), which checks resolve_browser_pids(profile_dir()) on Windows. A profile the user actually closed is relaunched immediately; the cooldown still bounds repeat launches against a browser that is running.
+
+Tests: new tests/plugins/test_plugin_relaunch.py (3 cases: no /stop on closed browser, volume restored, cooldown bypass only when process gone). 168 plugin/packaging tests green; ruff clean.
+
+
+## 2026-11-24 - browser disconnect during the start handshake
+
+Owner log: reopened the profile with the hotkey, closed it again immediately while /start was in flight, got BridgeError "the browser extension disconnected" with a traceback. Owner chose that a close AFTER recording has started stays an abort+notify (audio lives in the browser and cannot be resumed), but a close during the start handshake should recover.
+
+Fix: session._start() wraps ensure_browser -> /ensure-tab -> /start in a bounded two-attempt loop. On browser-not-open/browser-closed/wrong-platform or "extension disconnected" it logs one WARN, pauses 0.4s, re-resolves the browser (cooldown bypass applies when the process is gone) and retries once. Exhausted retries keep the existing single-line failure report. FakeMeter in the new test stops cleanly; the cooldown test now pins _profile_missing=False to model a running browser.
+
+Tests: tests/plugins/test_plugin_relaunch.py::TestStartAfterBrowserDisconnect; 169 plugin/packaging tests green; ruff clean.
+
+## 2026-11-24 — Phase 1 GGUF ASR migration (cloud)
+
+- Implemented runner abstraction, GGUF registry/download, pinned runner manifest/fetch/CI,
+  family wiring, GPL-stack removal and worker gate coverage on `phase1/gguf-asr`.
+- `AGENTS.md` conflict found: ADR step 7 flips `ENFORCE_NO_GPL_DLLS=1`, prompt forbids it.
+  Owner decided 2026-11-24: prompt governs; flip deferred to the LOCAL agent.
+- Scoped pytest green for all touched modules; full suite not run in this session.
+- No model, GPU, CUDA file or large artifact downloaded; nothing merged.

@@ -80,9 +80,10 @@ def test_inline_sidecar_matches_freeze_script_on_critical_flags() -> None:
     assert re.search(rnnoise, script), f"--include-data-file (rnnoise.dll) missing from {SIDECAR_SCRIPT}"
     assert re.search(rnnoise, inline), "--include-data-file (rnnoise.dll) missing from inline sidecar freeze"
 
-    for package in ("av", "Crypto"):
-        assert package in _includes(script), f"--include-package={package} missing from sidecar script"
-        assert package in _includes(inline), f"--include-package={package} missing from inline sidecar freeze"
+    assert "Crypto" in _includes(script), "--include-package=Crypto missing from sidecar script"
+    assert "Crypto" in _includes(inline), "--include-package=Crypto missing from inline sidecar freeze"
+    assert "av" not in _includes(script), "PyAV must stay out of the sidecar (GPL DLLs)"
+    assert "av" not in _includes(inline), "PyAV must stay out of the inline sidecar freeze"
 
     # SITE must be a real site-packages path; CI logs prove the PowerShell
     # expression resolves it, and the data-file flag expands it in-pipeline.
@@ -106,9 +107,10 @@ def test_ffmpeg_fetch_is_present_for_both_freeze_paths() -> None:
     workflow_text = WORKFLOW.read_text(encoding="utf-8")
     assert "fetch_ffmpeg_lgpl_win64.sh" in workflow_text, "LGPL ffmpeg fetch step missing"
     assert "Fetch + verify LGPL ffmpeg" in workflow_text, "LGPL ffmpeg fetch label missing"
-    assert "av" in _includes(_step("Build the sidecar with Nuitka")), (
-        "--include-package=av (FFmpeg DLL carrier) missing from inline sidecar freeze"
+    assert "av" not in _includes(_step("Build the sidecar with Nuitka")), (
+        "--include-package=av must be gone: the pinned LGPL ffmpeg carries no GPL DLLs"
     )
+    assert "fetch_transcribe_cpp_win64.sh" in workflow_text, "GGUF runner fetch step missing"
 
 
 def test_gate_resolves_newest_versioned_extraction_dir_without_build_stamp(

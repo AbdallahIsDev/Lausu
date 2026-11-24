@@ -223,6 +223,9 @@ SIDECAR_BASENAME = "python-sidecar"
 # plan-runtime-pack-split §4.4). Same triple set as the sidecar.
 WORKER_BASENAME = "lausu-worker"
 
+# externalBin base name for the transcribe.cpp sibling ASR runner.
+RUNNER_BASENAME = "transcribe-cli"
+
 # bundle.resources, native hotkey binaries
 NATIVE_RESOURCES: list[tuple[str, str]] = [
     ("resources/native/windows-key-listener.exe", "windows"),
@@ -636,6 +639,10 @@ _EXTERNAL_BIN_STUBS: tuple[tuple[str, str], ...] = (
     ("worker", WORKER_BASENAME),
 )
 
+# The GGUF runner ships only in the two Windows-x64 configs (full + slim).
+# Emitting stubs for macOS/Linux would bundle a dead 100-byte stub there.
+RUNNER_STUB_TRIPLES: set[str] = {"x86_64-pc-windows-msvc"} | set(LOCAL_DEV_TRIPLES)
+
 # Slim-core installer set (SP-1): the slim per-arch ``-slim.conf.json``
 # files declare sidecar-only ``externalBin`` (no worker; the worker ships
 # in the separately-downloaded runtime pack). Single source of truth for
@@ -680,6 +687,18 @@ def _all_stub_specs() -> list[tuple[Path, str, str]]:
     return _slim_stub_specs() + _worker_stub_specs()
 
 
+def _runner_stub_specs() -> list[tuple[Path, str, str]]:
+    """Windows-x64 transcribe.cpp runner stubs (plus the local GNU mirror)."""
+    return [
+        (
+            SRC_TAURI / "bin" / f"{RUNNER_BASENAME}-{triple}.exe",
+            "windows",
+            "runner",
+        )
+        for triple in sorted(RUNNER_STUB_TRIPLES)
+    ]
+
+
 def _slim_stub_specs() -> list[tuple[Path, str, str]]:
     """``(path, platform, kind)`` for the slim-core set: sidecar + native, no worker.
 
@@ -697,6 +716,7 @@ def _slim_stub_specs() -> list[tuple[Path, str, str]]:
         for path, platform, kind in _local_dev_stub_specs()
         if kind in {k for k, _ in SLIM_EXTERNAL_BIN_STUBS}
     )
+    specs.extend(_runner_stub_specs())
     for rel, platform in NATIVE_RESOURCES:
         specs.append((SRC_TAURI / rel, platform, "native"))
     return specs
