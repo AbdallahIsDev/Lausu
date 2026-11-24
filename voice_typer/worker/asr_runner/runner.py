@@ -253,7 +253,7 @@ class GgufRunner:
                 lib.transcribe_run_params_init(ctypes.byref(run_params))
                 language_bytes = (language or "").encode("utf-8") or None
                 run_params.language = language_bytes
-                box: list[object] = []
+                box: list[int | BaseException] = []
 
                 def _run() -> None:
                     try:
@@ -279,10 +279,11 @@ class GgufRunner:
                     raise RunnerError("Speech recognition took too long and was stopped.")
                 if not box:
                     raise RunnerError("Speech recognition stopped unexpectedly.")
-                if isinstance(box[0], BaseException):
-                    log.error("[GGUF] native run raised: %r", box[0])
-                    raise RunnerError("Speech recognition stopped unexpectedly.") from box[0]
-                status = box[0]
+                outcome = box[0]
+                if isinstance(outcome, BaseException):
+                    log.error("[GGUF] native run raised: %r", outcome)
+                    raise RunnerError("Speech recognition stopped unexpectedly.") from outcome
+                status = int(outcome)
                 partial = status in (ERR_OUTPUT_TRUNCATED, ERR_OUTPUT_REPETITION)
                 if partial:
                     log.warning("[GGUF] partial decode: status=%d", status)
