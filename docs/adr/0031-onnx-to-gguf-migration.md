@@ -1164,3 +1164,36 @@ UNVERIFIED until then.
   future cleanup should remove those comments from voice_typer/ and client/.
 - Old CT2/ONNX Whisper/Parakeet model folders on disk are NOT deleted here;
   delete only after owner confirmation.
+
+
+---
+
+## PHASE 1 FINAL STATE (cloud, 2026-11-24, part 3)
+
+Done: language hint via `transcribe_run_params.language`; partial/truncated status
+(`ERR_OUTPUT_TRUNCATED`, `ERR_OUTPUT_REPETITION`) flag on the result and
+`engine.last_partial`; native timeout now the same 120 s constant as the caller;
+ABI struct-size checks against `transcribe_abi_struct_size()`; leaked-session
+bound of 2. Commit `f24fd6259`.
+
+REAL RUN (owner's existing spike files, no downloads): model SHA-256 matched the
+registry (`007a5976…a0a59`); `contract.json` version 0.4.2 / header hash
+`f99ad4169374b8f3` accepted. 480.49 s WAV: CPU 33.21 s, 18 segments, timestamps
+0.00–480.48; Vulkan 8.24 s then 8.05 s warm, 18 segments, same timestamps.
+Short JFK WAV: "And so, my fellow Americans, ask not what your country can do
+for you…". No partial flag fired. These are sanity results, not WER claims.
+
+### UNVERIFIED / LOCAL AGENT
+
+- Four remaining models are not on disk: NOT RUN. Download with hash verification
+  (~4.4 GB total), run the wrapper on each.
+- Cancel-mid-run against the real DLL, corrupt model/DLL error paths, frozen
+  bundle layout with `resources/transcribe-cpp`, sixth self-check marker, and
+  flipping `ENFORCE_NO_GPL_DLLS=1` all need a real Windows build.
+- Full pytest suite result was not confirmed in this session (background runs
+  were killed by the 120 s harness limit); do not claim green without it.
+- Peak RSS numbers from the local harness were sampled after session free and
+  are not comparable with the spike's in-process peaks.
+- Old CT2/ONNX Whisper/Parakeet model folders are NOT deleted; delete only after
+  owner confirmation. Then smoke-test dictation, media, CPU/Vulkan, installer
+  layout with 7-Zip, and flip the gate after a clean real build.

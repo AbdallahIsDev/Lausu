@@ -59,6 +59,9 @@ class _GgufModelAdapter:
         if language in ("", "auto"):
             language = None
         result = self._runner.transcribe(audio, language=language, abort_event=self._engine._abort_event)
+        self._engine.last_partial = result.partial
+        if result.partial:
+            log.warning("[GGUF] partial transcript (decode stopped early); do not treat as complete")
         segments = [_DecodedSegment(seg.start, seg.end, seg.text) for seg in result.segments]
         if not segments and result.text:
             segments = [_DecodedSegment(0.0, len(audio) / 16000.0, result.text)]
@@ -105,6 +108,7 @@ class GgufTranscriptionEngine:
         self._abort_event = threading.Event()
         self.last_quality_summary: dict[str, float] | None = None
         self.last_rejection_reason: str | None = None
+        self.last_partial: bool = False
 
     @property
     def is_loaded(self) -> bool:
