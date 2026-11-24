@@ -708,11 +708,17 @@ describe("Models page, cloud consent toggles", () => {
 	): Promise<void> {
 		const { switchToCloudTab = true } = options;
 		mockCall.mockImplementation((type: string) => {
-			if (type === "get_config") return Promise.resolve(makeConfig(config));
+			// A production model is active: tiny is dev-only and is never
+			// listed by the server catalogue or the renderer fallback list.
+			const pageConfig = {
+				...makeConfig(config),
+				model_size: "large-v3-turbo" as const,
+			};
+			if (type === "get_config") return Promise.resolve(pageConfig);
 			if (type === "get_model_status") return Promise.resolve({});
 			if (type === "get_model_catalog") return Promise.resolve({ models: [] });
 			if (type === "set_config") return Promise.resolve({ success: true });
-			return Promise.resolve(makeConfig(config));
+			return Promise.resolve(pageConfig);
 		});
 
 		renderWithProviders(
@@ -924,11 +930,11 @@ describe("Models page, cloud consent toggles", () => {
 			}),
 		).toBeNull();
 
-		// Click Download on a HuggingFace-downloading model (tiny; the
-		// whisper family accordion is open by default because tiny is
-		// the active model).
+		// Click Download on a HuggingFace-downloading model (large-v3; the
+		// whisper family accordion is open by default because the active
+		// model is large-v3-turbo).
 		const downloadButton = screen.getByRole("button", {
-			name: /download tiny/i,
+			name: /^download large-v3$/i,
 		});
 		fireEvent.click(downloadButton);
 
@@ -941,7 +947,7 @@ describe("Models page, cloud consent toggles", () => {
 			expect(req?.bodyKey).toBe("consentDialog.field.huggingface_consent");
 		});
 		expect(mockCall).not.toHaveBeenCalledWith("download_model", {
-			model: "tiny",
+			model: "large-v3",
 		});
 		expect(stable.showSnack).not.toHaveBeenCalledWith(
 			expect.stringMatching(/hugging face download consent is required/i),
@@ -959,7 +965,7 @@ describe("Models page, cloud consent toggles", () => {
 		});
 		await waitFor(() => {
 			expect(mockCall).toHaveBeenCalledWith("download_model", {
-				model: "tiny",
+				model: "large-v3",
 			});
 		});
 	});
@@ -971,10 +977,12 @@ describe("Models page, cloud consent toggles", () => {
 			{ huggingface_consent: true },
 			{ switchToCloudTab: false },
 		);
-		fireEvent.click(screen.getByRole("button", { name: /download tiny/i }));
+		fireEvent.click(
+			screen.getByRole("button", { name: /^download large-v3$/i }),
+		);
 		await waitFor(() => {
 			expect(mockCall).toHaveBeenCalledWith("download_model", {
-				model: "tiny",
+				model: "large-v3",
 			});
 		});
 		expect(useConsentGateStore.getState().request).toBeNull();
@@ -986,7 +994,9 @@ describe("Models page, cloud consent toggles", () => {
 			{ huggingface_consent: false },
 			{ switchToCloudTab: false },
 		);
-		fireEvent.click(screen.getByRole("button", { name: /download tiny/i }));
+		fireEvent.click(
+			screen.getByRole("button", { name: /^download large-v3$/i }),
+		);
 		await waitFor(() => {
 			expect(useConsentGateStore.getState().request).not.toBeNull();
 		});
@@ -996,7 +1006,7 @@ describe("Models page, cloud consent toggles", () => {
 		});
 		expect(useConsentGateStore.getState().request).toBeNull();
 		expect(mockCall).not.toHaveBeenCalledWith("download_model", {
-			model: "tiny",
+			model: "large-v3",
 		});
 	});
 

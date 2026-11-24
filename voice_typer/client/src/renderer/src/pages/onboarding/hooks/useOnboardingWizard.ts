@@ -724,7 +724,11 @@ function mergeModelOptions(
 		const m = normalizeCatalogEntry(raw);
 		if (m) byName.set(m.name, m);
 	}
+	// When the server answered, its catalogue is authoritative: a frozen
+	// build omits dev-only models, so the curated fallback must not
+	// reintroduce one. An empty catalog keeps the curated fallback.
 	for (const m of curated) {
+		if (catalog.length > 0 && !byName.has(m.name)) continue;
 		const existing = byName.get(m.name);
 		byName.set(m.name, existing ? { ...existing, ...m } : m);
 	}

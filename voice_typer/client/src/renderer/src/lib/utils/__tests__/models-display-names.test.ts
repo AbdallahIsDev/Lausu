@@ -111,17 +111,19 @@ describe("getModelVariantDisplayName, family prefix + display_name priority", ()
 		}
 	});
 
-	it("mirrors the backend registry display names (catalogue ↔ model_registry.py)", () => {
+	it("mirrors the backend registry display names (catalogue ↔ gguf_model_registry.py)", () => {
 		const source = readFileSync(
-			resolve(process.cwd(), "../../voice_typer/server/model_registry.py"),
+			resolve(process.cwd(), "../../voice_typer/server/gguf_model_registry.py"),
 			"utf-8",
 		);
 		for (const name of ["qwen3-1.7b", "qwen3-0.6b"]) {
-			const block = new RegExp(
-				`"${name}": ModelMetadata\\(([\\s\\S]*?)\\n    \\),`,
-			).exec(source);
-			expect(block, `${name} entry in model_registry.py`).not.toBeNull();
-			const registryName = /display_name="([^"]+)"/.exec(block?.[1] ?? "")?.[1];
+			const start = source.indexOf(`name="${name}"`);
+			expect(start, `${name} entry in gguf_model_registry.py`).toBeGreaterThan(
+				-1,
+			);
+			const registryName = /display_name="([^"]+)"/.exec(
+				source.slice(start, start + 1200),
+			)?.[1];
 			const info = INITIAL_MODELS.find((m) => m.name === name);
 			expect(info?.displayName, name).toBe(registryName);
 		}

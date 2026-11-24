@@ -19,8 +19,8 @@ from voice_typer.server.config._schema_validation import (  # noqa: F401, re-exp
     _secret_field_names_impl,
 )
 from voice_typer.server.config_internals.migrations import _CURRENT_SCHEMA_VERSION
+from voice_typer.server.gguf_model_registry import DEFAULT_MODEL_SIZE
 from voice_typer.server.hallucination import DEFAULT_HALLUCINATION_FILTER_MODE
-from voice_typer.server.model_registry import DEFAULT_MODEL_SIZE
 
 
 @dataclass

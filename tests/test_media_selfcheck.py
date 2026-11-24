@@ -115,6 +115,7 @@ def test_selfcheck_checks_ffmpeg_against_the_shared_base(
     assert "SELFCHECK: PASS bundled-ffmpeg" in out
     assert "SELFCHECK: PASS decode-samples=16000" in out
     assert "SELFCHECK: PASS rnnoise-active" in out
+    assert "SELFCHECK: PASS no-dev-models" in out
 
     class _DegradedSuppressor(_FakeSuppressor):
         degraded = True
@@ -129,6 +130,7 @@ def test_selfcheck_checks_ffmpeg_against_the_shared_base(
         "bundled-ffmpeg",
         "decode-samples=16000",
         "rnnoise-active",
+        "no-dev-models",
     ):
         assert any(
             line.startswith(f"SELFCHECK: PASS {marker}") or line.startswith(f"SELFCHECK: FAIL {marker}")
@@ -165,6 +167,7 @@ def test_selfcheck_rejects_ffmpeg_outside_the_shared_base(
         "bundled-ffmpeg",
         "decode-samples",
         "rnnoise-active",
+        "no-dev-models",
     ):
         assert any(
             line.startswith(f"SELFCHECK: PASS {marker}") or line.startswith(f"SELFCHECK: FAIL {marker}")
@@ -218,3 +221,43 @@ def test_selfcheck_never_consults_path_and_accepts_cwd_containing_ffmpeg(
     out = capsys.readouterr().out
     assert "SELFCHECK: PASS no-path-fallback" in out
     assert "SELFCHECK: ALL PASS" in out
+
+
+def test_selfcheck_rejects_a_dev_only_model_in_the_frozen_catalogue(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A leaked dev-only model fails the sixth marker even with ffmpeg fine."""
+    from voice_typer.server import gguf_model_registry as registry
+    from voice_typer.server.media_ingest import ffmpeg_binaries
+
+    base = tmp_path / "bundle"
+    base.mkdir()
+    ffmpeg = base / "ffmpeg.exe"
+    ffmpeg.write_bytes(b"")
+    wav = tmp_path / "tone.wav"
+    wav.write_bytes(b"")
+    monkeypatch.setattr(ffmpeg_binaries, "is_frozen_build", lambda: True)
+    monkeypatch.setattr(ffmpeg_binaries, "bundled_bin_dir", lambda: base)
+    monkeypatch.setattr(
+        ffmpeg_binaries,
+        "resolve_binaries",
+        lambda: ffmpeg_binaries.BinaryPair(ffmpeg=str(ffmpeg), ffprobe=None),
+    )
+    monkeypatch.setattr(decoder, "decode_chunks", lambda *_a, **_k: [b"x" * 16000])
+
+    class _FakeSuppressor:
+        def __init__(self, **_kwargs: object) -> None:
+            self.effective_method = "rnnoise"
+            self.is_degraded = False
+
+    monkeypatch.setattr(ns_module, "NoiseSuppressor", _FakeSuppressor)
+    monkeypatch.setattr(registry, "is_frozen", lambda: True)
+    monkeypatch.setattr(
+        registry,
+        "available_models",
+        lambda: {**registry.production_models(), "tiny": registry.GGUF_MODELS["tiny"]},
+    )
+    assert selfcheck.run(str(wav)) == 1
+    out = capsys.readouterr().out
+    assert "SELFCHECK: FAIL no-dev-models AssertionError: dev-only model present" in out
+    assert "SELFCHECK: FAILED CHECKS: no-dev-models" in out

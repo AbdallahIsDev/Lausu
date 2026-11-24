@@ -73,7 +73,9 @@ function t(key: string): string {
 
 // ── Mock config returned by get_config IPC call ────────────────────────
 
-const MOCK_CONFIG = modelsConfigMock();
+// A production model is active: the dev-only tiny model is absent from both
+// the server catalogue and the renderer's fallback list.
+const MOCK_CONFIG = { ...modelsConfigMock(), model_size: "large-v3-turbo" };
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -916,17 +918,17 @@ describe("ModelsPage, Select buttons stay enabled during a download", () => {
 	});
 
 	it("keeps Select buttons ENABLED during a download (only Download/Deps buttons are gated on anyDownloading)", async () => {
-		// Make tiny "downloaded" via get_model_status so its
+		// Make large-v3 "downloaded" via get_model_status so its
 		// Select button is rendered (instead of the Download button).
 		mockCall.mockImplementation((type: string) => {
-			// Active model is ``large-v3`` (NOT the downloaded ``tiny``)
-			// so tiny renders a Select button rather than the disabled
+			// Active model is ``parakeet`` (NOT the downloaded ``large-v3``)
+			// so large-v3 renders a Select button rather than the disabled
 			// Active tick.
 			if (type === "get_config")
-				return Promise.resolve({ ...MOCK_CONFIG, model_size: "large-v3" });
+				return Promise.resolve({ ...MOCK_CONFIG, model_size: "parakeet" });
 			if (type === "get_model_status") {
 				return Promise.resolve({
-					tiny: { downloaded: true, deps_ok: true },
+					"large-v3": { downloaded: true, deps_ok: true },
 				});
 			}
 			if (type === "get_model_catalog") return Promise.resolve({ models: [] });
@@ -944,10 +946,12 @@ describe("ModelsPage, Select buttons stay enabled during a download", () => {
 			).toBeTruthy();
 		});
 
-		// Find the Select button for tiny (downloaded, not active).
+		// Open the Whisper family (parakeet is active, so it starts closed).
+		fireEvent.click(screen.getByRole("button", { name: "OpenAI" }));
+		// Find the Select button for large-v3 (downloaded, not active).
 		const selectButton = await waitFor(() =>
 			screen.getByRole("button", {
-				name: t("models.card.selectAria").replace("{name}", "tiny"),
+				name: t("models.card.selectAria").replace("{name}", "large-v3"),
 			}),
 		);
 		// Initially enabled (no download in progress yet).
@@ -959,7 +963,7 @@ describe("ModelsPage, Select buttons stay enabled during a download", () => {
 		});
 		fireEvent.click(downloadButton);
 
-		// The Select button for tiny remains enabled, the actual
+		// The Select button for large-v3 remains enabled, the actual
 		// source only disables Download buttons (not Select buttons)
 		// while any download is in progress. Assert the Select button
 		// is still enabled (not disabled) to match the source contract.

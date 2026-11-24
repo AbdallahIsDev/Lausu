@@ -336,6 +336,28 @@ export function useModelConfig({
 						byName[m.name] = m;
 					}
 					setModelCatalog(byName);
+					// The server catalogue is authoritative for WHICH models
+					// exist in this build: a frozen build never sends dev-only
+					// models, so the renderer cannot display one. Preserve
+					// install/active state already loaded from get_model_status.
+					if (catalog.models.length > 0) {
+						setModels((prev) =>
+							catalog.models.map((meta) => {
+								const existing = prev.find((m) => m.name === meta.name);
+								if (existing) return { ...existing, backend: meta.backend };
+								return {
+									name: meta.name,
+									displayName: meta.display_name,
+									size: `${meta.download_size_mb} MB`,
+									speed: meta.speed_rating,
+									backend: meta.backend,
+									downloaded: false,
+									depsOk: true,
+									isActive: false,
+								};
+							}),
+						);
+					}
 				}
 			} else {
 				// Prefix with [renderer:useModelConfig] per the log-prefix convention.

@@ -12,9 +12,9 @@ has its own focused home.  It owns:
   :data:`STREAMING_RIGHT_GUARD_SECONDS_MIN`: canonical lower bounds
   for the streaming-overlap / -guard fields (same shared-source
   rationale).
-* :data:`ALLOWED_USER_MODELS`: derived from
-  :data:`model_registry.MODEL_REGISTRY` at import time so the two
-  cannot drift.
+* :data:`ALLOWED_USER_MODELS`: derived from the single GGUF catalogue
+  at import time so the two cannot drift. Dev-only models are absent
+  from frozen builds.
 * :data:`NOISE_SUPPRESSION_METHODS`: the canonical noise-suppression
   backend enum (``"dpdfnet" | "rnnoise" | "gtcrn" | "none"``); defined in
   :mod:`.scalar` and imported by ``audio_filters/noise_suppressor.py``
@@ -65,11 +65,13 @@ from voice_typer.server.config_validators.scalar import (
     _make_url_validator,
     _validate_trusted_extra_hosts,
 )
-from voice_typer.server.hallucination import HALLUCINATION_FILTER_MODES
-from voice_typer.server.model_registry import (
-    MODEL_REGISTRY as _MODEL_REGISTRY_FOR_ALLOWLIST,
+from voice_typer.server.gguf_model_registry import (
     NO_MODEL_SIZE as _NO_MODEL_SIZE,
+    available_models as _available_models,
+    is_frozen as _is_frozen,
+    production_models as _production_models,
 )
+from voice_typer.server.hallucination import HALLUCINATION_FILTER_MODES
 from voice_typer.server.translation.catalogue import (
     ALLOWED_TRANSLATION_MODELS as _ALLOWED_TRANSLATION_MODELS,
     ALLOWED_TRANSLATION_TARGETS as _ALLOWED_TRANSLATION_TARGETS,
@@ -86,9 +88,24 @@ STREAMING_LEFT_OVERLAP_SECONDS_MIN: float = 3.0
 STREAMING_RIGHT_GUARD_SECONDS_MIN: float = 1.5
 
 
-# ALLOWED_USER_MODELS is DERIVED from
+# ALLOWED_USER_MODELS is DERIVED from the single catalogue: a frozen build
+# never advertises a dev-only model to the renderer.
+ALLOWED_USER_MODELS: frozenset[str] = frozenset(
+    (_production_models() if _is_frozen() else _available_models()).keys()
+)
 
-ALLOWED_USER_MODELS: frozenset[str] = frozenset(_MODEL_REGISTRY_FOR_ALLOWLIST.keys())
+
+def _validate_model_size(value: object) -> str | None:
+    """SEC-002: keep dev-only/unknown ids out of a frozen build's config."""
+    if not isinstance(value, str):
+        return "must be a string"
+    if _is_frozen():
+        if value not in _production_models():
+            return "not available in this build"
+        return None
+    if value != _NO_MODEL_SIZE and value not in _available_models():
+        return "unknown model"
+    return None
 
 
 # canonical noise-suppression backend enum. Defined in ``scalar.py`` (the
@@ -138,7 +155,7 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "repaste_hotkey": (str, _VALIDATOR_REPASTE_HOTKEY),
     "microphone": ((str, type(None)), _VALIDATOR_MICROPHONE),
     # ``model_size`` additionally accepts ``NO_MODEL_SIZE`` (""), the
-    "model_size": (str, _make_enum_validator(ALLOWED_USER_MODELS | {_NO_MODEL_SIZE})),
+    "model_size": (str, _validate_model_size),
     "language": (str, _VALIDATOR_LANGUAGE),
     # ADR-0021 Stage B / ADR-0030 text translator. Separate from ASR registry;
     # no new IPC command is needed because these ride on set_config.

@@ -187,6 +187,28 @@ class DownloadDispatchMixin:
                 outcome = self._download_translation(model_name)
                 return dict(outcome)
 
+            # A frozen build must refuse dev-only and unknown ids before any
+            # consent check, cache probe or network call (dev_model_not_allowed).
+            from voice_typer.server.gguf_model_registry import (
+                is_dev_only_model_key,
+                is_frozen,
+                production_models,
+            )
+
+            if is_frozen() and model_name not in production_models():
+                from voice_typer.server.ipc.error_codes import ErrorCodes
+
+                dev_only = is_dev_only_model_key(model_name)
+                reason = "dev_model_not_allowed" if dev_only else "model_not_allowed"
+                code_value = ErrorCodes.DEV_MODEL_NOT_ALLOWED if dev_only else ErrorCodes.NOT_SUPPORTED
+                log.warning("[SERVICE] Refused %s in frozen build: %s", model_name, reason)
+                return {
+                    "success": False,
+                    "model": model_name,
+                    "code": code_value,
+                    "error": reason,
+                }
+
             # consult the model registry so we support
             from voice_typer.server.model_registry import get_model_metadata
 

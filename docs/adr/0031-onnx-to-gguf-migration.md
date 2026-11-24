@@ -1120,3 +1120,16 @@ before any download or build path if a placeholder is still present.
    `av.libs`; PyAV is gone from deps, lock and every freeze invocation. Offline proof is
    `python scripts/verify_windows_bundle.py --self-test` plus the worker-coverage tests. A real
    bundle is still required before flipping (owner decision).
+
+### Dev-only tiny model rule (Checkpoint 1)
+
+`voice_typer/server/gguf_model_registry.py` is the only model registry. `tiny`
+(`handy-computer/whisper-tiny-gguf`, `whisper-tiny-Q8_0.gguf`, 45,981,088 bytes,
+SHA-256 `325b9c7997cd1eff81ef709d55766565e71be696130cc3a3d444713798706834`,
+verified against the HF API tree 2026-11-24) is flagged `dev_only`. Frozen builds
+expose only the five production models through `production_models()` /
+`available_models()`, refuse `tiny` at config load (`schema v9` migration),
+IPC validation and the download endpoint (`dev_model_not_allowed`, no network),
+and print `SELFCHECK: PASS no-dev-models`. The Windows bundle gate requires that
+marker and the pinned `resources/transcribe-cpp` native bundle. Source builds keep
+`tiny` available for development.

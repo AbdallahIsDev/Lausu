@@ -35,7 +35,7 @@ from typing import Any
 
 log = logging.getLogger("voice_typer.server.config")
 
-_CURRENT_SCHEMA_VERSION = 8
+_CURRENT_SCHEMA_VERSION = 9
 
 # _MIGRATIONS infrastructure for schema version migrations.
 _MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
@@ -205,6 +205,28 @@ def _migrate_to_v8(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+def _migrate_to_v9(data: dict[str, Any]) -> dict[str, Any]:
+    """Migrate config to the single GGUF catalogue (dev-only tiny rule).
+
+    A stored dev-only, legacy, empty or unknown id must not survive into a
+    frozen build. Source builds keep their existing ids (including the
+    no-model sentinel) but resolve older aliases through the same authority.
+    """
+    data.setdefault("_load_warnings", [])
+    from voice_typer.server.gguf_model_registry import normalize_model_key
+
+    raw = data.get("model_size")
+    normalized = normalize_model_key(raw)
+    if raw != normalized:
+        log.info("[CONFIG] migrating schema v8 -> v9: model_size %r -> %r", raw, normalized)
+        data["_load_warnings"].append(
+            f"model_size {raw!r} changed to {normalized!r} because it is not available in this build "
+            "(schema v9 migration)"
+        )
+        data["model_size"] = normalized
+    return data
+
+
 _MIGRATIONS[2] = _migrate_to_v2
 _MIGRATIONS[3] = _migrate_to_v3
 _MIGRATIONS[4] = _migrate_to_v4
@@ -212,6 +234,7 @@ _MIGRATIONS[5] = _migrate_to_v5
 _MIGRATIONS[6] = _migrate_to_v6
 _MIGRATIONS[7] = _migrate_to_v7
 _MIGRATIONS[8] = _migrate_to_v8
+_MIGRATIONS[9] = _migrate_to_v9
 
 
 def _run_migrations(

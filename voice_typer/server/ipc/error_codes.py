@@ -63,6 +63,9 @@ class ErrorCodes:
     # engine changed under it (partial transcript kept).
     MODEL_LOADING = "server.model_loading"
     MODEL_CHANGED = "server.model_changed"
+    # A dev-only/unknown model was requested from a frozen build. The
+    # download endpoint refuses it before any network activity.
+    DEV_MODEL_NOT_ALLOWED = "server.dev_model_not_allowed"
     # structured consent-required envelope emitted by the
     SERVER_CONSENT_REQUIRED = "server.consent_required"
     # Typed cloud/LLM exception hierarchy, distinct codes for

@@ -240,6 +240,24 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
 )
 
 
+class TestDevModelConfigRejection:
+    """SEC-002: frozen builds cannot select a dev-only or empty model."""
+
+    def test_frozen_rejects_dev_empty_and_unknown_model_sizes(self) -> None:
+        monkeypatch = pytest.MonkeyPatch()
+        try:
+            monkeypatch.setattr(_al, "_is_frozen", lambda: True)
+            for value in ("tiny", "", "Systran/faster-whisper-tiny", "not-a-model"):
+                validated, errors = validate_config_update({"model_size": value})
+                assert validated == {}, value
+                assert any("not available in this build" in error for error in errors), value
+            validated, errors = validate_config_update({"model_size": "large-v3-turbo"})
+            assert validated == {"model_size": "large-v3-turbo"}
+            assert errors == []
+        finally:
+            monkeypatch.undo()
+
+
 class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 

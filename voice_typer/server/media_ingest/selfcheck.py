@@ -10,13 +10,14 @@ It is deliberately inert during normal sidecar startup: ``main()`` calls
 ``parse_known_args``, so the flag needs no argparse change and cannot alter
 the existing ``(port, ws_mode)`` contract.
 
-Five assertions, printed as grep-able markers:
+Six assertions, printed as grep-able markers:
   * frozen-build      -- a Nuitka/PyInstaller build, not a dev interpreter;
   * no-path-fallback  -- ffmpeg came from the exe-adjacent install, not PATH;
   * bundled-ffmpeg    -- resolved next to the running exe, never from PATH;
   * decode-samples    -- decodes the 1 s / 16 kHz fixture to exactly 16000;
   * rnnoise-active    -- the effective noise-suppression method is RNNoise,
-                        not the GTCRN substitute.
+                        not the GTCRN substitute;
+  * no-dev-models     -- the frozen build's catalogue holds no dev-only model.
 """
 
 from __future__ import annotations
@@ -104,11 +105,21 @@ def run(wav_path: str) -> int:
         if effective != "rnnoise" or degraded:
             raise AssertionError(f"RNNoise not active (effective method={effective!r}, degraded={degraded})")
 
+    def no_dev_models_check() -> None:
+        from voice_typer.server.gguf_model_registry import available_models, is_frozen, production_models
+
+        if not is_frozen():
+            raise AssertionError("no-dev-models check requires a frozen build")
+        catalogue = available_models()
+        if set(catalogue) != set(production_models()) or any(spec.dev_only for spec in catalogue.values()):
+            raise AssertionError("dev-only model present in the frozen catalogue")
+
     check("frozen-build", frozen_check)
     check("no-path-fallback", no_path_check)
     check("bundled-ffmpeg", bundled_check)
     check("decode-samples", decode_check)
     check("rnnoise-active", rnnoise_check)
+    check("no-dev-models", no_dev_models_check)
 
     if failed:
         print(f"{_MARKER}: FAILED CHECKS: {', '.join(failed)}", flush=True)

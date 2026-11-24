@@ -319,12 +319,12 @@ describe("useModelConfig, config drift detection (config_changed event)", () => 
 });
 describe("useModelConfig, refreshModelStatus helper", () => {
 	it("invokes get_model_status + reconciles downloaded/depsOk on the local model list", async () => {
-		const initial = makeConfig({ model_size: "tiny" });
+		const initial = makeConfig({ model_size: "large-v3" });
 		callMock.mockImplementation((cmd: string) => {
 			if (cmd === "get_config") return Promise.resolve(initial);
 			if (cmd === "get_model_status")
 				return Promise.resolve({
-					tiny: { downloaded: true, deps_ok: true },
+					"large-v3": { downloaded: true, deps_ok: true },
 					"large-v3-turbo": { downloaded: false, deps_ok: true },
 				});
 			if (cmd === "get_model_catalog") return Promise.resolve({ models: [] });
@@ -342,7 +342,7 @@ describe("useModelConfig, refreshModelStatus helper", () => {
 		callMock.mockImplementation((cmd: string) => {
 			if (cmd === "get_model_status")
 				return Promise.resolve({
-					tiny: { downloaded: true, deps_ok: true },
+					"large-v3": { downloaded: true, deps_ok: true },
 				});
 			return Promise.resolve({});
 		});
@@ -352,7 +352,7 @@ describe("useModelConfig, refreshModelStatus helper", () => {
 		});
 
 		// The active model matches the backend status (no forced override).
-		const small = result.current.models.find((m) => m.name === "tiny");
+		const small = result.current.models.find((m) => m.name === "large-v3");
 		expect(small?.downloaded).toBe(true);
 		expect(small?.depsOk).toBe(true);
 	});
@@ -362,12 +362,12 @@ describe("useModelConfig, refreshModelStatus helper", () => {
 		// (which stats the actual filesystem) reports it as NOT
 		// preserve that truth so the card can offer a restore/clear
 		// affordance instead of a dead-end disabled "Active" tick.
-		const initial = makeConfig({ model_size: "tiny" });
+		const initial = makeConfig({ model_size: "large-v3" });
 		callMock.mockImplementation((cmd: string) => {
 			if (cmd === "get_config") return Promise.resolve(initial);
 			if (cmd === "get_model_status")
 				return Promise.resolve({
-					tiny: { downloaded: false, deps_ok: true },
+					"large-v3": { downloaded: false, deps_ok: true },
 					"large-v3-turbo": { downloaded: true, deps_ok: true },
 				});
 			if (cmd === "get_model_catalog") return Promise.resolve({ models: [] });
@@ -382,7 +382,7 @@ describe("useModelConfig, refreshModelStatus helper", () => {
 		});
 
 		// The ACTIVE model reported as missing must stay missing.
-		const small = result.current.models.find((m) => m.name === "tiny");
+		const small = result.current.models.find((m) => m.name === "large-v3");
 		expect(small?.isActive).toBe(true);
 		expect(small?.downloaded).toBe(false);
 
@@ -394,7 +394,7 @@ describe("useModelConfig, refreshModelStatus helper", () => {
 		callMock.mockImplementation((cmd: string) => {
 			if (cmd === "get_model_status")
 				return Promise.resolve({
-					tiny: { downloaded: false, deps_ok: true },
+					"large-v3": { downloaded: false, deps_ok: true },
 					"large-v3-turbo": { downloaded: true, deps_ok: true },
 				});
 			return Promise.resolve({});
@@ -404,7 +404,7 @@ describe("useModelConfig, refreshModelStatus helper", () => {
 			await result.current.refreshModelStatus();
 		});
 
-		const after = result.current.models.find((m) => m.name === "tiny");
+		const after = result.current.models.find((m) => m.name === "large-v3");
 		expect(after?.downloaded).toBe(false);
 	});
 });
@@ -487,20 +487,24 @@ describe("useModelConfig, shared status snapshot (C-CACHE-5)", () => {
 
 	it("mount with a fresh snapshot skips the disk stat but still fetches config + catalog", async () => {
 		const { writeIpcCache } = await import("@/lib/ipcCache");
-		writeIpcCache("models.config", makeConfig({ model_size: "tiny" }));
+		writeIpcCache(
+			"models.config",
+			makeConfig({ model_size: "large-v3-turbo" }),
+		);
 		writeIpcCache("models.statusSnapshot", {
 			status: {
-				tiny: { downloaded: true, deps_ok: true },
+				"large-v3-turbo": { downloaded: true, deps_ok: true },
 				_storage: { used_bytes: 42, hub_path: "h", config_dir: "c" },
 			},
 			fetchedAt: Date.now(),
 		});
-		stubAll({ tiny: { downloaded: true, deps_ok: true } });
+		stubAll({ "large-v3-turbo": { downloaded: true, deps_ok: true } });
 
 		const { result } = renderHook(() => useModelConfig(makeHookArgs()));
 		// First paint already carries the install state (seeded, no stat).
 		expect(
-			result.current.models.find((m) => m.name === "tiny")?.downloaded,
+			result.current.models.find((m) => m.name === "large-v3-turbo")
+				?.downloaded,
 		).toBe(true);
 		expect(result.current.storage?.used_bytes).toBe(42);
 
@@ -535,7 +539,7 @@ describe("useModelConfig, shared status snapshot (C-CACHE-5)", () => {
 	});
 
 	it("refreshModelStatus always re-stats even when the snapshot is fresh", async () => {
-		stubAll({ tiny: { downloaded: true, deps_ok: true } });
+		stubAll({ "large-v3": { downloaded: true, deps_ok: true } });
 		const { result } = renderHook(() => useModelConfig(makeHookArgs()));
 		await waitFor(() => {
 			expect(result.current.config).not.toBeNull();
@@ -543,13 +547,13 @@ describe("useModelConfig, shared status snapshot (C-CACHE-5)", () => {
 		// Mount wrote a fresh snapshot; an explicit refresh must still stat.
 		expect(isModelStatusFresh()).toBe(true);
 		callMock.mockClear();
-		stubAll({ tiny: { downloaded: false, deps_ok: true } });
+		stubAll({ "large-v3": { downloaded: false, deps_ok: true } });
 		await act(async () => {
 			await result.current.refreshModelStatus();
 		});
 		expect(statusCalls()).toHaveLength(1);
 		expect(
-			result.current.models.find((m) => m.name === "tiny")?.downloaded,
+			result.current.models.find((m) => m.name === "large-v3")?.downloaded,
 		).toBe(false);
 	});
 

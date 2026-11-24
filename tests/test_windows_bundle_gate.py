@@ -143,6 +143,79 @@ def test_gpl_gate_requires_a_resolvable_extraction_dir(tmp_path: Path, monkeypat
         gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "0", None)
 
 
+def test_transcribe_cpp_bundle_requires_every_pinned_file(tmp_path: Path) -> None:
+    required = gate.transcribe_cpp_required_files()
+    assert {
+        "transcribe.dll",
+        "ggml.dll",
+        "ggml-base.dll",
+        "ggml-vulkan.dll",
+        "contract.json",
+    } <= set(required)
+    assert any(name.startswith("ggml-cpu-") for name in required)
+    native = tmp_path / "resources" / "transcribe-cpp"
+    native.mkdir(parents=True)
+    for name in required[:-1]:
+        (native / name).write_bytes(b"")
+    with pytest.raises(gate.BundleVerificationError, match="not staged"):
+        gate.check_transcribe_cpp_bundle(gate.DEFAULT_TARGET, [tmp_path])
+    (native / required[-1]).write_bytes(b"")
+    passed = gate.check_transcribe_cpp_bundle(gate.DEFAULT_TARGET, [tmp_path])
+    assert "native bundle complete" in passed[0]
+    assert "no avcodec" in passed[1]
+
+
+def test_transcribe_cpp_bundle_rejects_gpl_dll_names(tmp_path: Path) -> None:
+    native = tmp_path / "resources" / "transcribe-cpp"
+    native.mkdir(parents=True)
+    for name in gate.transcribe_cpp_required_files():
+        (native / name).write_bytes(b"")
+    (native / "libx264-165-xxxx.dll").write_bytes(b"")
+    with pytest.raises(gate.BundleVerificationError, match="GPL-named DLLs"):
+        gate.check_transcribe_cpp_bundle(gate.DEFAULT_TARGET, [tmp_path])
+
+
+def test_frozen_smoke_requires_no_dev_models_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
+    sidecar = tmp_path / "sidecar.exe"
+    sidecar.write_bytes(b"")
+    wav = tmp_path / "tone.wav"
+    wav.write_bytes(b"")
+    fetched = tmp_path / "src-tauri" / "bin" / f"ffmpeg-{gate.DEFAULT_TARGET}.exe"
+    fetched.parent.mkdir(parents=True)
+    fetched.write_bytes(b"")
+    base_markers = "\n".join(
+        [
+            "SELFCHECK: PASS frozen-build",
+            "SELFCHECK: PASS no-path-fallback",
+            "SELFCHECK: PASS bundled-ffmpeg",
+            "SELFCHECK: PASS decode-samples=16000",
+            "SELFCHECK: PASS rnnoise-active",
+            "SELFCHECK: ALL PASS",
+        ]
+    )
+    calls: list[list[str]] = []
+
+    def _fake_run(cmd: list[str], **_kwargs: object):
+        calls.append(cmd)
+        return SimpleNamespace(returncode=0, stdout=base_markers, stderr="")
+
+    monkeypatch.setattr(gate.subprocess, "run", _fake_run)
+    with pytest.raises(gate.BundleVerificationError, match="no-dev-models"):
+        gate.run_sidecar_smoke(sidecar, wav, gate.DEFAULT_TARGET)
+    assert calls and "--self-check" in calls[0]
+
+    def _with_marker(cmd: list[str], **_kwargs: object):
+        calls.append(cmd)
+        return SimpleNamespace(returncode=0, stdout=base_markers + "\n" + gate.NO_DEV_MODEL_MARKER, stderr="")
+
+    monkeypatch.setattr(gate.subprocess, "run", _with_marker)
+    passed = gate.run_sidecar_smoke(sidecar, wav, gate.DEFAULT_TARGET)
+    assert any("RNNoise active" in item for item in passed)
+
+
 def test_main_collects_all_failures_but_still_runs_gpl_scan_and_summary(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

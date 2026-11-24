@@ -1,7 +1,7 @@
 // Measured-skeleton sample for the Models page. While `config` is null
 // the <Skeleton> measures this sample's render, so it must carry every
-// field the panels read: the config (tiny active, so the active card
-// shape measures), the model list, and a catalog entry per model.
+// field the panels read: the config (a production model active, so the
+// active card shape measures), the model list, and a catalog entry per model.
 
 import { SAMPLE_CONFIG } from "@/components/skullet/sampleConfig";
 import {
@@ -12,46 +12,30 @@ import {
 import type { LausuConfig } from "@/types/config";
 
 // Typical active local-model config: the sample measures the
-// "tiny selected + downloaded" card row the page normally shows.
+// "large-v3-turbo selected + downloaded" card row the page normally shows.
 export const MODELS_SAMPLE_CONFIG: LausuConfig = {
 	...SAMPLE_CONFIG,
-	model_size: "tiny",
+	model_size: "large-v3-turbo",
 	asr_backend: "whisper",
 	cloud_provider: "",
 	cloud_model: "",
 };
 
-// The bundled list with tiny marked downloaded/active, matching the
-// state the sample config above describes.
+// The bundled list with the configured production model marked
+// downloaded/active, matching the state the sample config describes.
 export const SAMPLE_MODELS: ModelInfo[] = INITIAL_MODELS.map((model) => ({
 	...model,
-	downloaded: model.name === "tiny",
-	isActive: model.name === "tiny",
+	downloaded: model.name === "large-v3-turbo",
+	isActive: model.name === "large-v3-turbo",
 }));
 
 // One entry per bundled model: LocalModelsPanel reads each variant's
 // entry for its metadata line, so every name must resolve. Values mirror
-// `MODEL_REGISTRY` in `server/model_registry.py` (sizes, VRAM, WER, repo
+// the single catalogue in `server/gguf_model_registry.py` (sizes, VRAM, WER, repo
 // ids, descriptions): the earlier sample carried stale numbers and
 // non-existent repos, so the unseen skeleton measured different text
 // than the real catalog rendered.
 export const SAMPLE_MODEL_CATALOG: Record<string, ModelMetadata> = {
-	tiny: {
-		name: "tiny",
-		download_size_mb: 75,
-		required_vram_mb: 512,
-		backend: "whisper",
-		multilingual: true,
-		supported_languages: null,
-		accepts_language_hint: true,
-		supports_language_detection: true,
-		description: "Fastest multilingual model. Low accuracy, good for testing.",
-		repo_id: "Systran/faster-whisper-tiny",
-		is_distilled: false,
-		speed_rating: "fast",
-		accuracy_rating: "low",
-		wer: 12.3,
-	},
 	"large-v3": {
 		name: "large-v3",
 		download_size_mb: 3000,

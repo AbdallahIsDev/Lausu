@@ -91,3 +91,55 @@ def test_placeholder_classifiers_reject_garbage() -> None:
     assert not is_placeholder_hash("a" * 64)
     assert is_placeholder_size(None) and is_placeholder_size(0)
     assert not is_placeholder_size(1)
+
+
+def test_frozen_default_and_catalogue_are_production_only() -> None:
+    from voice_typer.server.gguf_model_registry import (
+        default_model_size_for_build,
+        get_all_models,
+        get_model_metadata,
+    )
+
+    assert default_model_size_for_build(frozen=True) == DEFAULT_MODEL_KEY
+    assert default_model_size_for_build(frozen=False) == ""
+    assert set(production_models()) == PRODUCTION_MODEL_KEYS
+    if registry.is_frozen():
+        assert get_model_metadata("tiny") is None
+        assert "tiny" not in {meta.name for meta in get_all_models()}
+    else:
+        assert get_model_metadata("tiny") is not None
+
+
+def test_only_the_registry_module_reads_raw_gguf_models() -> None:
+    """AST scan: every other production module goes through the catalogue API."""
+    import ast
+    from pathlib import Path
+
+    server_dir = Path(registry.__file__).parent
+    registry_file = Path(registry.__file__).resolve()
+    offenders: list[str] = []
+    for path in server_dir.rglob("*.py"):
+        if path.resolve() == registry_file:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.Name):
+                names.append(node.id)
+            elif isinstance(node, ast.Attribute):
+                names.append(node.attr)
+            if "GGUF_MODELS" in names:
+                offenders.append(f"{path.relative_to(server_dir)}:{node.lineno}")
+                break
+    assert offenders == [], f"raw GGUF_MODELS readers: {offenders}"
+
+    shim = (server_dir / "model_registry.py").read_text(encoding="utf-8")
+    shim_tree = ast.parse(shim)
+    assert not any(isinstance(node, ast.ClassDef) for node in shim_tree.body), (
+        "model_registry.py must stay a pure re-export shim"
+    )
+    assert not any(
+        isinstance(node, ast.Assign)
+        and any(isinstance(t, ast.Name) and t.id == "MODEL_REGISTRY" for t in node.targets)
+        for node in shim_tree.body
+    ), "model_registry.py must not define another MODEL_REGISTRY"

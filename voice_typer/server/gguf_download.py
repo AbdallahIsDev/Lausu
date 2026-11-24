@@ -17,6 +17,7 @@ from typing import Any
 from voice_typer.server.asr_setup import ensure_hf_env
 from voice_typer.server.gguf_model_registry import (
     GgufModelSpec,
+    is_dev_only_model_key as _is_dev_only,
     is_frozen as _frozen,
     is_placeholder_hash,
     is_placeholder_size,
@@ -35,9 +36,26 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _resolved_spec_or_error(model_key: str) -> tuple[GgufModelSpec | None, str]:
+    """Resolve through the catalogue, refusing dev-only models without I/O."""
+    try:
+        spec = resolve_gguf_spec(model_key)
+    except KeyError:
+        # A dev-only key is absent from the frozen catalogue by definition.
+        if _is_dev_only(model_key):
+            return None, "dev_model_not_allowed"
+        return None, "model_not_allowed"
+    if spec.dev_only and _frozen():
+        return None, "dev_model_not_allowed"
+    return spec, ""
+
+
 def resolve_gguf_model_path(model_key: str) -> Path | None:
     """Local-only lookup used at inference. Never touches the network."""
-    spec = resolve_gguf_spec(model_key)
+    spec, error = _resolved_spec_or_error(model_key)
+    if spec is None:
+        log.debug("[GGUF] model %s not selectable: %s", model_key, error)
+        return None
     try:
         from huggingface_hub import hf_hub_download
     except ImportError:
@@ -63,10 +81,10 @@ def download_gguf_model(
     config: Any = None,
 ) -> tuple[bool, str]:
     """Download + verify one GGUF model. Returns (ok, failure_code)."""
-    spec: GgufModelSpec = resolve_gguf_spec(model_key)
-    if spec.dev_only and _frozen():
-        log.error("[GGUF] refused dev-only model %s in a frozen build", model_key)
-        return (False, "dev_model_not_allowed")
+    spec, error = _resolved_spec_or_error(model_key)
+    if spec is None:
+        log.error("[GGUF] refused model %s in this build: %s", model_key, error)
+        return (False, error)
 
     def report(message: str) -> None:
         log.info("[GGUF] %s: %s", model_key, message)

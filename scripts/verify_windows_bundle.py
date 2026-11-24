@@ -13,7 +13,9 @@ Hard gates (always fail the job):
   * bundle declares + ships ffmpeg, never ffprobe;
   * THIRD_PARTY_NOTICES.md is declared as a resource and present on disk;
   * frozen-sidecar self-check (frozen build, no PATH fallback, bundled ffmpeg,
-    16000 decoded samples, RNNoise).
+    16000 decoded samples, RNNoise, no dev-only model in the catalogue);
+   * the staged transcribe.cpp native bundle (every pinned DLL + contract.json,
+     no GPL-named DLL in that directory).
 
 The GPL gate runs after the frozen self-check and scans both the exe bytes
 (blind to compressed onefile payloads) and, authoritatively, DLL file names
@@ -61,6 +63,9 @@ ONEFILE_SPEC_RE = re.compile(r"--onefile-tempdir-spec=[\"']([^\"'\n]+)[\"']")
 PRODUCT_NAME_RE = re.compile(r"--product-name=[\"']?([^\"'\s]+)")
 ONEFILE_EXTRACT_DIR_ENV = "LAUSU_ONEFILE_EXTRACT_DIR"
 WORKER_ONEFILE_EXTRACT_DIR_ENV = "LAUSU_WORKER_ONEFILE_EXTRACT_DIR"
+TRANSCRIBE_MANIFEST = REPO_ROOT / "scripts" / "transcribe-cpp-win64.json"
+TRANSCRIBE_REL_DIR = "resources/transcribe-cpp"
+NO_DEV_MODEL_MARKER = "SELFCHECK: PASS no-dev-models"
 FREEZE_SCRIPT = REPO_ROOT / "scripts" / "build" / "build_sidecar_windows.sh"
 WORKER_FREEZE_SCRIPT = REPO_ROOT / "scripts" / "build" / "build_worker_windows.sh"
 
@@ -151,6 +156,74 @@ def check_bundle_contents(target: str) -> list[str]:
     ]
 
 
+def transcribe_cpp_required_files() -> tuple[str, ...]:
+    """Read the pinned install_names; the fetch script and this gate share it."""
+    if not TRANSCRIBE_MANIFEST.is_file():
+        raise BundleVerificationError(f"transcribe.cpp manifest missing: {TRANSCRIBE_MANIFEST}")
+    try:
+        data = json.loads(TRANSCRIBE_MANIFEST.read_text(encoding="utf-8"))
+        names = tuple(data["install_names"])
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise BundleVerificationError(f"transcribe.cpp manifest unreadable: {exc}") from exc
+    if not names or any(not isinstance(name, str) for name in names):
+        raise BundleVerificationError("transcribe.cpp manifest has no valid install_names")
+    # The fetch script copies contract.json separately from the release asset.
+    return (*names, "contract.json")
+
+
+def transcribe_cpp_candidates(target: str, roots: list[Path] | None = None) -> list[Path]:
+    """Every place a staged bundle may hold the native transcribe.cpp payload."""
+    roots = roots if roots is not None else _bundle_roots(target)
+    found: list[Path] = []
+    for root in roots:
+        for candidate in (Path(root) / TRANSCRIBE_REL_DIR, Path(root) / "transcribe-cpp"):
+            resolved = candidate.resolve()
+            if resolved not in found:
+                found.append(resolved)
+    return found
+
+
+def _is_gpl_dll_name(name: str) -> bool:
+    lowered = name.lower()
+    return any(fnmatch.fnmatchcase(lowered, pattern) for pattern in GPL_DLL_GLOBS)
+
+
+def check_transcribe_cpp_bundle(
+    target: str,
+    roots: list[Path] | None = None,
+) -> list[str]:
+    """Hard gate: the native runner DLLs + contract.json are staged and clean."""
+    required = transcribe_cpp_required_files()
+    candidates = transcribe_cpp_candidates(target, roots)
+    missing_by_dir: dict[str, list[str]] = {}
+    complete: Path | None = None
+    for candidate in candidates:
+        if not candidate.is_dir():
+            continue
+        on_disk = {path.name for path in candidate.iterdir() if path.is_file()}
+        missing = sorted(set(required) - on_disk)
+        if missing:
+            missing_by_dir[str(candidate)] = missing
+        else:
+            complete = candidate
+            break
+    if complete is None:
+        detail = "; ".join(f"{path}: missing {names}" for path, names in missing_by_dir.items())
+        raise BundleVerificationError(
+            "transcribe.cpp native bundle not staged under "
+            f"'{TRANSCRIBE_REL_DIR}' (required: {', '.join(required)}). {detail}"
+        )
+    gpl = sorted(
+        {path.name for path in complete.iterdir() if path.is_file() and _is_gpl_dll_name(path.name)}
+    )
+    if gpl:
+        raise BundleVerificationError(f"GPL-named DLLs in transcribe.cpp bundle: {', '.join(gpl)}")
+    return [
+        f"transcribe.cpp native bundle complete at {complete} ({len(required)} pinned files)",
+        "transcribe.cpp bundle has no avcodec*/libx264*/libx265* DLLs",
+    ]
+
+
 def run_sidecar_smoke(sidecar: Path, wav: Path, target: str) -> list[str]:
     """b. Frozen-sidecar self-check in an install-like layout. Hard gate.
 
@@ -203,6 +276,7 @@ def run_sidecar_smoke(sidecar: Path, wav: Path, target: str) -> list[str]:
             "SELFCHECK: PASS bundled-ffmpeg",
             "SELFCHECK: PASS decode-samples=16000",
             "SELFCHECK: PASS rnnoise-active",
+            NO_DEV_MODEL_MARKER,
         ):
             if marker not in output:
                 raise BundleVerificationError(f"frozen-sidecar self-check missing marker {marker!r}")
@@ -506,6 +580,30 @@ def self_test() -> int:
         (worker_root / "libx265-7e74-xxxx.dll").write_bytes(b"")
         worker_hits, _ = extraction_dll_scan(worker_root)
         assert {hit.path.name for hit in worker_hits} == {"libx265-7e74-xxxx.dll"}, worker_hits
+    required = transcribe_cpp_required_files()
+    assert {"transcribe.dll", "ggml.dll", "ggml-base.dll", "ggml-vulkan.dll", "contract.json"} <= set(required)
+    assert all(name.lower().startswith("ggml-cpu-") for name in required if name.startswith("ggml-cpu-"))
+    with tempfile.TemporaryDirectory() as tmp:
+        native = Path(tmp) / "resources" / "transcribe-cpp"
+        native.mkdir(parents=True)
+        for name in required:
+            (native / name).write_bytes(b"")
+        check_transcribe_cpp_bundle(DEFAULT_TARGET, [Path(tmp)])
+        (native / "avcodec-62-xxxx.dll").write_bytes(b"")
+        try:
+            check_transcribe_cpp_bundle(DEFAULT_TARGET, [Path(tmp)])
+        except BundleVerificationError as exc:
+            assert "GPL-named DLLs" in str(exc)
+        else:
+            raise AssertionError("a GPL-named DLL in the native bundle must fail the hard gate")
+        (native / "avcodec-62-xxxx.dll").unlink()
+        (native / "contract.json").unlink()
+        try:
+            check_transcribe_cpp_bundle(DEFAULT_TARGET, [Path(tmp)])
+        except BundleVerificationError as exc:
+            assert "not staged" in str(exc)
+        else:
+            raise AssertionError("an incomplete native bundle must fail the hard gate")
     with tempfile.TemporaryDirectory() as tmp:
         assert extraction_dll_scan(Path(tmp)) == ([], [])
         # An empty/missing extraction dir is never reported as "clean".
@@ -568,6 +666,7 @@ def main(argv: list[str] | None = None) -> int:
             passed.extend(result or [])
 
     collect("bundle contents", lambda: check_bundle_contents(args.target))
+    collect("transcribe.cpp native bundle", lambda: check_transcribe_cpp_bundle(args.target))
     if args.sidecar is not None:
         collect("frozen self-check", lambda: run_sidecar_smoke(args.sidecar, args.wav, args.target))
     else:

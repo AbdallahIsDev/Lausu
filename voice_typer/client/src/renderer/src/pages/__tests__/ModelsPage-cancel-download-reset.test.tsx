@@ -55,7 +55,7 @@ function t(key: string): string {
 	return EN_KEYS.get(key) ?? key;
 }
 
-const MOCK_CONFIG = modelsConfigMock();
+const MOCK_CONFIG = { ...modelsConfigMock(), model_size: "large-v3-turbo" };
 
 async function renderPage() {
 	mockCall.mockImplementation((type: string) => {

@@ -52,7 +52,7 @@ export interface ModelMetadata {
 	/**
 	 * Representative WER (%) (lower is better): real-world average for
 	 * every model. Per-entry sources live in
-	 * voice_typer/server/model_registry.py.
+	 * voice_typer/server/gguf_model_registry.py.
 	 */
 	wer?: number | null;
 	/** A selected language is forwarded to the model as a decode hint. */
@@ -68,16 +68,10 @@ export interface ModelFamily {
 	variants: ModelInfo[];
 }
 
+// Skeleton only: the authoritative list is the server catalogue returned by
+// `get_model_catalog`. Dev-only GGUF models (tiny) are never listed here and
+// are absent from that catalogue in a frozen build.
 export const INITIAL_MODELS: ModelInfo[] = [
-	{
-		name: "tiny",
-		size: "75 MB",
-		speed: "Fastest",
-		backend: "whisper",
-		downloaded: false,
-		depsOk: true,
-		isActive: false,
-	},
 	{
 		name: "large-v3",
 		size: "3 GB",

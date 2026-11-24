@@ -9,7 +9,7 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 from voice_typer.server import gguf_download
-from voice_typer.server.gguf_model_registry import GGUF_MODELS, GgufModelSpec
+from voice_typer.server.gguf_model_registry import GgufModelSpec
 
 
 class _FakeHub:
@@ -49,10 +49,15 @@ def _real_spec(tmp_path: Path, payload: bytes = b"gguf-bytes") -> tuple[GgufMode
     return spec, file_path
 
 
+def _use_spec(monkeypatch: pytest.MonkeyPatch, spec: GgufModelSpec) -> None:
+    """Inject a resolved spec at the downloader seam (no raw catalogue writes)."""
+    monkeypatch.setattr(gguf_download, "resolve_gguf_spec", lambda _key, **_kw: spec)
+
+
 def test_placeholder_refuses_before_network(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     spec, _ = _real_spec(tmp_path)
     placeholder = GgufModelSpec(**{**spec.__dict__, "sha256": "FILL_ME"})
-    monkeypatch.setitem(GGUF_MODELS, "tiny", placeholder)
+    _use_spec(monkeypatch, placeholder)
     hub = _FakeHub(tmp_path / "unused.gguf")
     _install_hub(monkeypatch, hub)
     ok, code = gguf_download.download_gguf_model("tiny", config=SimpleNamespace(huggingface_consent=True))
@@ -71,7 +76,7 @@ def test_dev_only_model_refused_in_frozen_build(monkeypatch: pytest.MonkeyPatch,
 
 def test_consent_gate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     spec, path = _real_spec(tmp_path)
-    monkeypatch.setitem(GGUF_MODELS, "tiny", spec)
+    _use_spec(monkeypatch, spec)
     hub = _FakeHub(path)
     _install_hub(monkeypatch, hub)
     ok, code = gguf_download.download_gguf_model("tiny", config=SimpleNamespace(huggingface_consent=False))
@@ -81,7 +86,7 @@ def test_consent_gate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
 def test_cached_model_passes_without_download(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     spec, path = _real_spec(tmp_path)
-    monkeypatch.setitem(GGUF_MODELS, "tiny", spec)
+    _use_spec(monkeypatch, spec)
     hub = _FakeHub(path)
     _install_hub(monkeypatch, hub)
     ok, code = gguf_download.download_gguf_model("tiny", config=SimpleNamespace(huggingface_consent=True))
@@ -96,8 +101,7 @@ def test_mismatch_codes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None
         (GgufModelSpec(**{**spec.__dict__, "size_bytes": 999}), "size_mismatch"),
         (GgufModelSpec(**{**spec.__dict__, "sha256": "b" * 64}), "sha256_mismatch"),
     ):
-        monkeypatch.setitem(GGUF_MODELS, "tiny", bad_spec)
-        # No local file: force the download branch.
+        _use_spec(monkeypatch, bad_spec)
         hub = _FakeHub(tmp_path / "downloaded.gguf")
         (tmp_path / "downloaded.gguf").write_bytes(path.read_bytes())
         _install_hub(monkeypatch, hub)
@@ -107,7 +111,7 @@ def test_mismatch_codes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None
 
 def test_inference_lookup_is_local_only(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     spec, path = _real_spec(tmp_path)
-    monkeypatch.setitem(GGUF_MODELS, "tiny", spec)
+    _use_spec(monkeypatch, spec)
     hub = _FakeHub(path)
     _install_hub(monkeypatch, hub)
     assert gguf_download.resolve_gguf_model_path("tiny") == path

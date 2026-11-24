@@ -99,6 +99,7 @@ export type ErrorCodes =
 	| "server.job_busy"
 	| "server.model_loading"
 	| "server.model_changed"
+	| "server.dev_model_not_allowed"
 	| "server.not_supported"
 	| "server.max_connections_reached"
 	| "server.duplicate_connection"

@@ -186,10 +186,10 @@ describe("SidebarActiveModel", () => {
 	});
 
 	it("follows a model switch through the shared config snapshot", () => {
-		setConfigSnapshot({ asr_backend: "whisper", model_size: "tiny" });
+		setConfigSnapshot({ asr_backend: "whisper", model_size: "large-v3-turbo" });
 		render(<SidebarActiveModel />);
 		expect(screen.getByTestId("sidebar-active-model").textContent).toContain(
-			"Whisper Tiny",
+			"Whisper Large V3 Turbo",
 		);
 
 		act(() => {
