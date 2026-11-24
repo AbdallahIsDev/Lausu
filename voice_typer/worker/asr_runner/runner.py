@@ -24,6 +24,7 @@ from voice_typer.server.media_ingest.ffmpeg_binaries import (
     bundled_bin_dir,
     is_frozen_build,
 )
+from voice_typer.server.worker_backed_asr import _TRANSCRIBE_TIMEOUT_SECONDS as DEFAULT_TIMEOUT_S
 from voice_typer.worker.asr_runner.contract import (
     ERR_ABORTED,
     ERR_OUTPUT_REPETITION,
@@ -38,7 +39,6 @@ log = logging.getLogger("voice_typer.worker.asr_runner")
 
 ENV_TRANSCRIBE_LIBRARY = "TRANSCRIBE_LIBRARY"
 LIBRARY_BASENAME = "transcribe.dll" if os.name == "nt" else "libtranscribe.so"
-from voice_typer.server.worker_backed_asr import _TRANSCRIBE_TIMEOUT_SECONDS as DEFAULT_TIMEOUT_S
 MAX_SAMPLES = 16_000 * 60 * 30  # 30 minutes of 16 kHz mono; bounds native allocations
 
 
