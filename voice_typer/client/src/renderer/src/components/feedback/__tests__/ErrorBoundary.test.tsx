@@ -3,6 +3,7 @@ import { Component } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
+import { ErrorState } from "@/components/feedback/ErrorState";
 
 let shouldThrow = false;
 
@@ -23,6 +24,27 @@ describe("ErrorBoundary fallback behavior", () => {
 	afterEach(() => {
 		cleanup();
 		shouldThrow = false;
+	});
+
+	it("renders the shared themed failure card standalone", () => {
+		render(
+			<ErrorState
+				message="module is missing"
+				retryCount={0}
+				copied={false}
+				onTryAgain={vi.fn()}
+				onReload={vi.fn()}
+				onCopyError={vi.fn()}
+			/>,
+		);
+		expect(screen.getByText("Something went wrong")).toBeTruthy();
+		expect(
+			screen.getByText(
+				"The app encountered an unexpected error. Your data is safe.",
+			),
+		).toBeTruthy();
+		expect(screen.getByText("module is missing")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Copy error" })).toBeTruthy();
 	});
 
 	it("shows the fallback UI when a child throws during render", () => {

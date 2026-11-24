@@ -11,10 +11,8 @@
 // in the file log (React's ``componentStack`` would be lost if only the
 // console path existed).
 
-import { Alert02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { Component, createRef, type ErrorInfo, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/feedback/ErrorState";
 import { t } from "@/i18n/i18n";
 
 interface ErrorBoundaryProps {
@@ -199,67 +197,16 @@ export class ErrorBoundary extends Component<
 				return this.props.fallback;
 			}
 
-			const errorMessage =
-				this.state.error?.message ?? t("errorBoundary.unknownError");
-			const retryFailed = this.state.retryCount > 0;
-
 			return (
-				<div
-					className="flex min-h-screen items-center justify-center bg-surface-subtle p-6"
-					role="alert"
-					aria-live="assertive"
-				>
-					<div className="flex w-full max-w-lg flex-col items-center gap-4 rounded-lg border border-border/8 bg-surface px-6 py-8 text-center">
-						<div className="flex rounded-full bg-destructive/10 p-3">
-							<HugeiconsIcon
-								icon={Alert02Icon}
-								strokeWidth={2}
-								className="h-10 w-10 text-destructive"
-								aria-hidden="true"
-							/>
-						</div>
-						<h1 className="text-xl font-medium text-foreground">
-							{t("errorBoundary.title")}
-						</h1>
-						<p className="text-sm text-muted-foreground">
-							{t("errorBoundary.description")}
-						</p>
-						<pre className="w-full overflow-auto rounded-lg border border-border/8 bg-muted p-4 font-mono text-start text-xs text-muted-foreground">
-							{errorMessage}
-						</pre>
-						<div className="flex flex-wrap items-center justify-center gap-2">
-							<Button
-								type="button"
-								variant="default"
-								onClick={this.handleReset}
-								ref={this.primaryButtonRef}
-							>
-								{t("errorBoundary.tryAgain")}
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={this.handleReload}
-							>
-								{t("errorBoundary.reloadApp")}
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={this.handleCopyError}
-							>
-								{this.state.copied
-									? t("errorBoundary.copied")
-									: t("errorBoundary.copyError")}
-							</Button>
-						</div>
-						{retryFailed && (
-							<p className="text-xs text-muted-foreground">
-								{t("errorBoundary.retryFailed")}
-							</p>
-						)}
-					</div>
-				</div>
+				<ErrorState
+					message={this.state.error?.message ?? t("errorBoundary.unknownError")}
+					retryCount={this.state.retryCount}
+					copied={this.state.copied}
+					onTryAgain={this.handleReset}
+					onReload={this.handleReload}
+					onCopyError={this.handleCopyError}
+					primaryButtonRef={this.primaryButtonRef}
+				/>
 			);
 		}
 
