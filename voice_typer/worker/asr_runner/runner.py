@@ -13,6 +13,7 @@ import array
 import ctypes
 import logging
 import os
+import re
 import sys
 import threading
 from pathlib import Path
@@ -172,7 +173,11 @@ class GgufRunner:
         check_contract(directory if directory.is_dir() else path.parent)
         if os.name == "nt" and hasattr(os, "add_dll_directory"):
             os.add_dll_directory(str(directory))
-        lib = ctypes.CDLL(str(path))
+        try:
+            lib = ctypes.CDLL(str(path))
+        except OSError:
+            log.exception("[GGUF] native library load failed")
+            raise RunnerError("The installed speech runtime could not be loaded.") from None
         _bind(lib)
         for which, local in (
             (_ABI_MODEL_LOAD_PARAMS, _LoadParams),
@@ -183,7 +188,9 @@ class GgufRunner:
             if expected == 0 or expected != ctypes.sizeof(local):
                 log.error(
                     "[GGUF] ABI size mismatch: struct=%d native=%d local=%d",
-                    which, expected, ctypes.sizeof(local),
+                    which,
+                    expected,
+                    ctypes.sizeof(local),
                 )
                 raise RunnerError("The installed speech runtime has an incompatible API.")
         directory_key = str(directory.resolve())
@@ -205,6 +212,8 @@ class GgufRunner:
     ) -> RunnerResult:
         if len(_LEAKED_SESSIONS) >= _MAX_LEAKED_SESSIONS:
             raise RunnerError("The speech worker is unhealthy and must be restarted.")
+        if language and not re.fullmatch(r"[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*", language):
+            raise RunnerError("The selected language is not supported.")
         sample_count = len(audio) if hasattr(audio, "__len__") else 0
         if sample_count <= 0 or sample_count > MAX_SAMPLES:
             raise RunnerError("The audio is empty or too long to transcribe.")
@@ -282,6 +291,9 @@ class GgufRunner:
                     log.error("[GGUF] decode failed: status=%d %s", status, message)
                     if status == ERR_ABORTED or abort.is_set():
                         raise RunnerError("Transcription was stopped.")
+                    if language:
+                        log.error("[GGUF] decode failed for language=%s", language)
+                        raise RunnerError("Speech recognition could not read the audio with that language.")
                     raise RunnerError("Speech recognition could not read the audio.")
 
                 text_ptr = lib.transcribe_full_text(session)

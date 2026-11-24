@@ -49,9 +49,7 @@ def test_abort_and_load_failures_map_to_clear_errors() -> None:
     abort.set()
     fake = FakeLibrary()
     with pytest.raises(RunnerError):
-        GgufRunner("model.gguf", loader=loader_for(fake)).transcribe(
-            np.zeros(100, dtype=np.float32), abort_event=abort
-        )
+        GgufRunner("model.gguf", loader=loader_for(fake)).transcribe(np.zeros(100, dtype=np.float32), abort_event=abort)
 
 
 def test_native_crash_does_not_hang_or_silently_pass() -> None:
@@ -106,3 +104,62 @@ def test_dev_override_is_honoured(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     lib.write_bytes(b"")
     monkeypatch.setenv("TRANSCRIBE_LIBRARY", str(lib))
     assert library_dir() == tmp_path
+
+
+def test_invalid_language_is_refused_before_the_native_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = FakeLibrary()
+    runner = GgufRunner("model.gguf", loader=loader_for(fake))
+    with pytest.raises(RunnerError, match="language is not supported"):
+        runner.transcribe(np.zeros(100, dtype=np.float32), language="123")
+    assert fake.run_count == 0
+
+
+def test_native_language_rejection_is_not_reported_as_bad_audio() -> None:
+    fake = FakeLibrary(status=1)
+    with pytest.raises(RunnerError, match="with that language"):
+        GgufRunner("model.gguf", loader=loader_for(fake)).transcribe(np.zeros(100, dtype=np.float32), language="xx")
+
+
+def test_wrong_native_library_maps_to_a_clear_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from voice_typer.worker.asr_runner import runner as runner_mod
+
+    lib = tmp_path / "transcribe.dll"
+    lib.write_bytes(b"not a DLL")
+    monkeypatch.setenv("TRANSCRIBE_LIBRARY", str(lib))
+
+    def _broken_cdll(_path: str) -> object:
+        raise OSError("not a valid Win32 application")
+
+    monkeypatch.setattr(runner_mod.ctypes, "CDLL", _broken_cdll)
+    with pytest.raises(RunnerError, match="runtime could not be loaded"):
+        GgufRunner("model.gguf").transcribe(np.zeros(100, dtype=np.float32))
+
+
+def test_leaked_sessions_are_retained_and_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    from voice_typer.worker.asr_runner import runner as runner_mod
+
+    leaked: list[object] = []
+    monkeypatch.setattr(runner_mod, "_LEAKED_SESSIONS", leaked)
+    entered = threading.Event()
+    release = threading.Event()
+
+    def _blocking_run() -> int:
+        entered.set()
+        release.wait(10.0)
+        return 0
+
+    for _ in range(2):
+        fake = FakeLibrary(on_run=_blocking_run)
+        entered.clear()
+        try:
+            with pytest.raises(RunnerError, match="took too long"):
+                GgufRunner("model.gguf", loader=loader_for(fake), timeout=0.1).transcribe(
+                    np.zeros(100, dtype=np.float32)
+                )
+            assert entered.is_set()
+        finally:
+            release.set()
+        release.clear()
+    assert len(leaked) == 2
+    with pytest.raises(RunnerError, match="unhealthy"):
+        GgufRunner("model.gguf", loader=loader_for(FakeLibrary())).transcribe(np.zeros(100, dtype=np.float32))
