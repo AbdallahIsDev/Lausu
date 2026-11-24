@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-24T00:28:28Z
+> Generated: 2026-11-24T00:31:47Z
 > Data branch commit: `ccb2d2b`
 
 ## Currently failing
@@ -702,122 +702,17 @@
 - Run: [45183273572](https://github.com/AbdallahIsDev/Lausu/actions/runs/45183273572) (attempt 1)
 - Event: push · Branch: main
 - Commit: `c10d162` — docs(adr): GGUF follow-up research (Fluid Speech Pro, gate, sizes)
-- Job: Rust clippy + cargo audit · Leg: ubuntu-22.04
-- Step: Run rustsec/audit-check@v2
-- Category: cargo test/clippy/audit
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
 ### 38. Build installer — failure
-
-- Run: [45183273572](https://github.com/AbdallahIsDev/Lausu/actions/runs/45183273572) (attempt 1)
-- Event: push · Branch: main
-- Commit: `c10d162` — docs(adr): GGUF follow-up research (Fluid Speech Pro, gate, sizes)
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 39. Build installer — failure
-
-- Run: [45183273572](https://github.com/AbdallahIsDev/Lausu/actions/runs/45183273572) (attempt 1)
-- Event: push · Branch: main
-- Commit: `c10d162` — docs(adr): GGUF follow-up research (Fluid Speech Pro, gate, sizes)
-- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 40. Build installer — failure
-
-- Run: [45183273572](https://github.com/AbdallahIsDev/Lausu/actions/runs/45183273572) (attempt 1)
-- Event: push · Branch: main
-- Commit: `c10d162` — docs(adr): GGUF follow-up research (Fluid Speech Pro, gate, sizes)
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 41. Build installer — failure
-
-- Run: [45183273572](https://github.com/AbdallahIsDev/Lausu/actions/runs/45183273572) (attempt 1)
-- Event: push · Branch: main
-- Commit: `c10d162` — docs(adr): GGUF follow-up research (Fluid Speech Pro, gate, sizes)
-- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 42. Build installer — failure
-
-- Run: [45183273572](https://github.com/AbdallahIsDev/Lausu/actions/runs/45183273572) (attempt 1)
-- Event: push · Branch: main
-- Commit: `c10d162` — docs(adr): GGUF follow-up research (Fluid Speech Pro, gate, sizes)
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 43. Build installer — failure
-
-- Run: [45183273572](https://github.com/AbdallahIsDev/Lausu/actions/runs/45183273572) (attempt 1)
-- Event: push · Branch: main
-- Commit: `c10d162` — docs(adr): GGUF follow-up research (Fluid Speech Pro, gate, sizes)
-- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 44. Build installer — failure
-
-- Run: [45183273572](https://github.com/AbdallahIsDev/Lausu/actions/runs/45183273572) (attempt 1)
-- Event: push · Branch: main
-- Commit: `c10d162` — docs(adr): GGUF follow-up research (Fluid Speech Pro, gate, sizes)
-- Job: Pre-commit hygiene · Leg: ubuntu-22.04
-- Step: Run pre-commit hygiene hooks
-- Category: pre-commit hygiene
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 45. Build installer — failure
 
 - Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
 - Event: push · Branch: main
@@ -832,7 +727,7 @@
 (no job log available)
 ```
 
-### 46. CI error collector — failure
+### 39. CI error collector — failure
 
 - Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -847,7 +742,7 @@
 (no job log available)
 ```
 
-### 47. Build installer — failure
+### 40. Build installer — failure
 
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
@@ -862,7 +757,7 @@
 (no job log available)
 ```
 
-### 48. Build installer — failure
+### 41. Build installer — failure
 
 - Run: [45081430214](https://github.com/AbdallahIsDev/Lausu/actions/runs/45081430214) (attempt 1)
 - Event: push · Branch: main
@@ -877,7 +772,7 @@
 (no job log available)
 ```
 
-### 49. CI error collector — failure
+### 42. CI error collector — failure
 
 - Run: [45076536525](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076536525) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -892,7 +787,7 @@
 (no job log available)
 ```
 
-### 50. CI error collector — failure
+### 43. CI error collector — failure
 
 - Run: [45076441804](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076441804) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -907,7 +802,7 @@
 (no job log available)
 ```
 
-### 51. CI error collector — failure
+### 44. CI error collector — failure
 
 - Run: [45076235547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076235547) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -922,7 +817,7 @@
 (no job log available)
 ```
 
-### 52. CI error collector — failure
+### 45. CI error collector — failure
 
 - Run: [45075751604](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075751604) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -937,7 +832,7 @@
 (no job log available)
 ```
 
-### 53. CI error collector — failure
+### 46. CI error collector — failure
 
 - Run: [45075732518](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075732518) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -952,7 +847,7 @@
 (no job log available)
 ```
 
-### 54. CI error collector — failure
+### 47. CI error collector — failure
 
 - Run: [45075544010](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075544010) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -967,7 +862,7 @@
 (no job log available)
 ```
 
-### 55. CI error collector — failure
+### 48. CI error collector — failure
 
 - Run: [45075063722](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075063722) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -982,7 +877,7 @@
 (no job log available)
 ```
 
-### 56. CI error collector — failure
+### 49. CI error collector — failure
 
 - Run: [45075045477](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075045477) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -997,24 +892,9 @@
 (no job log available)
 ```
 
-### 57. CI error collector — failure
+### 50. CI error collector — failure
 
 - Run: [45074658464](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074658464) (attempt 1)
-- Event: workflow_run · Branch: main
-- Commit: `360dbee` — fix(ci): generate collector report before switching to data branch
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 58. CI error collector — failure
-
-- Run: [45074378791](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074378791) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `360dbee` — fix(ci): generate collector report before switching to data branch
 - Job: (job details unavailable) · Leg: n/a
