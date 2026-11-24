@@ -320,7 +320,7 @@ export default function OnboardingPage({
 					<div
 						role="alert"
 						data-testid="onboarding-apply-error"
-						className="flex flex-col gap-1 rounded-lg border border-destructive/40 bg-destructive/5 p-4"
+						className="flex flex-col gap-1 rounded-lg border border-border/8 bg-surface p-4"
 					>
 						<p className="text-sm font-medium text-foreground">
 							{t("onboarding.applyFailedTitle")}

@@ -56,6 +56,7 @@ export function ErrorState({
 						variant="default"
 						onClick={onTryAgain}
 						ref={primaryButtonRef}
+						className="focus-visible:ring-1 focus-visible:ring-ring"
 					>
 						{t("errorBoundary.tryAgain")}
 					</Button>

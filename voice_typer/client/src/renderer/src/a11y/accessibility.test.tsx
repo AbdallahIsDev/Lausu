@@ -884,7 +884,16 @@ describe("NEW-UX-012: Dialog accessibility", () => {
 			"feedback",
 			"ErrorBoundary.tsx",
 		);
-		const src = fs.readFileSync(errorBoundaryPath, "utf-8");
+		const statePath = path.resolve(
+			__dirname,
+			"..",
+			"components",
+			"feedback",
+			"ErrorState.tsx",
+		);
+		const src =
+			fs.readFileSync(errorBoundaryPath, "utf-8") +
+			fs.readFileSync(statePath, "utf-8");
 		expect(
 			src.includes("aria-live") ||
 				src.includes('role="alert"') ||

@@ -186,8 +186,8 @@ describe("source-level contracts for the remaining fix-batch files", () => {
 		expect(src).not.toMatch(/\bmr-auto\b/);
 	});
 
-	it("onboarding init-error card carries a focus-visible ring (MO-46)", () => {
-		const src = read("pages", "Onboarding.tsx");
+	it("shared failure card carries a focus-visible ring (MO-46)", () => {
+		const src = read("components", "feedback", "ErrorState.tsx");
 		expect(src).toMatch(/focus-visible:ring-1 focus-visible:ring-ring/);
 	});
 

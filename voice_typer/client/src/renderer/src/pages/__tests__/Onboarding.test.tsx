@@ -317,6 +317,9 @@ describe("Final step (Hotkey) apply flow", () => {
 		expect(onComplete).not.toHaveBeenCalled();
 		expect(screen.getByRole("alert")).toBeTruthy();
 		expect(screen.getByText("Couldn't finish setup")).toBeTruthy();
+		const inlineAlert = screen.getByTestId("onboarding-apply-error");
+		expect(inlineAlert.className).not.toContain("destructive");
+		expect(inlineAlert.className).toContain("border-border/8");
 
 		// Retry succeeds once the backend recovers.
 		applyShouldFail = false;

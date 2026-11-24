@@ -780,8 +780,8 @@ describe("lausu.spec declares ASR hiddenimports (rewrite of TestPyinstallerSpecH
 		expect(readPyinstallerSpec()).toContain("transformers");
 	});
 
-	it("includes ctranslate2", () => {
-		expect(readPyinstallerSpec()).toContain("ctranslate2");
+	it("no longer includes the retired ctranslate2 runtime", () => {
+		expect(readPyinstallerSpec()).not.toContain("ctranslate2");
 	});
 
 	it("includes huggingface_hub", () => {
