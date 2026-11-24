@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-24T00:17:31Z
+> Generated: 2026-11-24T00:17:55Z
 > Data branch commit: `ccb2d2b`
 
 ## Currently failing
@@ -1000,21 +1000,6 @@
 ### 59. CI error collector — failure
 
 - Run: [45073962563](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073962563) (attempt 1)
-- Event: workflow_dispatch · Branch: main
-- Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 60. CI error collector — failure
-
-- Run: [45073947148](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073947148) (attempt 1)
 - Event: workflow_dispatch · Branch: main
 - Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
 - Job: (job details unavailable) · Leg: n/a
