@@ -53,7 +53,7 @@ default**: they only run when `--slow` is passed.
 |---|---|---|
 | `diagnose_f2.py` | `test_diagnose_f2_deprecated_contract` | `run()` returns `2` and prints a `DEPRECATED` notice pointing at the modern replacement tests |
 | `cublas_fallback.py` | `test_cublas_fallback_deprecated_contract` | `run()` returns `2` and prints a `DEPRECATED` notice pointing at `TestFallbackChain` |
-| `runtime_proof.py` | `test_runtime_proof_smoke` | Script exits with code `0` or `1` (not `2`) and reaches its `RUNTIME PROOF RESULTS` summary; requires real `numpy` + `faster_whisper` (skipped otherwise) |
+| `runtime_proof.py` | `test_runtime_proof_smoke` | Script exits with code `0` or `1` (not `2`) and reaches its `RUNTIME PROOF RESULTS` summary; requires real `numpy` + the local GGUF speech runtime (skipped otherwise) |
 | `runtime_test_runner.py` | `test_runtime_test_runner_parses` | Script parses without syntax errors; on Windows, also imports cleanly. Never invokes `main()` (it would launch the real app) |
 
 ### Running the slow tests
