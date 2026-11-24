@@ -13,12 +13,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // mocked Settings page (whose vi.mock factory is hoisted ABOVE the test
 // file's top-level imports) can call `mergeConfig` without referencing a
 // not-yet-initialised top-level import.
-const { mockCall, mockPythonEvent, store } = vi.hoisted(() => ({
+const { mockCall, mockPythonEvent, store, crashHome } = vi.hoisted(() => ({
 	mockCall: vi.fn(),
 	mockPythonEvent: vi.fn(),
 	store: {} as {
 		useAppStore?: typeof import("@/stores/appStore")["useAppStore"];
 	},
+	crashHome: { value: false },
 }));
 
 // ── Mock the Python bridge + event hook ─────────────────────────────────
@@ -93,16 +94,20 @@ vi.mock("@/components/layout/Sidebar", () => ({
 }));
 
 vi.mock("@/components/layout/TitleBar", () => ({
-	TitleBar: () => <div data-testid="titlebar" />,
-}));
-
-// ErrorBoundary: passthrough wrapper so a render error in a child doesn't
-// trigger the recovery UI (which would obscure the page text we assert on).
-vi.mock("@/components/feedback/ErrorBoundary", () => ({
-	ErrorBoundary: ({ children }: { children: React.ReactNode }) => (
-		<>{children}</>
+	TitleBar: ({ minimalChrome }: { minimalChrome?: boolean }) => (
+		<div data-testid="titlebar" data-minimal={String(minimalChrome === true)} />
 	),
 }));
+
+// Real boundary: a forced child crash must show themed fallback while the
+// title bar stays mounted. Other tests never throw, so their pages render
+// exactly as before.
+vi.mock("@/components/feedback/ErrorBoundary", async () => {
+	const actual = await vi.importActual<
+		typeof import("@/components/feedback/ErrorBoundary")
+	>("@/components/feedback/ErrorBoundary");
+	return { ErrorBoundary: actual.ErrorBoundary };
+});
 
 // Modal: minimal open/closed renderer (App renders a help overlay via Modal).
 vi.mock("@/components/common/Modal", () => ({
@@ -151,7 +156,10 @@ vi.mock("next-themes", () => ({
 // an "Complete" button wired to the onComplete prop so we can verify the
 // post-wizard navigation path too.
 vi.mock("@/pages/Home", () => ({
-	default: () => <div data-testid="home-page">Home page</div>,
+	default: () => {
+		if (crashHome.value) throw new Error("forced-render-crash");
+		return <div data-testid="home-page">Home page</div>;
+	},
 }));
 vi.mock("@/pages/History", () => ({
 	default: () => <div data-testid="history-page">History page</div>,
@@ -456,5 +464,39 @@ describe("App-wide shortcuts, zoom via the mounted App (keydown + wheel)", () =>
 		});
 		expect(mockCall).not.toHaveBeenCalledWith("set_config", expect.anything());
 		expect(stable.toastError).not.toHaveBeenCalled();
+	});
+});
+
+describe("App failure chrome", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockCall.mockReset();
+		mockPythonEvent.mockReset();
+		localStorage.clear();
+		_resetNavigationForTest();
+		useAppStore.setState({
+			connectionStatus: "connected",
+			recordingState: "idle",
+			lastError: null,
+			config: completedConfig,
+		});
+		crashHome.value = true;
+	});
+
+	afterEach(() => {
+		crashHome.value = false;
+		cleanup();
+	});
+
+	it("keeps the title bar with its bottom rule when a page crashes", async () => {
+		const { default: App } = await import("@/App");
+		render(<App />);
+
+		await waitFor(() => {
+			expect(screen.getByText("Something went wrong")).toBeTruthy();
+		});
+		expect(screen.getByTestId("titlebar").getAttribute("data-minimal")).toBe(
+			"true",
+		);
 	});
 });

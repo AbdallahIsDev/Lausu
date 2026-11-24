@@ -1,7 +1,8 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { A11yLiveRegions } from "@/components/common/A11yLiveRegions";
 import ConsentGateDialog from "@/components/consent/ConsentGateDialog";
 import { DebugPanel } from "@/components/debug/DebugPanel";
+import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { configHotkeyLabels } from "@/components/hotkey/hotkey-utils";
 import { ConnectionStatusScreen } from "@/components/layout/ConnectionStatusScreen";
@@ -58,6 +59,9 @@ import type { WindowBridge } from "@/types/ipc";
 
 export default function App() {
 	const t = useT();
+	// A child render crash keeps the chrome mounted and adds the same
+	// bottom rule status screens use, so the failure reads as a state.
+	const [hasError, setHasError] = useState(false);
 
 	useNetworkOnline();
 
@@ -255,7 +259,7 @@ export default function App() {
 					// window buttons) but drop everything else, plus a
 					// card-colored bottom rule. Exactly the states where
 					// the main column is NOT a page.
-					minimalChrome={connectionStatus !== "connected"}
+					minimalChrome={connectionStatus !== "connected" || hasError}
 				/>
 				{/* Pinned LTR so the sidebar keeps its physical left edge in
 					    every locale; only the main column mirrors with the UI. */}
@@ -285,20 +289,25 @@ export default function App() {
 							style={{ scrollbarGutter: "stable" }}
 						>
 							<AppSkulletProvider>
-								{connectionStatus === "connected" ? (
-									<PageSwitch
-										page={currentPage}
-										navigate={navigate}
-										onOnboardingComplete={handleOnboardingComplete}
-									/>
-								) : (
-									<ConnectionStatusScreen
-										status={connectionStatus}
-										lastError={lastError}
-										onRetry={handleRetryConnection}
-										connectingProgress={connectingProgress}
-									/>
-								)}
+								<ErrorBoundary
+									onError={() => setHasError(true)}
+									onReset={() => setHasError(false)}
+								>
+									{connectionStatus === "connected" ? (
+										<PageSwitch
+											page={currentPage}
+											navigate={navigate}
+											onOnboardingComplete={handleOnboardingComplete}
+										/>
+									) : (
+										<ConnectionStatusScreen
+											status={connectionStatus}
+											lastError={lastError}
+											onRetry={handleRetryConnection}
+											connectingProgress={connectingProgress}
+										/>
+									)}
+								</ErrorBoundary>
 							</AppSkulletProvider>
 						</main>
 					</div>

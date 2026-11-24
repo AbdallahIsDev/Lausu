@@ -18,6 +18,8 @@ import { t } from "@/i18n/i18n";
 interface ErrorBoundaryProps {
 	children: ReactNode;
 	fallback?: ReactNode;
+	onError?: (error: Error) => void;
+	onReset?: () => void;
 }
 
 interface ErrorBoundaryState {
@@ -79,6 +81,7 @@ export class ErrorBoundary extends Component<
 
 		// Kept in state so "Copy error" can include the component stack.
 		this.setState({ errorInfo });
+		this.props.onError?.(error);
 	}
 
 	componentDidMount(): void {
@@ -113,6 +116,7 @@ export class ErrorBoundary extends Component<
 			copied: false,
 			retryCount: prev.retryCount + 1,
 		}));
+		this.props.onReset?.();
 	};
 
 	handleReload = (): void => {
