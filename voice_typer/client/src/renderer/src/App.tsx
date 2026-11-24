@@ -152,9 +152,12 @@ export default function App() {
 	const { recordingState, connectionStatus, lastError, handleRetryConnection } =
 		useConnection({ call, currentPage, navigate });
 
-	// Nav only when the backend is usable (and not in onboarding).
+	// Nav only when the backend is usable, not in onboarding, and no
+	// render failure is holding the screen (dead controls must vanish).
 	const sidebarVisible =
-		currentPage !== "onboarding" && connectionStatus === "connected";
+		currentPage !== "onboarding" &&
+		connectionStatus === "connected" &&
+		!hasError;
 
 	const prevConnectionRef = useConnectionToasts({
 		connectionStatus,

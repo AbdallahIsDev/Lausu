@@ -498,5 +498,8 @@ describe("App failure chrome", () => {
 		expect(screen.getByTestId("titlebar").getAttribute("data-minimal")).toBe(
 			"true",
 		);
+		// Dead navigation must disappear with the failure, not sit there
+		// looking clickable while the boundary holds the screen.
+		expect(screen.queryByTestId("sidebar")).toBeNull();
 	});
 });
