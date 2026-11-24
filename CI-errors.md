@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-24T00:31:47Z
+> Generated: 2026-11-24T00:35:15Z
 > Data branch commit: `ccb2d2b`
 
 ## Currently failing
@@ -582,122 +582,17 @@
 - Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
 - Event: push · Branch: main
 - Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: Rust clippy + cargo audit · Leg: ubuntu-22.04
-- Step: Run rustsec/audit-check@v2
-- Category: cargo test/clippy/audit
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
 ### 30. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 31. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 32. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 33. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 34. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 35. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 36. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 37. Build installer — failure
 
 - Run: [45183273572](https://github.com/AbdallahIsDev/Lausu/actions/runs/45183273572) (attempt 1)
 - Event: push · Branch: main
@@ -712,7 +607,7 @@
 (no job log available)
 ```
 
-### 38. Build installer — failure
+### 31. Build installer — failure
 
 - Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
 - Event: push · Branch: main
@@ -727,7 +622,7 @@
 (no job log available)
 ```
 
-### 39. CI error collector — failure
+### 32. CI error collector — failure
 
 - Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -742,7 +637,7 @@
 (no job log available)
 ```
 
-### 40. Build installer — failure
+### 33. Build installer — failure
 
 - Run: [45085457072](https://github.com/AbdallahIsDev/Lausu/actions/runs/45085457072) (attempt 1)
 - Event: push · Branch: main
@@ -757,7 +652,7 @@
 (no job log available)
 ```
 
-### 41. Build installer — failure
+### 34. Build installer — failure
 
 - Run: [45081430214](https://github.com/AbdallahIsDev/Lausu/actions/runs/45081430214) (attempt 1)
 - Event: push · Branch: main
@@ -772,7 +667,7 @@
 (no job log available)
 ```
 
-### 42. CI error collector — failure
+### 35. CI error collector — failure
 
 - Run: [45076536525](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076536525) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -787,7 +682,7 @@
 (no job log available)
 ```
 
-### 43. CI error collector — failure
+### 36. CI error collector — failure
 
 - Run: [45076441804](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076441804) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -802,7 +697,7 @@
 (no job log available)
 ```
 
-### 44. CI error collector — failure
+### 37. CI error collector — failure
 
 - Run: [45076235547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076235547) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -817,7 +712,7 @@
 (no job log available)
 ```
 
-### 45. CI error collector — failure
+### 38. CI error collector — failure
 
 - Run: [45075751604](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075751604) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -832,7 +727,7 @@
 (no job log available)
 ```
 
-### 46. CI error collector — failure
+### 39. CI error collector — failure
 
 - Run: [45075732518](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075732518) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -847,7 +742,7 @@
 (no job log available)
 ```
 
-### 47. CI error collector — failure
+### 40. CI error collector — failure
 
 - Run: [45075544010](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075544010) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -862,7 +757,7 @@
 (no job log available)
 ```
 
-### 48. CI error collector — failure
+### 41. CI error collector — failure
 
 - Run: [45075063722](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075063722) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -877,26 +772,11 @@
 (no job log available)
 ```
 
-### 49. CI error collector — failure
+### 42. CI error collector — failure
 
 - Run: [45075045477](https://github.com/AbdallahIsDev/Lausu/actions/runs/45075045477) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `c2a25d7` — fix(ci): use GitHub JSON Accept header for job logs
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 50. CI error collector — failure
-
-- Run: [45074658464](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074658464) (attempt 1)
-- Event: workflow_run · Branch: main
-- Commit: `360dbee` — fix(ci): generate collector report before switching to data branch
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
 - Category: other
@@ -914,130 +794,18 @@
 - Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
 - Event: push · Branch: main
 - Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: Rust clippy + cargo audit · Leg: ubuntu-22.04
-- Step: Run rustsec/audit-check@v2
-- Category: cargo test/clippy/audit
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 - Fixed by: [45264705553](https://github.com/AbdallahIsDev/Lausu/actions/runs/45264705553) (success)
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 2. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-- Fixed by: [45264705553](https://github.com/AbdallahIsDev/Lausu/actions/runs/45264705553) (success)
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 3. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-- Fixed by: [45264705553](https://github.com/AbdallahIsDev/Lausu/actions/runs/45264705553) (success)
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 4. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-- Fixed by: [45264705553](https://github.com/AbdallahIsDev/Lausu/actions/runs/45264705553) (success)
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 5. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-- Fixed by: [45264705553](https://github.com/AbdallahIsDev/Lausu/actions/runs/45264705553) (success)
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 6. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-- Fixed by: [45264705553](https://github.com/AbdallahIsDev/Lausu/actions/runs/45264705553) (success)
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 7. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
-- Step: Run tests with coverage
-- Category: pytest
-- Fixed by: [45264705553](https://github.com/AbdallahIsDev/Lausu/actions/runs/45264705553) (success)
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 8. Build installer — failure
-
-- Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
-- Event: push · Branch: main
-- Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-- Fixed by: [45264705553](https://github.com/AbdallahIsDev/Lausu/actions/runs/45264705553) (success)
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 9. CI error collector — failure
+### 2. CI error collector — failure
 
 - Run: [45234245830](https://github.com/AbdallahIsDev/Lausu/actions/runs/45234245830) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1053,7 +821,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 10. CI error collector — failure
+### 3. CI error collector — failure
 
 - Run: [45222873082](https://github.com/AbdallahIsDev/Lausu/actions/runs/45222873082) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1069,7 +837,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 11. CI error collector — failure
+### 4. CI error collector — failure
 
 - Run: [45086591356](https://github.com/AbdallahIsDev/Lausu/actions/runs/45086591356) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1085,7 +853,7 @@
 (no job log available)
 ```
 
-### 12. CI error collector — failure
+### 5. CI error collector — failure
 
 - Run: [45076536525](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076536525) (attempt 1)
 - Event: workflow_run · Branch: main
