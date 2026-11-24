@@ -10,20 +10,20 @@ Four states the UI branches on:
 * ``gpu_ready`` — at least one local backend can serve GPU right now.
 
 Per-backend readiness is reported alongside the state because "GPU works"
-is not global: CTranslate2 (Whisper) needs cuBLAS/cuDNN, the ONNX backends
+is not global: the Whisper runner needs cuBLAS/cuDNN, the ONNX backends
 need a CUDA-enabled onnxruntime, and Qwen is pinned to CPU by design.
 
 TWO SIGNALS, DELIBERATELY DIFFERENT
 -----------------------------------
 ``cuda_ready`` is the historical "ANY gpu-capable local backend is ready"
 value. It is kept for backward compatibility and for the coarse four-state
-verdict, but it is NOT a decision signal: on a machine where CTranslate2
+verdict, but it is NOT a decision signal: on a machine where the Whisper runtime
 sees the GPU and the installed ``onnxruntime`` is the CPU-only wheel,
 ``cuda_ready`` is True while Parakeet/Qwen cannot serve at all. Gating on
 it produced a silent CPU fallback with no route to the CUDA download.
 
 * ``stack_complete`` — EVERY gpu-capable LOCAL backend is ready, i.e. both
-  the CTranslate2 path and the ORT path work. This is the signal an
+  the Whisper runner path and the ORT path work. This is the signal an
   install must satisfy before the app may persist ``device="cuda"``.
 * ``active_backend_gpu_ready`` — the backend named by ``asr_backend`` can
   serve GPU. This is the signal the UI and the ``set_config`` guard use,
@@ -94,9 +94,7 @@ def snapshot(*, active_backend: str | None = None, refresh: bool = False) -> dic
     data["activation"] = _activation()
     backend = active_backend if isinstance(active_backend, str) and active_backend else None
     data["active_backend"] = backend
-    data["active_backend_gpu_ready"] = (
-        backend_ready(base["backends"], backend) if backend else base["stack_complete"]
-    )
+    data["active_backend_gpu_ready"] = backend_ready(base["backends"], backend) if backend else base["stack_complete"]
     return data
 
 

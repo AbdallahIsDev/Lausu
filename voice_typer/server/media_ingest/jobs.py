@@ -6,7 +6,7 @@ the same number:
 * **Ingest** (URL resolve, audio download, container decode) is I/O plus
   cheap CPU, so several jobs run at once — ``MAX_CONCURRENT_JOBS`` bounds
   how many the user may have in flight.
-* **ASR** is a single shared ctranslate2 model guarded by the engine's own
+* **ASR** is a single shared speech model guarded by the engine's own
   ``_inference_lock``. It is not thread-safe, so decode stays one job at a
   time behind ``asr_lane()``. That is also what keeps transcription quality
   independent of how many files the user queued: every window is decoded by

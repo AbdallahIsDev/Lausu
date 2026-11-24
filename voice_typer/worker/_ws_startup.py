@@ -54,8 +54,7 @@ def _run_prewarm_phase() -> float:
 
     Calls :func:`voice_typer.server.prewarm.warm_imports_for_worker`,
     which pages the runtime-pack libraries' files into the OS standby
-    cache (``onnxruntime`` + ``ctranslate2`` + ``numpy`` + ``scipy`` +
-    ``faster_whisper``) WITHOUT importing them. The worker still has
+    cache (the configured prewarm package list) WITHOUT importing them. The worker still has
     to execute each library's code once, in its own process, that is
     unavoidable, but the cold-disk read is paid here, behind the live
     listener, instead of in front of it.

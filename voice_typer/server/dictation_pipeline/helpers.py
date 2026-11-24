@@ -34,7 +34,7 @@ class BackendNotLoadedError(RuntimeError):
         self.engine_name = engine_name
 
 
-# raw exception messages from ctranslate2 / torch / faster-whisper
+# raw exception messages from the native runtime / torch
 def _friendly_transcription_error(exc: BaseException) -> str:
     """Return a user-friendly message describing a transcription failure."""
     # BackendNotLoadedError has a distinct, friendly message —

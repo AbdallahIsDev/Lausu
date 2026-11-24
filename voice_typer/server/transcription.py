@@ -1,8 +1,7 @@
 """Transcription facade over ASR engines.
 
-C7: the faster-whisper ``TranscriptionEngine`` moved to
-``voice_typer.worker.whisper`` (the slim core must not import
-``faster_whisper``/``ctranslate2``). What stays here are the
+C7: in-process Whisper decoding moved to the worker-backed GGUF runner;
+the slim core never imports a native speech runtime here. What stays here are the
 engine-agnostic helpers (download gate, beam default, re-exports) that
 other slim modules import.
 """

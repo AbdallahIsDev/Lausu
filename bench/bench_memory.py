@@ -156,7 +156,7 @@ def bench_model_load(model_size: str = "small.en", device: str = "cpu") -> dict:
     """Measure peak RSS for ``TranscriptionEngine.load()``.
 
     If the model is unavailable (ConsentRequiredError, missing
-    faster-whisper, etc.), the bench records the post-import RSS and
+    speech runtime, etc.), the bench records the post-import RSS and
     marks the load phase as skipped.
     """
     rss_before = _peak_rss_mb()

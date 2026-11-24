@@ -394,7 +394,7 @@ def _active_model_cache_dirs() -> list[Path]:
             if qwen_repo:
                 target_repo_ids.add(qwen_repo)
         else:
-            # Whisper backend (ctranslate2 + faster-whisper): warm the
+            # Whisper backend: warm the
             if active_model_size:
                 try:
                     from voice_typer.server.model_registry import get_model_metadata as _get_meta

@@ -251,7 +251,7 @@ def bench_transcription(
 ) -> dict:
     """Benchmark transcription latency. Returns stats dict.
 
-    If the model cannot be loaded (not downloaded / faster-whisper
+    If the model cannot be loaded (not downloaded / speech runtime
     missing / sandbox without GPU), the returned dict carries
     ``"skipped": True`` and an ``"error"`` string instead of timing
     stats.  The CI ratchet treats a skipped result as a no-op (no
@@ -291,7 +291,7 @@ def bench_transcription(
     word_counts: list[int] = []
     rss_after_each: list[int | None] = []
     # One UNTIMED warm-up iteration: the first call on the CPU path pays
-    # one-time engine warm-up (ctranslate2 allocator growth, thread-pool
+    # one-time engine warm-up (native allocator growth, thread-pool
     # spin-up) that is not representative of steady-state latency.
     # Without it the reported min/median include cold-start cost.
     engine.transcribe_with_fallback(audio)

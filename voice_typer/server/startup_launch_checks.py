@@ -138,6 +138,7 @@ def check_offline_pack_on_launch(app: AppProtocol, shutdown_event: threading.Eve
         log.exception("[PACK] launch-time pack check failed (best-effort)")
         return {"checked": False, "reason": "error"}
 
+
 def check_media_extractor_refresh(app: AppProtocol, shutdown_event: threading.Event | None = None) -> dict:
     """Launch-time CHECK-ONLY freshness probe for the media extractor (ADR-0023).
 
@@ -177,6 +178,7 @@ def check_media_extractor_refresh(app: AppProtocol, shutdown_event: threading.Ev
         log.debug("[MEDIA] launch-time extractor refresh check failed (best-effort)", exc_info=True)
         return {"checked": False, "reason": "error"}
 
+
 def ensure_desktop_shortcut(app: AppProtocol) -> None:
     """Create the Desktop + Start Menu shortcuts on first run."""
     if not is_windows():
@@ -198,11 +200,12 @@ def ensure_desktop_shortcut(app: AppProtocol) -> None:
     except Exception as e:
         log.debug("[STARTUP] Desktop shortcut creation skipped: %s", e)
 
+
 def prewarm_connect_probes() -> None:
     """Warm the get_config probe caches before the renderer connects.
 
     Connect-time ``get_config`` runs the keyring + GPU probes inline;
-    their first-call cost (keyring backend init, DLL scan, ctranslate2
+    their first-call cost (keyring backend init, DLL scan, native-runtime
     import) can stall a readonly-pool worker mid-startup-storm. Both
     probes cache per process, so one fire-and-forget pass here makes
     every later handshake answer from cache. Never raises.

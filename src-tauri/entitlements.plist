@@ -29,7 +29,7 @@
 
   The pre-existing three entitlements remain (see ADR-0020 §13.2 for
   justification):
-    - allow-jit                      CTranslate2 may use JIT.
+    - allow-jit                      The native speech runtime may use JIT.
     - disable-library-validation     Nuitka onefile extracts unsigned dylibs at runtime.
     - device.audio-input             Mic access (sounddevice).
 -->

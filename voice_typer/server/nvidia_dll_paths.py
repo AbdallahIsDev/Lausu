@@ -2,7 +2,7 @@
 
 This module exposes NVIDIA wheel DLL directories (cuBLAS / cuDNN / nvRTC
 shipped by the ``nvidia-*`` pip packages) to the Windows loader so that
-faster-whisper's CTK runtime can locate them at model-load time.
+the native speech runtime can locate them at model-load time.
 
 On non-Windows platforms every entry point is a no-op, the inner
 implementation early-returns when ``is_windows()`` is false, so callers
@@ -267,7 +267,7 @@ def _configure_nvidia_dll_paths():
 
       Also gates CUDA visibility: when the runtime DLLs cannot actually be
       loaded (CPU-only install, missing ``nvidia-*`` wheels), every
-      downstream ``import ctranslate2`` would otherwise
+      downstream native-runtime imports would otherwise
       pay ~20s of CUDA device enumeration before falling back to CPU.
       Setting ``CUDA_VISIBLE_DEVICES=""`` here, before those imports run
     , makes them skip the GPU probe entirely (~3s vs ~22s cold) and
@@ -373,7 +373,7 @@ def _cuda_runtime_available() -> bool:
         _cuda_available = all(_load_cuda_dll(ctypes, name) for name in probe_names)
     except Exception:
         probe_names = _CUDA_DLL_CANDIDATES
-        _cuda_available = True  # fail-open: let ctranslate2 decide
+        _cuda_available = True  # fail-open: let the native runtime decide
     if not _cuda_available:
         log.warning(
             "[CUDA-DLL] CUDA runtime DLLs unavailable (%s missing). CUDA disabled; model will load on CPU",
@@ -404,5 +404,5 @@ def _configure_cuda_visibility_if_broken() -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
     log.info(
         "[CUDA-DLL] Set CUDA_VISIBLE_DEVICES='': downstream imports "
-        "(ctranslate2) skip CUDA enumeration (~20s) and load on CPU"
+        "(native runtime) skip CUDA enumeration (~20s) and load on CPU"
     )

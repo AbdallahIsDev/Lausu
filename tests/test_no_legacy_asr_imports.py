@@ -1,9 +1,9 @@
 """Fail-closed guard: the retired Python ASR/media stack must stay gone.
 
 Covers imports (including dynamic ones), sys.modules injection in tests,
-dependency declarations, and freeze flags. Historical prose in ADRs,
-review/worklog/CHANGELOG and HF model repository IDs are not code and are
-intentionally out of scope.
+dependency declarations, freeze flags, and live bench/API prose. Historical
+prose in ADRs, review/worklog/CHANGELOG and HF model repository IDs are not
+code and are intentionally out of scope.
 """
 
 from __future__ import annotations
@@ -16,8 +16,13 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 BANNED = ("av", "faster_whisper", "ctranslate2")
-PY_ROOTS = ("voice_typer", "scripts", "tests")
+PY_ROOTS = ("voice_typer", "scripts", "tests", "bench")
 DEPS = ("pyproject.toml", "requirements-lock.txt")
+
+# Prose naming of the retired stack in active bench scripts/docs, not history.
+PROSE_TERMS = re.compile(r"\b(?:faster[-_]whisper|ctranslate2|WhisperModel|PyAV)\b", re.IGNORECASE)
+_REPO_ID_DATA = re.compile(r"[^\s\"']*/[^\s\"']*")
+HISTORICAL_PROSE = frozenset({ROOT / "bench" / "COLDSTART_REPORT.md"})
 
 _REQUIREMENT_RE = re.compile(r"^\s*(av|faster-whisper|ctranslate2)\s*(?:[=<>!~;]|$)", re.IGNORECASE)
 _STALE_SCRIPT_RE = re.compile(r"strip_av_cython_shims|include-package=(?:av|faster_whisper|ctranslate2)\b")
@@ -33,6 +38,24 @@ def _python_files() -> list[Path]:
         if base.is_dir():
             files.extend(p for p in base.rglob("*.py") if "__pycache__" not in p.parts)
     return files
+
+
+def _prose_files() -> list[Path]:
+    files: list[Path] = []
+    bench = ROOT / "bench"
+    for pattern in ("*.py", "*.md"):
+        files.extend(
+            path for path in bench.rglob(pattern) if path not in HISTORICAL_PROSE and "__pycache__" not in path.parts
+        )
+    api = ROOT / "docs" / "API.md"
+    if api.is_file():
+        files.append(api)
+    return files
+
+
+def _scrub_repo_ids(line: str) -> str:
+    """Blank path-like data tokens (HF repo ids) before checking prose."""
+    return _REPO_ID_DATA.sub(lambda match: "" if PROSE_TERMS.search(match.group(0)) else match.group(0), line)
 
 
 def _banned_string(node: ast.AST) -> str | None:
@@ -102,6 +125,17 @@ def test_no_legacy_imports_in_code_or_tests() -> None:
     assert not failures, "retired ASR/media libraries are still referenced:\n" + "\n".join(failures)
 
 
+def test_no_legacy_stack_wording_in_bench_and_api_docs() -> None:
+    failures: list[str] = []
+    for path in _prose_files():
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for lineno, line in enumerate(text.splitlines(), 1):
+            hit = PROSE_TERMS.search(_scrub_repo_ids(line))
+            if hit:
+                failures.append(f"{path.relative_to(ROOT).as_posix()}:{lineno}: {hit.group(0)}")
+    assert not failures, "retired ASR/media stack named in bench or API docs:\n" + "\n".join(failures)
+
+
 def test_no_legacy_dependency_declarations() -> None:
     failures: list[str] = []
     for name in DEPS:
@@ -139,3 +173,9 @@ def test_guard_detects_dynamic_import_and_ignores_model_repo_names(tmp_path: Pat
     good = tmp_path / "good.py"
     good.write_text('REPO = "Systran/faster-whisper-tiny"\n', encoding="utf-8")
     assert not _violations(good)
+
+
+def test_prose_guard_ignores_repo_ids_and_allows_current_names() -> None:
+    assert PROSE_TERMS.search(_scrub_repo_ids('REPO = "Systran/faster-whisper-tiny.en"')) is None
+    assert PROSE_TERMS.search(_scrub_repo_ids("loads a faster-whisper model")) is not None
+    assert PROSE_TERMS.search(_scrub_repo_ids("the GGUF runner decodes audio")) is None

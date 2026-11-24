@@ -24,7 +24,7 @@ python bench/bench_transcription.py --model small.en --device cuda --iterations 
 
 `media_concurrency_stress.py` exercises the ADR-0023 multi-job manager against
 the REAL job manager, the REAL `engine_loop` (ASR lane + abort guard), the REAL
-PyAV decoder and a REAL faster-whisper model. Six scenarios: serial-vs-
+ffmpeg decoder and a REAL GGUF model. Six scenarios: serial-vs-
 concurrent throughput, the concurrency cap, per-job cancel isolation, decode
 parity (mp3 vs mp4, and the same clip decoded concurrently), and the log
 contract.

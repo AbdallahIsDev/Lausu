@@ -10,7 +10,7 @@
 # PHASE 0-L 9-POINT GATE STATUS (all 9 must pass on BOTH X11 AND Wayland, both arches):
 #   [ ] 1. externalBin sidecar spawns via Tauri on X11 + Wayland
 #   [ ] 2. WS + bearer-token handshake works on X11 + Wayland
-#   [ ] 3. faster-whisper transcribes inside the Nuitka exe
+#   [ ] 3. the speech runner transcribes inside the Nuitka exe
 #   [ ] 4. enigo types on X11; clipboard + Ctrl+V fallback (wl-copy) on Wayland
 #   [ ] 5. tauri-plugin-notification posts via libnotify on X11 + Wayland
 #   [ ] 6. Cooperative {"type":"shutdown"} exits; kill_children cleans
@@ -257,7 +257,7 @@ jobs:
           - aarch64
 
     env:
-      # Pin to 3.12 — ADR-0020 §4.4 mandates 3.12.x (CTranslate2 / faster-whisper wheel tags).
+      # Pin to 3.12 — ADR-0020 §4.4 mandates 3.12.x (native speech-runtime wheel tags).
       PYTHON_VERSION: "3.12"
       # The arch being built. For aarch64, the script uses qemu-user-static.
       BUILD_ARCH: ${{ matrix.arch }}

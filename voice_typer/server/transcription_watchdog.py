@@ -65,7 +65,7 @@ class TranscriptionWatchdog:
 
         When the transcription thread is still alive at the time the
         watchdog fires, we used to leave the app busy and return. That
-        meant a genuinely deadlocked worker (e.g. ctranslate2 stuck in
+        meant a genuinely deadlocked worker (e.g. native decoder stuck in
         CUDA) would never recover. We now re-arm the watchdog up to
         ``_watchdog_max_firings`` times; once the counter exceeds the
         threshold (or ``force=True`` is passed), we unconditionally clear

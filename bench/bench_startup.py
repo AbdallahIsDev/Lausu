@@ -14,8 +14,8 @@ Measures:
      - Single-instance lock acquisition
      - The prewarm phase (master plan §6.2 P-1) —
        :func:`voice_typer.server.prewarm.warm_imports_for_worker`,
-       which pages ``onnxruntime`` + ``ctranslate2`` + ``numpy`` +
-       ``scipy`` + ``faster_whisper`` files into the OS standby cache
+       which pages the prewarm package list into the OS standby
+       cache
        (no import).
      - WS server bind on ``127.0.0.1:0``
 
@@ -172,8 +172,8 @@ def _measure_one_worker_startup(*, python: str) -> float:
 
     1. Single-instance lock acquisition.
     2. Prewarm phase (master plan §6.2 P-1), pages
-       ``onnxruntime`` + ``ctranslate2`` + ``numpy`` + ``scipy`` +
-       ``faster_whisper`` files into the OS standby cache.
+       the prewarm package list into
+       the OS standby cache.
     3. WS server bind on ``127.0.0.1:0``.
     4. Emits ``{"event":"worker_started","port":N,"protocol":P}`` to
        stdout.

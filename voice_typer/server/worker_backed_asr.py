@@ -3,9 +3,9 @@
 One purpose only: expose the in-process ``AsrBackend`` surface for the
 ``whisper`` registry slot while running ZERO inference in this process.
 Every call forwards to the runtime-pack worker over the C2/C3 bridge;
-the faster_whisper engine class it replaces
+the in-process engine class it replaces
 (``transcription.TranscriptionEngine``) is deleted, which is what lets
-the Nuitka sidecar exclude ``faster_whisper``/``ctranslate2``.
+the Nuitka sidecar exclude the legacy native speech libraries.
 
 ``parakeet``/``qwen`` run in-process by default with a worker-first
 hook in the registry (served from the pack worker when one is

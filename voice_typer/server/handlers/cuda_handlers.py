@@ -21,7 +21,7 @@ def device_request_rejection(updates: dict, config: object | None = None) -> str
       produce a GPU pill that cannot serve (C-UI-15).
 
     The per-backend check is the important half: a machine whose
-    CTranslate2 path sees the GPU but whose ``onnxruntime`` is the CPU-only
+    Whisper runner path sees the GPU but whose ``onnxruntime`` is the CPU-only
     wheel reports global ``cuda_ready`` True, so gating on that let a
     Parakeet user write ``cuda`` and silently fall back to CPU.
 

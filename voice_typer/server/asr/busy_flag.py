@@ -3,7 +3,7 @@
 Extracted from the former monolithic ``asr_registry.py``. Owns
 the per-backend busy-set state used by the dictation watchdog to reject
 new dictation requests when the active backend is stuck inside a
-C-level ctranslate2 / ONNX inference call (which can hold the GPU +
+C-level native / ONNX inference call (which can hold the GPU +
 GIL for 5–30 min).
 
 The flag is keyed by backend NAME (not the backend object) so a backend
@@ -34,7 +34,7 @@ class BusyFlag:
     on exit (including the exception path). Used by
     :meth:`ModelManager.ensure_active_engine_loaded` to reject new
     dictation requests when the active backend is stuck in a C-level
-    ctranslate2 call.
+    native-runtime call.
 
     ``active_name_provider`` is a zero-argument callable returning the
     currently-active backend name (typically ``lambda: registry.active_name``).

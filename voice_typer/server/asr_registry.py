@@ -76,7 +76,7 @@ class AsrBackendRegistry(RegistryCore):
     _MAX_CONSECUTIVE_FAILURES = 3
 
     # Maps backend name -> (module_path, class_name) for lazy import.
-    # C7: "whisper" is worker-backed (no faster_whisper in this process).
+    # C7: "whisper" is worker-backed (no in-process Whisper decode).
     # parakeet/qwen are worker-backed too: all local ASR runs in the
     # separate process through the transcribe.cpp native library.
     _BACKEND_SPECS: dict[str, tuple[str, str]] = {

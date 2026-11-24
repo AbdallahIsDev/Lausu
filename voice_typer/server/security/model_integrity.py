@@ -108,7 +108,7 @@ def _load_model_hashes() -> dict[str, dict[str, Any]]:
             },
         },
         # Turbo lives under the canonical dropbox-dash org, not Systran
-        # (renamed from mobiuslabsgmbh; faster-whisper 1.2.1 still aliases it).
+        # (renamed from mobiuslabsgmbh; older Whisper tooling still aliases it).
         "dropbox-dash/faster-whisper-large-v3-turbo": {
             "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
             "files": {
@@ -473,10 +473,10 @@ to either pin or ignore).  The list is now split per backend:
 - ``ALLOW_PATTERNS_PARAKEET``: safetensors + config/tokenizer JSONs.
   No ``*.bin``.  Used by ``parakeet_engine.py`` and the Parakeet path
   of ``asr_setup.download_parakeet_weights``.
-- ``ALLOW_PATTERNS_WHISPER``: keeps ``*.bin`` because CTranslate2
-  (used by ``faster_whisper``) consumes the ``model.bin`` format
-  natively.  Whisper weights are only ever loaded via CTranslate2
-  and never via the pickle-based loader, so the risk is bounded.
+- ``ALLOW_PATTERNS_WHISPER``: keeps ``*.bin`` because the Whisper model
+  format consumes ``model.bin`` natively. These weights are only ever
+  loaded by the native runtime, never by the pickle-based loader,
+  so the risk is bounded.
   Used by ``transcription.py::_pre_download_model``.
 
 """
@@ -539,7 +539,7 @@ ALLOW_PATTERNS_WHISPER: list[str] = [
     "generation_config.json",
     "model.safetensors.index.json",
     "*.model",
-    # Legacy vocabulary tables shipped by faster-whisper repos
+    # Legacy vocabulary tables shipped by Whisper model repos
     "vocabulary.json",
     "vocabulary.txt",
 ]

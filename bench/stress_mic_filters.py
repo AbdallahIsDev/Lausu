@@ -43,6 +43,8 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from voice_typer.server.gguf_model_registry import DEFAULT_MODEL_KEY  # noqa: E402
+
 SR = 16000
 SHORT_TAKE_SECONDS = 2.0
 HONESTY_SECONDS = 20.0
@@ -421,22 +423,19 @@ def _normalise(text: str) -> str:
 
 
 class Transcriber:
-    """faster-whisper wrapper for the delivered-take comparison."""
+    """GGUF runner wrapper for the delivered-take comparison."""
 
     def __init__(self, model: str) -> None:
-        from faster_whisper import WhisperModel
+        from voice_typer.worker.asr_runner import GgufRunner, gguf_model_path_for_key
 
-        self._model = WhisperModel(model, device="cpu", compute_type="int8")
+        path = Path(model).expanduser()
+        model_path = str(path) if path.suffix == ".gguf" and path.is_file() else gguf_model_path_for_key(model)
+        self._runner = GgufRunner(model_path)
 
     def text(self, audio: np.ndarray) -> str:
         """Transcribe 16 kHz mono float32 audio."""
-        segments, _info = self._model.transcribe(
-            np.asarray(audio, dtype=np.float32),
-            language="en",
-            beam_size=1,
-            vad_filter=False,
-        )
-        return " ".join(segment.text.strip() for segment in segments).strip()
+        result = self._runner.transcribe(np.asarray(audio, dtype=np.float32), language="en")
+        return (result.text or "").strip()
 
     def compare(self, reference: str, audio: np.ndarray) -> dict[str, Any]:
         """Word error rate of ``audio`` against ``reference``."""
@@ -516,7 +515,11 @@ def main() -> int:
     parser.add_argument("--chunks", default=",".join(str(c) for c in DEFAULT_CHUNK_MS), help="chunk sizes in ms")
     parser.add_argument("--long-seconds", type=float, default=180.0, help="long-take duration")
     parser.add_argument("--snr-db", type=float, default=5.0, help="noise level relative to speech")
-    parser.add_argument("--asr-model", default="tiny", help="faster-whisper model for the live check")
+    parser.add_argument(
+        "--asr-model",
+        default=DEFAULT_MODEL_KEY,
+        help="local GGUF path or registry model key for the live check",
+    )
     parser.add_argument("--no-asr", action="store_true", help="skip the live-model section")
     parser.add_argument("--json", type=Path, default=None, help="write the raw results as JSON")
     args = parser.parse_args()
@@ -550,10 +553,7 @@ def main() -> int:
         deadline = time.perf_counter() + 120.0
         while time.perf_counter() < deadline and not dpdfnet_backend.has_runtime():
             time.sleep(0.05)
-    print(
-        f"dpdfnet ready={dpdfnet_backend.has_runtime()} "
-        f"last_error={dpdfnet_backend.last_error()!r}"
-    )
+    print(f"dpdfnet ready={dpdfnet_backend.has_runtime()} last_error={dpdfnet_backend.last_error()!r}")
     runtime = getattr(dpdfnet_backend, "_runtime", None)
     print(f"dpdfnet realtime factor: {getattr(runtime, 'realtime_factor', None)}")
 
@@ -571,7 +571,10 @@ def main() -> int:
     _gate(results, failures)
 
     if not args.no_asr:
-        transcriber = Transcriber(args.asr_model)
+        try:
+            transcriber = Transcriber(args.asr_model)
+        except RuntimeError as exc:
+            raise SystemExit(f"live speech model unavailable: {exc}") from exc
         short = speech[: int(SHORT_TAKE_SECONDS * SR)]
         baseline_text = transcriber.text(short)
         baseline_words = len(_normalise(baseline_text).split())

@@ -1,13 +1,13 @@
 """Concurrent media transcription stress harness (ADR-0023 multi-job).
 
 Exercises the REAL `MediaJobManager`, the REAL `engine_loop.transcribe_windows`
-(lane + abort guard), the REAL PyAV decoder and a REAL faster-whisper model.
-Only two things are substituted, and both are substituted because they are
-environment, not code:
+(lane + abort guard), the REAL ffmpeg decoder and a REAL GGUF model driven by
+the project's transcribe.cpp runner. Only two things are substituted, and both
+are substituted because they are environment, not code:
 
 * the model-manager plumbing (`_ensure_media_backend`), replaced by a direct
-  `WhisperModel` wrapped in a backend that mirrors `system_whisper`'s contract
-  (`_inference_lock`, `_abort_event`, abort polled between segments);
+  `GgufRunner` wrapped in a backend that mirrors the in-process engine's
+  contract (one lock, one scoped abort Event per call);
 * History persistence, replaced by a char count (no app/history DB here).
 
 Scenarios
@@ -38,7 +38,7 @@ Usage:
     .venv/Scripts/python.exe bench/media_concurrency_stress.py --jobs 6 --clip 240
     .venv/Scripts/python.exe bench/media_concurrency_stress.py \
         --audio ~/Downloads/talk.mp3 --video ~/Downloads/talk.mp4 \
-        --device cuda --compute float16
+        --device cuda
 
 The default media is the owner's Downloads pair (the same recording as .mp3
 and .mp4); `--audio`/`--video` point it at any equivalent pair.
@@ -61,6 +61,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+from voice_typer.server.gguf_model_registry import DEFAULT_MODEL_KEY  # noqa: E402
 from voice_typer.server.media_ingest import (  # noqa: E402
     decoder as decoder_mod,
     engine_loop as loop_mod,
@@ -70,17 +71,17 @@ from voice_typer.server.media_ingest.jobs import MediaJob, MediaJobManager  # no
 DOWNLOADS = Path.home() / "Downloads"
 AUDIO_SRC = DOWNLOADS / "How To Build a Clean Gaming Laptop Setup_(MP3_160K).mp3"
 VIDEO_SRC = DOWNLOADS / "How To Build a Clean Gaming Laptop Setup_(240P).mp4"
-DEFAULT_MODEL = REPO_ROOT / ".tmp-tiny-model"
+DEFAULT_MODEL = DEFAULT_MODEL_KEY
 
 
 # --------------------------------------------------------------------------
 # Real engine, wrapped in the contract `engine_loop` expects
 # --------------------------------------------------------------------------
 class RealBackend:
-    """faster-whisper model behind the `WindowBackend` protocol.
+    """GGUF runner behind the `WindowBackend` protocol.
 
-    Mirrors `system_whisper.SystemWhisperEngine`: one non-thread-safe model
-    behind an RLock, one shared abort Event polled BETWEEN segments.
+    Mirrors the worker-backed engine: one non-thread-safe runner behind an
+    RLock, with a scoped abort Event passed into each call.
     """
 
     def __init__(
@@ -89,24 +90,11 @@ class RealBackend:
         *,
         language: str = "en",
         device: str = "auto",
-        compute_type: str | None = None,
-        cpu_threads: int = 4,
     ) -> None:
-        from faster_whisper import WhisperModel
+        from voice_typer.worker.asr_runner import GgufRunner
 
-        if device in ("cuda", "auto"):
-            # Production does this before every model load: it puts the
-            # `nvidia-*` wheel DLL dirs on the Windows loader path, without
-            # which ctranslate2 cannot find cublas64_12.dll. Skipping it here
-            # would make the bench test a runtime the app never sees.
-            from voice_typer.server.nvidia_dll_paths import _configure_nvidia_dll_paths
-
-            _configure_nvidia_dll_paths()
-
-        kwargs: dict = {"device": device, "cpu_threads": cpu_threads}
-        if compute_type:
-            kwargs["compute_type"] = compute_type
-        self._model = WhisperModel(str(model_path), **kwargs)
+        self._backend = None if device == "auto" else device
+        self._runner = GgufRunner(str(model_path))
         self.language = language
         self.is_loaded = True
         self._abort_event = threading.Event()
@@ -124,27 +112,21 @@ class RealBackend:
         import numpy as np
 
         samples = np.asarray(audio, dtype=np.float32).reshape(-1)
-        # Same contract as `system_whisper`: a scoped `abort_event` (the job's
-        # own cancel Event) wins over the engine-wide flag.
+        # A scoped `abort_event` (the job's own cancel Event) wins over the
+        # engine-wide flag; it is polled by the runner during the decode.
         abort_source = kwargs.get("abort_event") or self._abort_event
         with self._inference_lock:
             self.decode_calls += 1
             started = time.perf_counter()
             try:
-                segments, _info = self._model.transcribe(
+                result = self._runner.transcribe(
                     samples,
                     language=self.language,
-                    vad_filter=True,
-                    temperature=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+                    backend=self._backend,
+                    abort_event=abort_source,
                 )
-                parts: list[str] = []
-                for seg in segments:
-                    if abort_source.is_set():
-                        break
-                    text = (seg.text or "").strip()
-                    if text:
-                        parts.append(text)
-                return " ".join(parts)
+                parts = [(segment.text or "").strip() for segment in result.segments]
+                return " ".join(part for part in parts if part) or (result.text or "").strip()
             finally:
                 self.decode_seconds += time.perf_counter() - started
 
@@ -227,7 +209,7 @@ def make_runner(mgr: MediaJobManager, backend: RealBackend, tmp_dir: Path):
         if source.startswith(REMOTE_PREFIX):
             assert REMOTE_ROOT is not None
             path = throttled_ingest_copy(
-                REMOTE_ROOT / source[len(REMOTE_PREFIX):],
+                REMOTE_ROOT / source[len(REMOTE_PREFIX) :],
                 job,
                 tmp_dir,
                 INGEST_BYTES_PER_SECOND,
@@ -454,15 +436,12 @@ def scenario_parity(backend: RealBackend, tmp_dir: Path, audio_clip: Path, video
     )
     if ratio < 0.999:
         opcodes = [
-            op
-            for op in difflib.SequenceMatcher(None, same_file_a, video_text).get_opcodes()
-            if op[0] != "equal"
+            op for op in difflib.SequenceMatcher(None, same_file_a, video_text).get_opcodes() if op[0] != "equal"
         ]
         if opcodes:
             _tag, i1, i2, j1, j2 = opcodes[0]
             detail += (
-                f"; first diff: {same_file_a[max(0, i1 - 25):i2 + 25]!r}"
-                f" vs {video_text[max(0, j1 - 25):j2 + 25]!r}"
+                f"; first diff: {same_file_a[max(0, i1 - 25) : i2 + 25]!r} vs {video_text[max(0, j1 - 25) : j2 + 25]!r}"
             )
     # NOT an equality gate: two different lossy encodes are two different
     # sample streams, and a tiny model's autoregressive decode diverges from
@@ -516,11 +495,12 @@ def main() -> int:
     parser.add_argument("--cap", type=int, default=4, help="concurrency cap under test")
     parser.add_argument("--clip", type=float, default=240.0, help="clip length in seconds")
     parser.add_argument("--bandwidth", type=int, default=1_500_000, help="simulated download bytes/s")
-    parser.add_argument("--model", default=str(DEFAULT_MODEL), help="faster-whisper model dir")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="local GGUF path or registry model key")
     parser.add_argument(
-        "--device", default="auto", help="auto | cpu | cuda (what the app would pick)"
+        "--device",
+        default="auto",
+        help="auto | cpu | metal | vulkan | cpu_accel | cuda | rocm (what the app would pick)",
     )
-    parser.add_argument("--compute", default=None, help="e.g. int8, float16 (default: model's)")
     parser.add_argument(
         "--audio",
         default=str(AUDIO_SRC),
@@ -545,9 +525,17 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2
-    model_dir = Path(args.model)
-    if not (model_dir / "model.bin").is_file():
-        print(f"missing model at {model_dir} (see the module docstring)", file=sys.stderr)
+    model_path = Path(args.model).expanduser()
+    if model_path.suffix != ".gguf" or not model_path.is_file():
+        from voice_typer.worker.asr_runner import gguf_model_path_for_key
+
+        try:
+            model_path = Path(gguf_model_path_for_key(args.model))
+        except RuntimeError as exc:
+            print(f"speech model unavailable: {exc}", file=sys.stderr)
+            return 2
+    if not model_path.is_file():
+        print(f"missing speech model at {model_path} (see the module docstring)", file=sys.stderr)
         return 2
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="media-stress-"))
@@ -560,17 +548,14 @@ def main() -> int:
     write_clip(video_src, video_clip, args.clip)
     print(f"  audio clip {audio_clip.stat().st_size / 1e6:.1f} MB, video clip {video_clip.stat().st_size / 1e6:.1f} MB")
 
-    print(f"loading model {model_dir.name}…")
-    backend = RealBackend(model_dir, device=args.device, compute_type=args.compute)
+    print(f"loading model {model_path.name}…")
+    backend = RealBackend(model_path, device=args.device)
     ok = True
     try:
         REMOTE_ROOT = clip_dir
         INGEST_BYTES_PER_SECOND = args.bandwidth
         url = f"{REMOTE_PREFIX}{audio_clip.name}"
-        print(
-            f"\nremote source: {url} "
-            f"(throttled ingest at {args.bandwidth / 1e6:.1f} MB/s)"
-        )
+        print(f"\nremote source: {url} (throttled ingest at {args.bandwidth / 1e6:.1f} MB/s)")
 
         print("\n[1] throughput — serial baseline")
         serial_wall, serial_runs = scenario_throughput(
@@ -611,9 +596,7 @@ def main() -> int:
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    print(
-        f"\nmodel decode calls={backend.decode_calls} decode time={backend.decode_seconds:.1f}s"
-    )
+    print(f"\nmodel decode calls={backend.decode_calls} decode time={backend.decode_seconds:.1f}s")
     print("\nRESULT:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 

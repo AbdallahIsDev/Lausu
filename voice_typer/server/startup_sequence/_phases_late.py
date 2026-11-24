@@ -234,7 +234,7 @@ class LatePhases:
         log.debug("[STARTUP] Extractor refresh check dispatched to fire-and-forget daemon thread (no wait, no timeout)")
 
         # Connect-time get_config runs keyring + GPU probes inline; their
-        # first-call cost (keyring backend init, DLL scan, ctranslate2
+        # first-call cost (keyring backend init, DLL scan, native-runtime
         # import) can stall a readonly-pool worker for seconds mid-storm.
         # Pre-warm both caches here so the handshake answers from cache.
         def _probe_prewarm_task() -> None:
