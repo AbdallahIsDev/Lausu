@@ -48,6 +48,19 @@ class FakeLibrary:
     def transcribe_model_load_params_init(self, _params):
         return None
 
+    def transcribe_run_params_init(self, params):
+        params._obj.struct_size = __import__("ctypes").sizeof(params._obj)
+        return None
+
+    def transcribe_abi_struct_size(self, which):
+        from voice_typer.worker.asr_runner.runner import _LoadParams, _RunParams, _Segment
+
+        return {
+            0: __import__("ctypes").sizeof(_LoadParams),
+            2: __import__("ctypes").sizeof(_RunParams),
+            6: __import__("ctypes").sizeof(_Segment),
+        }.get(which, 0)
+
     def transcribe_open(self, _path, _load, _session, out):
         if self.fail_open:
             return 4

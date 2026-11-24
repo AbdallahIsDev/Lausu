@@ -48,6 +48,7 @@ class RunnerResult:
     segments: tuple[RunnerSegment, ...] = ()
     language: str | None = None
     status: int = OK
+    partial: bool = False
 
 
 EXPECTED_VERSION = "0.4.2"

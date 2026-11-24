@@ -38,7 +38,7 @@ log = logging.getLogger("voice_typer.worker.asr_runner")
 
 ENV_TRANSCRIBE_LIBRARY = "TRANSCRIBE_LIBRARY"
 LIBRARY_BASENAME = "transcribe.dll" if os.name == "nt" else "libtranscribe.so"
-DEFAULT_TIMEOUT_S = 300.0
+from voice_typer.server.worker_backed_asr import _TRANSCRIBE_TIMEOUT_SECONDS as DEFAULT_TIMEOUT_S
 MAX_SAMPLES = 16_000 * 60 * 30  # 30 minutes of 16 kHz mono; bounds native allocations
 
 
@@ -69,6 +69,30 @@ class _LoadParams(ctypes.Structure):
     ]
 
 
+class _RunParams(ctypes.Structure):
+    _fields_ = [
+        ("struct_size", ctypes.c_uint64),
+        ("task", ctypes.c_int),
+        ("timestamps", ctypes.c_int),
+        ("pnc", ctypes.c_int),
+        ("itn", ctypes.c_int),
+        ("diarize", ctypes.c_int),
+        ("language", ctypes.c_char_p),
+        ("target_language", ctypes.c_char_p),
+        ("keep_special_tags", ctypes.c_bool),
+        ("family", ctypes.c_void_p),
+        ("spec_k_drafts", ctypes.c_int32),
+        ("vocabulary", ctypes.POINTER(ctypes.c_char_p)),
+        ("n_vocabulary", ctypes.c_int32),
+        ("prompt", ctypes.c_char_p),
+        ("prefix", ctypes.c_char_p),
+    ]
+
+
+_ABI_SEGMENT = 6
+_ABI_RUN_PARAMS = 2
+_ABI_MODEL_LOAD_PARAMS = 0
+_MAX_LEAKED_SESSIONS = 2
 _ABORT_CB = ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_void_p)
 _BACKEND_REQUEST = {"auto": 0, "cpu": 1, "metal": 2, "vulkan": 3, "cpu_accel": 4, "cuda": 5, "rocm": 6}
 _INITIALISED: set[str] = set()
@@ -124,6 +148,10 @@ def _bind(lib: ctypes.CDLL) -> None:
     lib.transcribe_init_backends.restype = ctypes.c_int
     lib.transcribe_model_load_params_init.argtypes = [ctypes.POINTER(_LoadParams)]
     lib.transcribe_model_load_params_init.restype = None
+    lib.transcribe_run_params_init.argtypes = [ctypes.POINTER(_RunParams)]
+    lib.transcribe_run_params_init.restype = None
+    lib.transcribe_abi_struct_size.argtypes = [ctypes.c_int]
+    lib.transcribe_abi_struct_size.restype = ctypes.c_size_t
 
 
 class GgufRunner:
@@ -146,6 +174,18 @@ class GgufRunner:
             os.add_dll_directory(str(directory))
         lib = ctypes.CDLL(str(path))
         _bind(lib)
+        for which, local in (
+            (_ABI_MODEL_LOAD_PARAMS, _LoadParams),
+            (_ABI_RUN_PARAMS, _RunParams),
+            (_ABI_SEGMENT, _Segment),
+        ):
+            expected = int(lib.transcribe_abi_struct_size(which))
+            if expected == 0 or expected != ctypes.sizeof(local):
+                log.error(
+                    "[GGUF] ABI size mismatch: struct=%d native=%d local=%d",
+                    which, expected, ctypes.sizeof(local),
+                )
+                raise RunnerError("The installed speech runtime has an incompatible API.")
         directory_key = str(directory.resolve())
         if directory_key not in _INITIALISED:
             status = lib.transcribe_init_backends(str(directory).encode("utf-8"))
@@ -163,6 +203,8 @@ class GgufRunner:
         backend: str | None = None,
         abort_event: threading.Event | None = None,
     ) -> RunnerResult:
+        if len(_LEAKED_SESSIONS) >= _MAX_LEAKED_SESSIONS:
+            raise RunnerError("The speech worker is unhealthy and must be restarted.")
         sample_count = len(audio) if hasattr(audio, "__len__") else 0
         if sample_count <= 0 or sample_count > MAX_SAMPLES:
             raise RunnerError("The audio is empty or too long to transcribe.")
@@ -198,11 +240,16 @@ class GgufRunner:
                 if sys.byteorder == "big":
                     pcm.byteswap()
                 buf = (ctypes.c_float * len(pcm)).from_buffer(pcm)
+                run_params = _RunParams()
+                lib.transcribe_run_params_init(ctypes.byref(run_params))
+                language_bytes = (language or "").encode("utf-8") or None
+                run_params.language = language_bytes
                 box: list[object] = []
 
                 def _run() -> None:
                     try:
-                        box.append(lib.transcribe_run(session, buf, len(pcm), None))
+                        params = ctypes.byref(run_params)
+                        box.append(lib.transcribe_run(session, buf, len(pcm), params))
                     except BaseException as exc:  # native-layer failure must not hang
                         box.append(exc)
 
@@ -216,6 +263,7 @@ class GgufRunner:
                         # The native call still owns this session. Freeing it
                         # now is a use-after-free; keep it alive until process
                         # exit and never swap its callback.
+                        leaked = True
                         _LEAKED_SESSIONS.append(session)
                         log.error("[GGUF] native run still active after abort grace; session retained")
                         raise RunnerError("Speech recognition took too long and was stopped.")
@@ -226,7 +274,8 @@ class GgufRunner:
                     log.error("[GGUF] native run raised: %r", box[0])
                     raise RunnerError("Speech recognition stopped unexpectedly.") from box[0]
                 status = box[0]
-                if status in (ERR_OUTPUT_TRUNCATED, ERR_OUTPUT_REPETITION):
+                partial = status in (ERR_OUTPUT_TRUNCATED, ERR_OUTPUT_REPETITION)
+                if partial:
                     log.warning("[GGUF] partial decode: status=%d", status)
                 elif status != OK:
                     message = lib.transcribe_status_string(status)
@@ -258,10 +307,12 @@ class GgufRunner:
                     segments=tuple(segments),
                     language=language_out or None,
                     status=status,
+                    partial=partial,
                 )
             finally:
-                try:
-                    lib.transcribe_set_abort_callback(session, None, None)
-                except Exception:
-                    log.debug("[GGUF] clearing abort callback failed", exc_info=True)
-                lib.transcribe_session_free(session)
+                if not leaked:
+                    try:
+                        lib.transcribe_set_abort_callback(session, None, None)
+                    except Exception:
+                        log.debug("[GGUF] clearing abort callback failed", exc_info=True)
+                    lib.transcribe_session_free(session)
