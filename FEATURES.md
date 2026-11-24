@@ -151,9 +151,9 @@ cutover complete 2026-09-17). predecessor packaging, TCP IPC, and
 
 | # | Feature | Status | Notes |
 |---|---|---|---|---|
-| 16 | faster-whisper (tiny.en, small.en, medium.en) | ✅ | GGUF runtime, GPU/CPU selection from the shipped runtime contract |
-| 17 | Qwen3-ASR (0.6B / 1.7B) | ✅ | ONNX Runtime backend only (pre-exported `andrewleech/qwen3-asr-*-onnx` models, downloaded from HuggingFace after consent; a local dir via `qwen_model_path` still works as an override). The torch `qwen-asr` path was removed 2026-08-15 (Phase 1d), the project is torch-free. |
-| 18 | Parakeet Ultra | ✅ | HuggingFace (ONNX int8), auto-download weights |
+| 16 | Whisper (large-v3 / large-v3-turbo) | ✅ | GGUF weights from the pinned registry, GPU/CPU selection from the shipped runtime contract |
+| 17 | Qwen3-ASR (0.6B / 1.7B) | ✅ | GGUF weights from the pinned registry, downloaded from HuggingFace after consent |
+| 18 | Parakeet Ultra | ✅ | HuggingFace GGUF Q8_0, verified download |
 | 19 | Cloud ASR: OpenAI Whisper API | ✅ | `CloudEngine` interface, tested |
 | 20 | Cloud ASR: Groq Whisper API | ✅ | `CloudEngine` interface, tested |
 | 21 | Cloud ASR: Deepgram API (nova-3) / Google Gemini | ✅ | `CloudEngine` interface, tested |

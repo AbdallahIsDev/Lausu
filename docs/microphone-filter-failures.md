@@ -239,7 +239,7 @@ delta 171 dB with the take swapped to raw. Regression pins: `tests/test_level_mo
 
 Measured on this machine (Windows, CPU-only, `.venv`) by `bench/stress_mic_filters.py`, which drives the
 real `AudioProcessor` + `AudioPipeline` with real speech (Windows SAPI TTS, 16 kHz mono, 36 s) and the
-live `faster-whisper` tiny model. Re-run it with:
+live GGUF model from the pinned registry. Re-run it with:
 
 ```
 python bench/stress_mic_filters.py                  # full matrix + live model
