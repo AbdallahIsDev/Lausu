@@ -50,7 +50,11 @@ class RunnerResult:
     status: int = OK
 
 
-def check_contract(directory: Path, expected_version: str = "0.4.2") -> None:
+EXPECTED_VERSION = "0.4.2"
+EXPECTED_HEADER_HASH = "f99ad4169374b8f3"
+
+
+def check_contract(directory: Path, expected_version: str = EXPECTED_VERSION) -> None:
     """Validate the artifact contract before loading the DLL (upstream binding rule)."""
     contract = directory / "contract.json"
     if not contract.is_file():
@@ -63,3 +67,7 @@ def check_contract(directory: Path, expected_version: str = "0.4.2") -> None:
     if version != expected_version:
         log.error("[GGUF] runtime contract version mismatch: %r != %r", version, expected_version)
         raise RuntimeError("The installed speech runtime is the wrong version.")
+    header_hash = str(data.get("header_hash", ""))
+    if header_hash != EXPECTED_HEADER_HASH:
+        log.error("[GGUF] runtime ABI mismatch: %r != %r", header_hash, EXPECTED_HEADER_HASH)
+        raise RuntimeError("The installed speech runtime has an incompatible API.")

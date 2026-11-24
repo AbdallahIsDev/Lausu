@@ -39,6 +39,7 @@ log = logging.getLogger("voice_typer.worker.asr_runner")
 ENV_TRANSCRIBE_LIBRARY = "TRANSCRIBE_LIBRARY"
 LIBRARY_BASENAME = "transcribe.dll" if os.name == "nt" else "libtranscribe.so"
 DEFAULT_TIMEOUT_S = 300.0
+MAX_SAMPLES = 16_000 * 60 * 30  # 30 minutes of 16 kHz mono; bounds native allocations
 
 
 class RunnerError(RuntimeError):
@@ -139,6 +140,9 @@ class GgufRunner:
         backend: str | None = None,
         abort_event: threading.Event | None = None,
     ) -> RunnerResult:
+        sample_count = len(audio) if hasattr(audio, "__len__") else 0
+        if sample_count <= 0 or sample_count > MAX_SAMPLES:
+            raise RunnerError("The audio is empty or too long to transcribe.")
         with self._lock:
             lib, _ = self._loader()
             session = ctypes.c_void_p()
