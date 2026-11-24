@@ -295,11 +295,7 @@ class DeleteImportMixin:
             return False
         snapshots = Path(model_dir) / "snapshots"
         try:
-            return any(
-                (snapshot / spec.filename).is_file()
-                for snapshot in snapshots.iterdir()
-                if snapshot.is_dir()
-            )
+            return any((snapshot / spec.filename).is_file() for snapshot in snapshots.iterdir() if snapshot.is_dir())
         except OSError:
             return False
 

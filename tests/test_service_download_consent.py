@@ -52,9 +52,7 @@ class TestGGUFDownloadConsentGate:
     """Every GGUF ASR model is gated before any network call."""
 
     @pytest.mark.parametrize("model_name", ["tiny", "parakeet", "large-v3"])
-    def test_download_blocked_without_consent(
-        self, model_name, captured_events, gguf_calls
-    ):
+    def test_download_blocked_without_consent(self, model_name, captured_events, gguf_calls):
         """No consent: refuse with the consent outcome, never start a transfer."""
         service = _build_service(consent=False)
         result = service.download_model(model_name)

@@ -90,8 +90,7 @@ class TestDownloadPollScopedToModelDir:
         assert outcome == "complete"
         assert total >= 8192
         assert not any("models--unrelated--other" in p for p in stat_paths), (
-            "XV-2: the GGUF progress poll stat'd a file in an UNRELATED repo. "
-            f"Stats seen: {stat_paths[:5]}..."
+            f"XV-2: the GGUF progress poll stat'd a file in an UNRELATED repo. Stats seen: {stat_paths[:5]}..."
         )
         assert any("models--org--target" in p for p in stat_paths), (
             "XV-2: expected the target repo's blob to be stat'd during the "

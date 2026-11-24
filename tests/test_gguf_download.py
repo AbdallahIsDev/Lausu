@@ -109,9 +109,7 @@ def test_mismatch_codes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None
         assert (ok, code) == (False, expected)
 
 
-def test_transport_error_propagates_for_friendly_mapping(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_transport_error_propagates_for_friendly_mapping(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The dispatcher owns user-facing error text, so the real cause must escape."""
     spec, _ = _real_spec(tmp_path)
     _use_spec(monkeypatch, spec)
@@ -128,9 +126,7 @@ def test_transport_error_propagates_for_friendly_mapping(
         gguf_download.download_gguf_model("tiny", config=SimpleNamespace(huggingface_consent=True))
 
 
-def test_gated_tqdm_class_is_forwarded_to_the_transfer(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_gated_tqdm_class_is_forwarded_to_the_transfer(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     spec, path = _real_spec(tmp_path)
     _use_spec(monkeypatch, spec)
     calls: list[dict] = []

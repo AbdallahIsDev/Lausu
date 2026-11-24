@@ -161,8 +161,6 @@ class TestGgufProgressPoll:
 
         result = service.download_model("tiny")
         assert result["success"] is True
-        progress_events = [
-            e["data"] for e in captured_events if e.get("type") == "download_progress"
-        ]
+        progress_events = [e["data"] for e in captured_events if e.get("type") == "download_progress"]
         moving = [e for e in progress_events if e["progress"] > 10 and e.get("downloaded_bytes", 0) > 0]
         assert moving, f"poll never observed the growing GGUF blob: {progress_events}"
