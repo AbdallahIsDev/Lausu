@@ -105,6 +105,7 @@ class PluginSession(session.PluginSession):
 
 session.bind_entry(sys.modules[__name__])
 
+
 def _owns_cycle() -> bool:
     return bool(_session and _session.owns_cycle)
 
@@ -117,6 +118,7 @@ class BridgeKeepalive(_BridgeKeepalive):
         kwargs.setdefault("owns_cycle_fn", _owns_cycle)
         kwargs.setdefault("log", log)
         super().__init__(interval_s, **kwargs)
+
 
 _keepalive = BridgeKeepalive(status_fn=_daemon_status, owns_cycle_fn=_owns_cycle, log=log)
 
@@ -174,6 +176,16 @@ def _profile_missing() -> bool:
         return False
 
 
+def _profile_running() -> bool:
+    """True when Chrome already owns this profile; never launch into it."""
+    if sys.platform != "win32":
+        return False
+    try:
+        return bool(_browser_pids(str(_profile_dir())))
+    except Exception:
+        return False
+
+
 def _launch_profile_if_due() -> bool:
     global _last_launch_ts
 
@@ -188,6 +200,7 @@ def _launch_profile_if_due() -> bool:
         clock=time,
         on_due=_record,
         bypass_fn=_profile_missing,
+        running_fn=_profile_running,
     )
     _last_launch_ts = new_ts
     return launched
@@ -245,6 +258,17 @@ def activate(app: Any) -> bool:
         log.error("[PLUGIN] activation failed: the control daemon did not start")
         return False
     _keepalive.start()
+    threading.Thread(
+        target=lambda: session.prepare_platform(
+            status_fn=_daemon_status,
+            post_fn=_post,
+            connected_fn=_browser_connected,
+            ready_fn=daemon_client.DaemonClient.page_ready,
+            clock=time,
+        ),
+        daemon=True,
+        name="plugin-activate-platform",
+    ).start()
     if not _browser_connected(_daemon_status()):
         _launch_profile_if_due()
         log.info(

@@ -87,6 +87,8 @@ async function snapshot(relay) {
       browser,
       page: status.page || 'unknown',
       hasTab: status.has_tab !== false,
+      micCount: Number(status.micCount) || 0,
+      selectorsReady: status.selectorsReady === true,
       platform: platformOf(relay),
       url: status.url || '',
     };

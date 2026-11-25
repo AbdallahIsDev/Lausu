@@ -36,6 +36,7 @@ def plugin(monkeypatch):
     monkeypatch.setattr(module, "_last_launch_ts", 0.0)
     monkeypatch.setattr(module, "_PLATFORM_WATCH_GRACE_S", 0.0)
     monkeypatch.setattr(module, "_PLATFORM_WATCH_POLL_S", 0.0)
+    monkeypatch.setattr(module, "_profile_running", lambda: False)
     return module
 
 
@@ -66,7 +67,9 @@ class TestStartAfterBrowserDisconnect:
     def test_start_recovers_when_the_browser_drops_during_startup(self, plugin, monkeypatch):
         session = plugin.PluginSession(MagicMock())
         monkeypatch.setattr(session, "_ensure_daemon", lambda: True)
-        monkeypatch.setattr(session, "_status", lambda: {"browser": "connected", "page": "ok"})
+        monkeypatch.setattr(
+            session, "_status", lambda: {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True}
+        )
         browsers = []
         monkeypatch.setattr(session, "_ensure_browser", lambda timeout=None: browsers.append(1) or True)
 
@@ -101,7 +104,7 @@ class TestStartAfterBrowserDisconnect:
         assert session.active is True
         assert len(browsers) == 2, "the profile must be reopened before retrying"
         assert posts.count("/start") == 2
-        assert posts == ["/ensure-tab", "/start", "/ensure-tab", "/start"]
+        assert posts == ["/start", "/start"]
 
 
 class TestExpectedStartFailures:
@@ -111,7 +114,11 @@ class TestExpectedStartFailures:
         session = plugin.PluginSession(MagicMock())
         monkeypatch.setattr(session, "_ensure_daemon", lambda: True)
         monkeypatch.setattr(session, "_ensure_browser", lambda timeout=None: True)
-        monkeypatch.setattr(session, "_status", lambda: {"browser": "connected", "page": "signed_out"})
+        monkeypatch.setattr(
+            session,
+            "_status",
+            lambda: {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True},
+        )
         monkeypatch.setattr(session, "_watch_platform", lambda: None)
 
         def _post(path, timeout=None):
@@ -145,7 +152,7 @@ class TestRelaunchAfterClose:
         )
 
         assert plugin._launch_profile_if_due() is True
-        assert launches == [("P", "about:blank")]
+        assert launches == [("P", "U")]
 
     def test_an_open_profile_still_respects_the_cooldown(self, plugin, monkeypatch):
         monkeypatch.setattr(plugin, "_last_launch_ts", time.monotonic())

@@ -12,17 +12,12 @@ import importlib.util
 import logging
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
-_PLUGIN_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "tools"
-    / "internal_plugins"
-    / "anthropic_stt"
-    / "plugin.py"
-)
+_PLUGIN_PATH = Path(__file__).resolve().parents[2] / "tools" / "internal_plugins" / "anthropic_stt" / "plugin.py"
 
 
 def _load_plugin() -> object:
@@ -44,6 +39,12 @@ def plugin(monkeypatch):
     monkeypatch.setattr(module, "attach", lambda app: object())
     monkeypatch.setattr(module, "ensure_daemon", lambda: True)
     monkeypatch.setattr(module, "_last_launch_ts", 0.0)
+    monkeypatch.setattr(module, "_profile_running", lambda: False)
+    monkeypatch.setattr(
+        module,
+        "threading",
+        SimpleNamespace(Thread=lambda **_kwargs: SimpleNamespace(start=lambda: None)),
+    )
     return module
 
 
@@ -68,9 +69,7 @@ class TestConnectedBrowserKeepsItsTabs:
         assert plugin._ensure_browser() is True
         assert launches == [], "a connected browser resolves its own target tab"
 
-    def test_activation_warms_instead_of_launching_when_the_tab_is_missing(
-        self, plugin, monkeypatch
-    ):
+    def test_activation_warms_instead_of_launching_when_the_tab_is_missing(self, plugin, monkeypatch):
         launches: list[str] = []
         warmed: list[str] = []
         monkeypatch.setattr(plugin, "launch_profile", lambda profile, url: launches.append(url) or True)
@@ -88,7 +87,9 @@ class TestConnectedBrowserKeepsItsTabs:
     def test_a_disconnected_browser_still_launches_the_profile(self, plugin, monkeypatch):
         launches: list[str] = []
         monkeypatch.setattr(plugin, "launch_profile", lambda profile, url: launches.append(url) or True)
-        polls = iter([{"browser": "disconnected"}, {"browser": "connected", "page": "ok"}])
+        polls = iter(
+            [{"browser": "disconnected"}, {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True}]
+        )
         monkeypatch.setattr(plugin, "_daemon_status", lambda: next(polls))
 
         assert plugin._ensure_browser() is True
@@ -104,7 +105,11 @@ class TestStartResolvesTheTargetTab:
             return {}
 
         monkeypatch.setattr(plugin, "_post", _post)
-        monkeypatch.setattr(plugin, "_daemon_status", lambda: {"browser": "connected", "page": "ok"})
+        monkeypatch.setattr(
+            plugin,
+            "_daemon_status",
+            lambda: {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True},
+        )
         monkeypatch.setattr(plugin, "ensure_daemon", lambda: True)
 
         class FakeMeter:
@@ -125,20 +130,18 @@ class TestStartResolvesTheTargetTab:
 
         session.start()
 
-        assert posts[:2] == ["/ensure-tab", "/start"], posts
+        assert posts == ["/start"], posts
 
-    def test_stale_extension_is_a_quiet_one_line_not_a_traceback(
-        self, plugin, monkeypatch, caplog
-    ):
-        """The old content script answers unknown commands; dictation still works."""
+    def test_no_extra_ensure_tab_round_trip_on_the_hotkey_path(self, plugin, monkeypatch, caplog):
+        """The extension resolves the tab inside /start; no duplicate call."""
 
-        def _post(path, timeout=None):
-            if path == "/ensure-tab":
-                raise plugin.BridgeError("unknown command ensure-tab", "bridge-error")
-            return {}
-
-        monkeypatch.setattr(plugin, "_post", _post)
-        monkeypatch.setattr(plugin, "_daemon_status", lambda: {"browser": "connected", "page": "ok"})
+        posts: list[str] = []
+        monkeypatch.setattr(plugin, "_post", lambda path, timeout=None: posts.append(path) or {})
+        monkeypatch.setattr(
+            plugin,
+            "_daemon_status",
+            lambda: {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True},
+        )
         monkeypatch.setattr(plugin, "ensure_daemon", lambda: True)
 
         class FakeMeter:
@@ -159,7 +162,5 @@ class TestStartResolvesTheTargetTab:
 
         session.start()
 
-        text = caplog.text
-        assert "target-tab pre-resolution failed" not in text
-        assert "Traceback" not in text
-        assert "reload the extension" in text
+        assert posts == ["/start"], posts
+        assert "Traceback" not in caplog.text

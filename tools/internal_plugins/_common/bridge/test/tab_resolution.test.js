@@ -10,10 +10,12 @@ const { createTabResolver, createDispatcher } = require('../extension/tab_resolu
 const PATTERNS = {
   claude: 'https://claude.ai/*',
   gemini: 'https://gemini.google.com/*',
+  chatgpt: 'https://chatgpt.com/*',
 };
 const URLS = {
   claude: 'https://claude.ai/new',
   gemini: 'https://gemini.google.com/app',
+  chatgpt: 'https://chatgpt.com/',
 };
 
 function urlMatches(pattern, url) {
@@ -234,6 +236,87 @@ test('stop and cancel never create a replacement tab', async () => {
   await dispatcher.dispatch('claude', 'stop', {});
   assert.equal(ensured, 0);
   assert.equal(found, 1);
+});
+
+test('P4 sequence: cold start, three plugins, revisit — never above one tab each', async () => {
+  const chrome = fakeChrome();
+  const resolver = resolverFor(chrome);
+
+  await resolver.ensure('claude');
+  assert.equal(chrome.tabs.size, 1, 'cold start creates exactly the active platform tab');
+  await resolver.ensure('gemini');
+  await resolver.ensure('chatgpt');
+  assert.equal(chrome.tabs.size, 3);
+  await resolver.ensure('gemini');
+  assert.equal(chrome.tabs.size, 3, 'revisiting a plugin must not create a tab');
+  await resolver.ensure('claude');
+  assert.equal(chrome.tabs.size, 3);
+
+  // Simulate an MV3 service-worker restart: a fresh resolver with NO memory.
+  const restarted = resolverFor(chrome);
+  await restarted.ensure('chatgpt');
+  assert.equal(chrome.tabs.size, 3, 'restart must rediscover, not create');
+  for (const tab of chrome.tabs.values()) {
+    assert.notEqual(tab.url, 'about:blank', 'no blank tab may survive');
+  }
+});
+
+test('a manually closed tab is recreated without touching the others', async () => {
+  const chrome = fakeChrome([
+    { id: 7, url: 'https://claude.ai/new', active: true },
+    { id: 8, url: 'https://gemini.google.com/app' },
+  ]);
+  chrome.close(7);
+
+  await resolverFor(chrome).ensure('claude');
+
+  assert.equal(chrome.tabs.size, 2);
+  assert.equal(chrome.tabs.has(8), true);
+  assert.deepEqual(chrome.calls.create.length, 1);
+});
+
+test('hidden browser mode does not change tab resolution', async () => {
+  const chrome = fakeChrome([{ id: 7, url: 'https://claude.ai/new', active: true }]);
+  const result = await resolverFor(chrome, { activate: false }).ensure('claude');
+
+  assert.equal(result.tabId, 7);
+  assert.equal(chrome.calls.create.length, 0);
+  assert.equal(chrome.calls.update.length, 0, 'hidden mode never activates a window');
+});
+
+test('a late-appearing tab is deduped even when the creation wait expires', async () => {
+  const base = fakeChrome();
+  let late = false;
+  const api = {
+    ...base.api,
+    tabs: {
+      ...base.api.tabs,
+      query(opts, cb) {
+        if (!late) {
+          cb([]);
+          return;
+        }
+        base.api.tabs.query(opts, (tabs) => {
+          cb([...tabs, { id: 55, url: 'https://claude.ai/chat/late', active: false }]);
+        });
+      },
+    },
+  };
+  const resolver = createTabResolver({
+    chromeApi: api,
+    patterns: PATTERNS,
+    targetUrls: URLS,
+    probe: async () => true,
+    delay: async () => {
+      late = true;
+    },
+    maxWaitMs: 1,
+  });
+
+  const result = await resolver.ensure('claude');
+
+  assert.equal(result.reason, 'not-visible');
+  assert.deepEqual(base.calls.remove, [[55]]);
 });
 
 test('find never creates a tab, so a status probe cannot open one', async () => {

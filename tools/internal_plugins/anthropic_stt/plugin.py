@@ -85,6 +85,8 @@ _daemon_alive = _CLIENT.alive
 _daemon_config = _CLIENT.config
 _bridge_ready = daemon_client.DaemonClient.bridge_ready
 _browser_connected = daemon_client.DaemonClient.browser_connected
+
+
 class PluginSession(session.PluginSession):
     """The shared state machine bound to Anthropic's copy and platform."""
 
@@ -128,6 +130,7 @@ class BridgeKeepalive(_BridgeKeepalive):
         kwargs.setdefault("owns_cycle_fn", _owns_cycle)
         kwargs.setdefault("log", log)
         super().__init__(interval_s, **kwargs)
+
 
 # The state machine reads its patchable callables back from this module.
 session.bind_entry(sys.modules[__name__])
@@ -195,6 +198,16 @@ def _profile_missing() -> bool:
         return False
 
 
+def _profile_running() -> bool:
+    """True when Chrome already owns this profile; never launch into it."""
+    if sys.platform != "win32":
+        return False
+    try:
+        return bool(_browser_pids(str(_profile_dir())))
+    except Exception:
+        return False
+
+
 def _launch_profile_if_due() -> bool:
     """Open the dictation profile at most once per cooldown window (C-START-3)."""
     global _last_launch_ts
@@ -210,6 +223,7 @@ def _launch_profile_if_due() -> bool:
         clock=time,
         on_due=_record,
         bypass_fn=_profile_missing,
+        running_fn=_profile_running,
     )
     _last_launch_ts = new_ts
     return launched
@@ -289,6 +303,17 @@ def activate(app: Any) -> bool:
         log.error("[PLUGIN] activation failed: the control daemon did not start")
         return False
     _keepalive.start()
+    threading.Thread(
+        target=lambda: session.prepare_platform(
+            status_fn=_daemon_status,
+            post_fn=_post,
+            connected_fn=_browser_connected,
+            ready_fn=daemon_client.DaemonClient.page_ready,
+            clock=time,
+        ),
+        daemon=True,
+        name="plugin-activate-platform",
+    ).start()
     if not _browser_connected(_daemon_status()):
         # A cold browser is the normal case: opening the window is the useful
         # action, and the first hotkey press waits for the handshake.

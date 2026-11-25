@@ -13,18 +13,13 @@ import importlib.util
 import logging
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 from tests.fixtures.sleep_seam import patch_module_time
 
-_PLUGIN_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "tools"
-    / "internal_plugins"
-    / "anthropic_stt"
-    / "plugin.py"
-)
+_PLUGIN_PATH = Path(__file__).resolve().parents[2] / "tools" / "internal_plugins" / "anthropic_stt" / "plugin.py"
 
 
 def _load_plugin() -> object:
@@ -47,6 +42,12 @@ def plugin(monkeypatch):
     monkeypatch.setattr(module, "attach", lambda app: object())
     monkeypatch.setattr(module, "ensure_daemon", lambda: True)
     monkeypatch.setattr(module, "_last_launch_ts", 0.0)
+    monkeypatch.setattr(module, "_profile_running", lambda: False)
+    monkeypatch.setattr(
+        module,
+        "threading",
+        SimpleNamespace(Thread=lambda **_kwargs: SimpleNamespace(start=lambda: None)),
+    )
     return module
 
 
@@ -73,7 +74,7 @@ class TestActivationWithAColdBrowser:
 
         assert plugin.activate(MagicMock()) is True
 
-        assert launches == [("P", "about:blank")]
+        assert launches == [("P", "U")]
         assert warmed == [], "a page that is not up yet cannot be warmed"
         assert waited == []
 
@@ -125,7 +126,7 @@ class TestActivationWithAColdBrowser:
 
 
 class TestBlankProfileLaunch:
-    def test_a_relaunch_opens_a_blank_profile_not_a_platform_url(self, plugin, monkeypatch):
+    def test_a_relaunch_opens_the_active_platform_url(self, plugin, monkeypatch):
         launches: list[tuple[str, str]] = []
         monkeypatch.setattr(
             plugin,
@@ -140,7 +141,93 @@ class TestBlankProfileLaunch:
         monkeypatch.setattr(plugin, "_profile_missing", lambda: True)
 
         assert plugin._launch_profile_if_due() is True
-        assert launches == [("P", "about:blank")]
+        assert launches == [("P", "https://claude.ai/new")]
+
+
+class TestActivationPreparesPlatform:
+    def test_prepare_platform_reuses_the_tab_and_waits_for_a_ready_mic(self, plugin, monkeypatch):
+        from tools.internal_plugins._common.bridge import session as shared_session
+        from tools.internal_plugins._common.bridge.daemon_client import DaemonClient
+
+        ready = {
+            "browser": "connected",
+            "page": "ok",
+            "micCount": 1,
+            "selectorsReady": True,
+        }
+        statuses = iter([{"browser": "disconnected"}, ready])
+        posts: list[str] = []
+        monkeypatch.setattr(plugin, "_daemon_status", lambda: next(statuses, ready))
+        monkeypatch.setattr(plugin, "_post", lambda path, timeout=None: posts.append(path) or {})
+        monkeypatch.setattr(plugin.time, "sleep", lambda *_: None)
+
+        ok = shared_session.prepare_platform(
+            status_fn=plugin._daemon_status,
+            post_fn=plugin._post,
+            connected_fn=plugin._browser_connected,
+            ready_fn=DaemonClient.page_ready,
+            clock=plugin.time,
+        )
+
+        assert ok is True
+        assert "/ensure-tab" in posts, "activation must resolve the platform tab"
+
+    def test_activation_starts_a_background_preparation(self, plugin, monkeypatch):
+
+        started: list[str] = []
+
+        class FakeThread:
+            def __init__(self, *, target, name, daemon):
+                started.append(name)
+
+            def start(self):
+                pass
+
+        monkeypatch.setattr(plugin.threading, "Thread", FakeThread)
+        monkeypatch.setattr(plugin, "_daemon_config", lambda: {"profileDir": "P", "claudeUrl": "U"})
+        monkeypatch.setattr(plugin, "_daemon_status", lambda: {"browser": "connected", "page": "ok"})
+        monkeypatch.setattr(plugin, "_post", lambda path, timeout=None: {})
+
+        assert plugin.activate(MagicMock()) is True
+        assert "plugin-activate-platform" in started
+
+
+class TestLaunchSingleFlight:
+    def test_a_running_profile_is_never_relaunched(self, plugin, monkeypatch):
+        launches: list[tuple[str, str]] = []
+        monkeypatch.setattr(
+            plugin,
+            "launch_profile",
+            lambda profile, url: launches.append((profile, url)) or True,
+        )
+        monkeypatch.setattr(plugin, "_profile_running", lambda: True)
+        monkeypatch.setattr(plugin, "_last_launch_ts", 0.0)
+
+        assert plugin._launch_profile_if_due() is False
+        assert launches == [], "a running profile must never get another tab"
+
+    def test_concurrent_launch_requests_spawn_one_process(self, plugin, monkeypatch):
+        import threading
+
+        launches: list[tuple[str, str]] = []
+        monkeypatch.setattr(
+            plugin,
+            "launch_profile",
+            lambda profile, url: launches.append((profile, url)) or True,
+        )
+        monkeypatch.setattr(plugin, "_profile_running", lambda: False)
+        monkeypatch.setattr(plugin, "_profile_missing", lambda: False)
+        monkeypatch.setattr(plugin, "_daemon_config", lambda: {"profileDir": "P", "claudeUrl": "U"})
+        monkeypatch.setattr(plugin.time, "monotonic", lambda: 100.0)
+        monkeypatch.setattr(plugin, "_last_launch_ts", 0.0)
+
+        threads = [threading.Thread(target=plugin._launch_profile_if_due) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert launches == [("P", "U")]
 
 
 class TestBrowserWaitBudget:

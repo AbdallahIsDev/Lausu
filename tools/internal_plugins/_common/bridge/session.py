@@ -8,6 +8,7 @@ resolve to the entry module even though the logic lives here.
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 import logging
 import threading
@@ -16,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from tools.internal_plugins._common import daemon as _daemon_common
+from tools.internal_plugins._common.bridge.daemon_client import DaemonClient
 from tools.internal_plugins._common.bridge.install_paths import legacy_profile_dir, profile_dir
 from tools.internal_plugins._common.daemon import BridgeError
 from tools.internal_plugins._common.delivery import deliver_transcription
@@ -29,6 +31,8 @@ _COLD_BROWSER_START_TIMEOUT_S = 30.0
 _LAUNCH_COOLDOWN_S = 30.0
 _START_ATTEMPTS = 2
 _START_RETRY_PAUSE_S = 0.4
+_PAGE_READY_TIMEOUT_S = 12.0
+_PAGE_READY_POLL_S = 0.1
 _START_RETRY_KINDS = frozenset({"browser-not-open", "browser-closed", "wrong-platform"})
 # Platform states the user can fix in the browser. They are expected outcomes,
 # not crashes: one actionable line, no traceback (C-UXERR-1, C-LOG-3).
@@ -48,6 +52,12 @@ _EXPECTED_START_KINDS = frozenset(
 
 log = logging.getLogger("voice_typer.internal_plugin.bridge")
 
+# One process-wide gate: activation (startup/switch thread) and the hotkey
+# thread both call launch_profile_if_due. Without a lock both can observe a
+# stale timestamp and spawn two Chrome processes -> two extra tabs (P4).
+_launch_lock = threading.RLock()
+_suppress_exception = contextlib.suppress(Exception)
+
 _entry: Any | None = None
 
 
@@ -66,32 +76,91 @@ def launch_profile_if_due(
     on_due: Any = None,
     cooldown_s: float = _LAUNCH_COOLDOWN_S,
     bypass_fn: Any | None = None,
+    running_fn: Any | None = None,
 ) -> tuple[bool, float]:
     """Open the dictation profile at most once per cooldown window (C-START-3).
 
     ``on_due`` records the timestamp before the launch attempt so a failing
     launch is still bounded. Returns ``(launched, new_timestamp)``.
     """
-    now = clock.monotonic()
-    # A profile the user actually closed is reopened immediately; the cooldown
-    # only bounds repeat launches against a browser that is still running.
-    if not (bypass_fn is not None and bypass_fn()) and now - last_ts < cooldown_s:
-        return False, last_ts
-    if on_due is not None:
-        on_due(now)
-    config = config_fn()
-    configured = str(config.get("profileDir") or "")
-    legacy = legacy_profile_dir()
-    # A daemon started before the profile rename keeps the OLD path in memory.
-    # Launching it makes Chrome create a brand-new empty profile and lose every
-    # sign-in, so the migrated path from install.json always wins here.
-    profile = str(profile_dir()) if legacy is not None and configured and Path(configured) == legacy else configured
-    # The extension is the ONLY tab authority: Chrome is opened on a blank
-    # page, then /ensure-tab resolves or creates the platform tab. Putting a
-    # platform URL on the command line here opens a second tab in a profile
-    # that is already running (C-PLUGIN-3).
-    launched = launch_fn(profile, "about:blank")
-    return launched, now
+    with _launch_lock:
+        now = clock.monotonic()
+        # A running profile is never relaunched: Chrome would append another
+        # tab (about:blank or the platform) to an existing window. The
+        # extension owns tab resolution once Chrome is up (C-PLUGIN-3).
+        if running_fn is not None and running_fn():
+            return False, last_ts
+        # A profile the user actually closed is reopened immediately; the
+        # cooldown only bounds repeat launches against a browser that is down.
+        if not (bypass_fn is not None and bypass_fn()) and now - last_ts < cooldown_s:
+            return False, last_ts
+        if on_due is not None:
+            on_due(now)
+        config = config_fn()
+        configured = str(config.get("profileDir") or "")
+        legacy = legacy_profile_dir()
+        # A daemon started before the profile rename keeps the OLD path in
+        # memory; the migrated path from install.json always wins here.
+        profile = str(profile_dir()) if legacy is not None and configured and Path(configured) == legacy else configured
+        # Cold start must open the active platform READY, without a hotkey
+        # (P1). Chrome is launched only when the profile is genuinely absent,
+        # so this URL cannot produce a second tab in a running profile.
+        url = str(
+            config.get("url") or config.get("claudeUrl") or config.get("geminiUrl") or config.get("chatgptUrl") or ""
+        )
+        launched = launch_fn(profile, url)
+        return launched, now
+
+
+def wait_for_page_ready(
+    *,
+    status_fn: Any,
+    ready_fn: Any,
+    clock: Any,
+    timeout: float | None = None,
+) -> bool:
+    """Wait for a clickable dictation control, not just a live socket (P2).
+
+    A ready tab answers on the first poll, so this costs one status call on
+    the normal hotkey path. The budget only applies to a loading page.
+    """
+    budget = _PAGE_READY_TIMEOUT_S if timeout is None else timeout
+    deadline = clock.monotonic() + budget
+    for _ in range(1, int(budget / _PAGE_READY_POLL_S) + 2):
+        if ready_fn(status_fn()):
+            return True
+        if clock.monotonic() >= deadline:
+            break
+        clock.sleep(_PAGE_READY_POLL_S)
+    return False
+
+
+def prepare_platform(
+    *,
+    status_fn: Any,
+    post_fn: Any,
+    connected_fn: Any,
+    ready_fn: Any,
+    clock: Any,
+    timeout: float = 60.0,
+    poll_s: float = 0.25,
+) -> bool:
+    """Make the active platform tab ready after plugin activation (P3).
+
+    Runs off the UI thread. It never launches Chrome: only the extension
+    resolves/creates the tab, via /ensure-tab, once the bridge is connected.
+    """
+    deadline = clock.monotonic() + timeout
+    for _ in range(1, int(timeout / poll_s) + 2):
+        if connected_fn(status_fn()):
+            with _suppress_exception:
+                post_fn("/ensure-tab", timeout=20.0)
+            if ready_fn(status_fn()):
+                return True
+        if clock.monotonic() >= deadline:
+            break
+        clock.sleep(poll_s)
+    return False
 
 
 def ensure_browser(
@@ -342,28 +411,28 @@ class PluginSession:
                 cycle,
                 self._copy.duration(time.monotonic() - t_browser),
             )
-            # Resolve the plugin's own tab BEFORE /start. Best effort here: the
-            # extension also resolves inside /start, so an older daemon that does
-            # not know this route still cannot start against a missing tab.
-            try:
-                self._post("/ensure-tab", timeout=20.0)
-            except BridgeError as exc:
-                if exc.kind == "bridge-error" and "unknown command ensure-tab" in str(exc):
-                    # The extension still runs the pre-resolution content script:
-                    # /start understands the old command and resolves its tab, so
-                    # this is a capability gap, not a failed start. No traceback.
-                    self._log.debug(
-                        "[PLUGIN] target-tab pre-resolution needs an extension reload; /start still resolves its tab"
-                    )
-                    if not type(self)._stale_extension_warned:
-                        type(self)._stale_extension_warned = True
-                        self._log.warning(
-                            "[PLUGIN] reload the extension at chrome://extensions to enable target-tab recovery"
-                        )
-                else:
-                    self._log.debug("[PLUGIN] target-tab pre-resolution failed: %s", exc)
-            except Exception:
-                self._log.debug("[PLUGIN] target-tab pre-resolution failed", exc_info=True)
+            # The extension resolves/reuses the tab inside /start; a separate
+            # /ensure-tab round trip here only adds latency on every press.
+            # Gate on a REAL mic control instead: a live socket alone means
+            # the page may still be loading or hydrating (P2).
+            t_ready = time.monotonic()
+            if not wait_for_page_ready(
+                status_fn=self._status,
+                ready_fn=DaemonClient.page_ready,
+                clock=time,
+            ):
+                self._log.error(
+                    "[PLUGIN] start refused (cycle=#%d): the dictation control is not ready%s",
+                    cycle,
+                    self._copy.duration(time.monotonic() - t_ready),
+                )
+                self._notify(self._copy.START_HINTS["page-not-ready"])
+                return
+            self._log.debug(
+                "[PLUGIN] page ready with a live mic control (cycle=#%d)%s",
+                cycle,
+                self._copy.duration(time.monotonic() - t_ready),
+            )
             try:
                 self._post("/start", timeout=30.0)
                 break

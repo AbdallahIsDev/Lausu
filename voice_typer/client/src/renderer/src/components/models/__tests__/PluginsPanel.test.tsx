@@ -8,36 +8,37 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const fake = vi.hoisted(() => ({
 	activate: vi.fn(),
 	sharedSetting: vi.fn(),
+	plugins: [
+		{
+			id: "anthropic-stt",
+			name: "Claude STT",
+			description: "Dictation in the browser",
+			vendor: "Owner",
+			icon: "",
+			active: true,
+		},
+		{
+			id: "google-stt",
+			name: "Google STT",
+			description: "Dictation in the browser",
+			vendor: "Owner",
+			icon: "google",
+			active: false,
+		},
+		{
+			id: "chatgpt-stt",
+			name: "ChatGPT STT",
+			description: "Dictation in the browser",
+			vendor: "OpenAI",
+			icon: "chatgpt",
+			active: false,
+		},
+	],
 }));
 
 vi.mock("@/pages/plugins/hooks/usePlugins", () => ({
 	usePlugins: () => ({
-		plugins: [
-			{
-				id: "anthropic-stt",
-				name: "Claude STT",
-				description: "Dictation in the browser",
-				vendor: "Owner",
-				icon: "",
-				active: true,
-			},
-			{
-				id: "google-stt",
-				name: "Google STT",
-				description: "Dictation in the browser",
-				vendor: "Owner",
-				icon: "google",
-				active: false,
-			},
-			{
-				id: "chatgpt-stt",
-				name: "ChatGPT STT",
-				description: "Dictation in the browser",
-				vendor: "OpenAI",
-				icon: "chatgpt",
-				active: false,
-			},
-		],
+		plugins: fake.plugins,
 		activePluginId: "anthropic-stt",
 		shared: { visible: true, notify: false },
 		loadError: null,
@@ -64,7 +65,35 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 	return createHugeiconsMock();
 });
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	fake.plugins = [
+		{
+			id: "anthropic-stt",
+			name: "Claude STT",
+			description: "",
+			vendor: "Owner",
+			icon: "",
+			active: true,
+		},
+		{
+			id: "google-stt",
+			name: "Google STT",
+			description: "",
+			vendor: "Owner",
+			icon: "google",
+			active: false,
+		},
+		{
+			id: "chatgpt-stt",
+			name: "ChatGPT STT",
+			description: "",
+			vendor: "OpenAI",
+			icon: "chatgpt",
+			active: false,
+		},
+	];
+});
 
 const renderPanel = () =>
 	render(
@@ -89,8 +118,9 @@ describe("PluginsPanel (Models developer tab content)", () => {
 
 		const ids = ["anthropic-stt", "google-stt", "chatgpt-stt"];
 		const cards = ids.map((id) => screen.getByTestId(`plugin-card-${id}`));
-		const row = cards[0]!.parentElement;
-		expect(row?.className).toContain("grid-cols-2");
+		const [firstCard] = cards;
+		const row = firstCard ? firstCard.parentElement : null;
+		expect(row?.getAttribute("style")).toContain("repeat(2");
 		for (const card of cards) expect(card.parentElement).toBe(row);
 
 		let ancestor: HTMLElement | null = row?.parentElement ?? null;
@@ -100,6 +130,21 @@ describe("PluginsPanel (Models developer tab content)", () => {
 			);
 			ancestor = ancestor.parentElement;
 		}
+	});
+
+	it("keeps the Plugins heading in the empty state", () => {
+		fake.plugins = [];
+		renderPanel();
+
+		expect(screen.getByRole("heading", { name: "plugins.title" })).toBeTruthy();
+	});
+
+	it("derives row columns from the plugin count", () => {
+		fake.plugins = fake.plugins.slice(0, 2);
+		renderPanel();
+
+		const row = screen.getByTestId("plugin-card-anthropic-stt").parentElement;
+		expect(row?.getAttribute("style")).toContain("repeat(2");
 	});
 
 	it("uses the shared OpenAI logo asset for the ChatGPT card", () => {

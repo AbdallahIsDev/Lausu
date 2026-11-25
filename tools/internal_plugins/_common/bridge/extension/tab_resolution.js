@@ -167,7 +167,13 @@
       if (!created) return { tabId: null, created: false, ready: false, reason: "create-failed" };
 
       tab = await waitForTab(platform, created.id);
-      if (!tab) return { tabId: created.id, created: true, ready: false, reason: "not-visible" };
+      if (!tab) {
+        // A tab can appear after the settle budget expires; still collapse
+        // duplicates before reporting the miss.
+        matches = await allMatches(platform);
+        await dropSurplus(matches, created.id);
+        return { tabId: created.id, created: true, ready: false, reason: "not-visible" };
+      }
       matches = await allMatches(platform);
       await dropSurplus(matches, tab.id);
       if (activate && opts.activate !== false) await activateTab(chromeApi, tab.id);

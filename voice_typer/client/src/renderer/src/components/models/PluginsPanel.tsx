@@ -42,17 +42,18 @@ export function PluginsPanel() {
 
 	return (
 		<section aria-label={t("plugins.title")} className="flex flex-col gap-4">
+			<h2 className="font-sans text-lg font-medium text-foreground">
+				{t("plugins.title")}
+			</h2>
 			{loadError ? (
-				<SettingsSection title={t("plugins.title")}>
-					<EmptyState
-						variant="error"
-						icon={PuzzleIcon}
-						title={t("plugins.loadFailedTitle")}
-						description={loadError}
-						actionLabel={t("plugins.retry")}
-						onAction={() => void loadPlugins()}
-					/>
-				</SettingsSection>
+				<EmptyState
+					variant="error"
+					icon={PuzzleIcon}
+					title={t("plugins.loadFailedTitle")}
+					description={loadError}
+					actionLabel={t("plugins.retry")}
+					onAction={() => void loadPlugins()}
+				/>
 			) : plugins.length === 0 ? (
 				<EmptyState
 					icon={PuzzleIcon}
@@ -62,20 +63,20 @@ export function PluginsPanel() {
 					onAction={() => void loadPlugins()}
 				/>
 			) : (
-				<>
-					<h2 className="font-sans text-lg font-medium text-foreground">
-						{t("plugins.title")}
-					</h2>
-					<div className="grid grid-cols-2 gap-4">
-						{plugins.map((plugin) => (
-							<PluginCard
-								key={plugin.id}
-								plugin={plugin}
-								onActivate={handleActivate}
-							/>
-						))}
-					</div>
-				</>
+				<div
+					className="grid gap-4"
+					style={{
+						gridTemplateColumns: `repeat(${Math.min(plugins.length, 2)}, minmax(0, 1fr))`,
+					}}
+				>
+					{plugins.map((plugin) => (
+						<PluginCard
+							key={plugin.id}
+							plugin={plugin}
+							onActivate={handleActivate}
+						/>
+					))}
+				</div>
 			)}
 
 			{activePlugin ? (

@@ -260,7 +260,8 @@
         out.push(...document.querySelectorAll(MIC_SELECTOR));
       }
     } catch (_) {}
-    return out;
+    // Several idle-slot ancestors can match the same button; count it once.
+    return Array.from(new Set(out));
   }
 
   // A control the user cannot see or click is not a control: hidden duplicates
@@ -525,8 +526,16 @@
       throw new CmdError('composer-dirty', 'the prompt box still has text after New chat');
     }
     releaseIdleSlot();
-    const mic = micButtons();
-    if (!mic.length) throw new CmdError('mic-missing', 'the Dictate control was not found');
+    // The bridge already waits for a clickable mic, but a page can change
+    // between the status read and this click. Wait again here instead of
+    // clicking a stale or hidden control (P2).
+    const micDeadline = Date.now() + (opts.startTimeoutMs || 5000);
+    let mic = micButtons().filter(isClickable);
+    while (!mic.length && Date.now() < micDeadline) {
+      await sleep(50);
+      mic = micButtons().filter(isClickable);
+    }
+    if (!mic.length) throw new CmdError('page-not-ready', 'the dictation control is not ready');
     clickElement(mic[0]);
     const budget = Date.now() + (opts.startTimeoutMs || 5000);
     let started = false;
@@ -801,6 +810,11 @@
       page,
       recording: page === 'ok' && recordingState() === 'recording',
       has_text: composerText().length > 0,
+      // A transport connection is not a ready page: the dictation control
+      // only exists after document_idle + React hydration. The bridge gates
+      // /start on these two facts (P2).
+      micCount: micButtons().filter(isClickable).length,
+      selectorsReady: SELECTORS_READY,
     };
   }
 

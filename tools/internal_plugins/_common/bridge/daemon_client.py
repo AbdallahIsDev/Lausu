@@ -92,6 +92,23 @@ class DaemonClient:
         return bool(snapshot) and snapshot.get("browser") == "connected"
 
     @staticmethod
+    def page_ready(snapshot: dict | None) -> bool:
+        """The target tab is loaded AND its dictation control is clickable.
+
+        A live WebSocket only proves the extension exists; the content script
+        re-injects at document_idle and the page hydrates later. Clicking a
+        mic that is not there yet starts nothing (P2).
+        """
+        if not DaemonClient.bridge_ready(snapshot):
+            return False
+        snapshot = snapshot or {}
+        return (
+            snapshot.get("page") == "ok"
+            and int(snapshot.get("micCount") or 0) > 0
+            and snapshot.get("selectorsReady") is True
+        )
+
+    @staticmethod
     def bridge_ready(snapshot: dict | None) -> bool:
         """Connected AND the tab has answered once (a page state, not unknown)."""
         if not snapshot or snapshot.get("browser") != "connected":

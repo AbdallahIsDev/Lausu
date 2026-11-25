@@ -176,6 +176,16 @@ class TestPluginSeparator:
             return {}
 
         monkeypatch.setattr(session, "_post", _post)
+        monkeypatch.setattr(
+            session,
+            "_status",
+            lambda: {
+                "browser": "connected",
+                "page": "ok",
+                "micCount": 1,
+                "selectorsReady": True,
+            },
+        )
         session.start()
 
         app.clipboard.copy.assert_called_once_with(" hello world")

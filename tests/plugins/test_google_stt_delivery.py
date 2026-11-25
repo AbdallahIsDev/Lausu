@@ -95,7 +95,7 @@ class TestGoogleBubbleLevels:
         monkeypatch.setattr(google_plugin, "_post", lambda path, timeout=None: {})
         monkeypatch.setattr(
             google_plugin, "_daemon_status",
-            lambda: {"browser": "connected", "page": "ok", "platform": "gemini"},
+            lambda: {"browser": "connected", "page": "ok", "platform": "gemini", "micCount": 1, "selectorsReady": True},
         )
         app = _make_app()
         session = google_plugin.PluginSession(app)

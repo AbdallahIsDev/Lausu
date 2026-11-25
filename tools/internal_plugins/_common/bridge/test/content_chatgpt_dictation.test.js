@@ -249,6 +249,15 @@ domTest('the composer is anchored to the composer form, never to a page-wide edi
   assert.notEqual(doc.querySelector(SELECTORS.composer).id, 'sidebar-note');
 });
 
+domTest('status exposes a real mic-ready signal before any start click', async () => {
+  const page = createPage();
+  const reply = await page.send('status', FAST);
+  assert.equal(reply.ok, true, JSON.stringify(reply));
+  assert.equal(reply.result.page, 'ok');
+  assert.equal(reply.result.micCount, 1);
+  assert.equal(reply.result.selectorsReady, true);
+});
+
 domTest('start clicks the microphone and reports that the platform is recording', async () => {
   const page = createPage();
   const reply = await page.send('start', FAST);
