@@ -79,11 +79,12 @@ const IDLE_BODY =
   '</button>' +
   '<button type="button" data-testid="send-button" aria-label="Send message">Send</button>';
 
+// The live ChatGPT recording control (owner-supplied DOM): one toggle with a
+// stable data attribute. Its label says "Stop dictation" but it commits the
+// streamed text that is already in the composer.
 const RECORDING_BODY =
-  '<button type="button" data-testid="stop-recording" aria-label="Stop dictation">Stop</button>' +
-  '<button type="button" data-testid="submit-dictation" aria-label="Submit dictation">' +
-  `<svg viewBox="0 0 24 24"><path d="${CHECK_PATH}"></path></svg>` +
-  '</button>';
+  '<button type="button" data-testid="dictation-toggle" data-dictation-button="dictating" ' +
+  'aria-busy="false" data-state="closed" aria-label="Stop dictation">Stop</button>';
 
 // The same row with the accessible labels removed: only the glyphs are left,
 // which is the case the SVG fallbacks exist for.
@@ -140,12 +141,11 @@ function createPage({ body = IDLE_BODY, textarea = true, transcript = 'hello wor
       setState('recording');
       return;
     }
-    if (label === 'Submit dictation' || label === 'submit-dictation') {
-      // The platform commits the transcript into the composer.
+    if (label === 'Stop dictation' || label === 'dictation-toggle') {
+      // The live toggle ends capture and keeps the already-streamed text.
       const box = doc.querySelector('#prompt-textarea');
       if (box) box.value = transcript;
     }
-    // Either control ends the capture and the row goes back to idle.
     setState('idle');
   });
 
@@ -206,35 +206,22 @@ function createPage({ body = IDLE_BODY, textarea = true, transcript = 'hello wor
   };
 }
 
-domTest('the mic selector never matches the commit or the discard control', () => {
+domTest('the mic selector never matches the live dictating toggle', () => {
   const dom = new jsdom.JSDOM(pageHtml({ body: RECORDING_BODY }), { url: 'https://chatgpt.com/' });
   const doc = dom.window.document;
   assert.equal(doc.querySelectorAll(SELECTORS.micSelector).length, 0);
   const commit = doc.querySelectorAll(SELECTORS.stopSelector);
   assert.equal(commit.length, 1);
-  assert.match(commit[0].getAttribute('aria-label'), /submit dictation/i);
-  const discard = doc.querySelectorAll(SELECTORS.cancelSelector);
-  assert.equal(discard.length, 1);
-  assert.match(discard[0].getAttribute('aria-label'), /stop dictation/i);
+  assert.equal(commit[0].getAttribute('data-dictation-button'), 'dictating');
 });
 
-domTest('the commit and the discard selectors never overlap', () => {
+domTest('commit and discard selectors never overlap (C-ASR-4)', () => {
   const dom = new jsdom.JSDOM(pageHtml({ body: RECORDING_BODY }), { url: 'https://chatgpt.com/' });
   const doc = dom.window.document;
-  for (const el of doc.querySelectorAll(SELECTORS.stopSelector)) {
-    assert.doesNotMatch(
-      el.getAttribute('aria-label') || '',
-      /stop dictation/i,
-      'the commit control must not be the discard control',
-    );
-  }
-  for (const el of doc.querySelectorAll(SELECTORS.cancelSelector)) {
-    assert.doesNotMatch(
-      el.getAttribute('aria-label') || '',
-      /submit dictation/i,
-      'the discard control must not be the commit control',
-    );
-  }
+  assert.equal(SELECTORS.cancelSelector, '', 'this live ChatGPT row has no separate discard control');
+  const commit = doc.querySelectorAll(SELECTORS.stopSelector);
+  assert.equal(commit.length, 1);
+  assert.match(commit[0].getAttribute('aria-label'), /stop dictation/i);
 });
 
 domTest('the glyph fallbacks find the mic and the commit control when the labels are gone', () => {
@@ -270,34 +257,25 @@ domTest('start clicks the microphone and reports that the platform is recording'
   assert.equal(page.state(), 'recording');
 });
 
-domTest('stop commits through "Submit dictation" and never through "Stop dictation"', async () => {
+domTest('stop clicks the live dictating toggle and keeps the streamed text', async () => {
   const page = createPage();
   await page.send('start', FAST);
   const reply = await page.send('stop', FAST);
   assert.equal(reply.ok, true, JSON.stringify(reply));
-  assert.ok(page.clicks.includes('Submit dictation'), JSON.stringify(page.clicks));
-  assert.ok(
-    !page.clicks.includes('Stop dictation'),
-    `the discard control must never be used to finish a dictation: ${JSON.stringify(page.clicks)}`,
-  );
+  assert.ok(page.clicks.includes('Stop dictation'), JSON.stringify(page.clicks));
   // C-ASR-4: stop() reports WHICH control it clicked.
-  assert.match(reply.result.control, /submit dictation/i);
+  assert.match(reply.result.control, /stop dictation/i);
   assert.equal(reply.result.committed, true);
-  // The transcript is read out of the value-backed composer.
   assert.equal(reply.result.text, 'hello world');
 });
 
-domTest('cancel discards through "Stop dictation" and never commits', async () => {
+domTest('cancel with no discard control falls back to the same toggle', async () => {
   const page = createPage();
   await page.send('start', FAST);
   const reply = await page.send('cancel', {});
   assert.equal(reply.ok, true, JSON.stringify(reply));
   assert.ok(page.clicks.includes('Stop dictation'), JSON.stringify(page.clicks));
-  assert.ok(
-    !page.clicks.includes('Submit dictation'),
-    `a discarded dictation must not be committed: ${JSON.stringify(page.clicks)}`,
-  );
-  assert.equal(reply.result.via, 'discard');
+  assert.equal(reply.result.via, 'stop-fallback');
   assert.match(reply.result.control, /stop dictation/i);
 });
 
@@ -312,6 +290,30 @@ domTest('a delivered transcript is cleared out of the textarea value in place', 
   assert.equal(reply.result.cleaned, true, JSON.stringify(reply));
   assert.equal(reply.result.via, 'clear', JSON.stringify(reply));
   assert.equal(page.composer().value, '', 'the textarea value must be emptied');
+});
+
+domTest('the probe reports the live control facts used to re-derive selectors', async () => {
+  const page = createPage();
+  const reply = await page.send('probe', {});
+  assert.equal(reply.ok, true, JSON.stringify(reply));
+  const labels = reply.result.facts.buttons.map((button) => button.label).join('|');
+  assert.match(labels, /dictate/i, labels);
+  assert.equal(reply.result.facts.url, 'https://chatgpt.com/');
+});
+
+domTest('a ChatGPT page showing login controls is signed out before the mic click', async () => {
+  const page = createPage();
+  page.document.body.insertAdjacentHTML(
+    'beforeend',
+    '<button type="button">Log in</button><button type="button">Sign up for free</button>',
+  );
+  const probe = await page.send('probe', {});
+  const check = probe.result.checks.find((entry) => entry.name === 'page');
+  assert.equal(check.detail, 'signed_out');
+  const reply = await page.send('start', FAST);
+  assert.equal(reply.ok, false, JSON.stringify(reply));
+  assert.equal(reply.kind, 'signed-out');
+  assert.equal(page.clicks.length, 0, 'the guest mic must never be clicked');
 });
 
 domTest('an empty composer is never scraped as a transcript', async () => {

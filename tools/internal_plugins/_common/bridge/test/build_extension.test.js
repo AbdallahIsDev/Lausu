@@ -42,11 +42,11 @@ test('emits BOTH platform selector sets and the same one token the daemon uses',
   }
   assert.equal(generated.platforms.claude.composer.includes('contenteditable'), true);
   assert.equal(generated.platforms.gemini.micSelector, 'button[aria-label^="Dictate"]');
-  // ChatGPT's commit and discard controls are DIFFERENT controls, so the
-  // compiled selector sets must not overlap (C-ASR-4).
+  // ChatGPT's live row has one dictating toggle and no separate discard
+  // control, so cancelSelector is deliberately empty (C-ASR-4).
   const chatgpt = generated.platforms.chatgpt;
-  assert.ok(chatgpt.stopSelector, 'the commit selector must be compiled');
-  assert.ok(chatgpt.cancelSelector, 'the discard selector must be compiled');
+  assert.ok(chatgpt.stopSelector.includes('data-dictation-button="dictating"'));
+  assert.equal(chatgpt.cancelSelector, '');
   assert.notEqual(chatgpt.stopSelector, chatgpt.cancelSelector);
 });
 

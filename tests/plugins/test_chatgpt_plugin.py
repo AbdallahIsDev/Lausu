@@ -178,22 +178,17 @@ class TestSelectors:
         assert "contenteditable" in selectors["composer"]
 
     def test_the_commit_and_the_discard_controls_are_distinct(self) -> None:
-        """C-ASR-4: the commit control and the discard control never share
-        a selector. ChatGPT's recording row offers BOTH "Submit dictation"
-        (commit) and "Stop dictation" (discard); stopping through the discard
-        control throws the whole dictation away.
+        """C-ASR-4: the live ChatGPT row exposes ONE dictating toggle. It is
+        the commit/stop control; there is no separate discard control to
+        collide with. The stable data attribute beats the drifting label.
         """
         selectors = json.loads((BRIDGE / "selectors" / "chatgpt.json").read_text(encoding="utf-8"))
         commit = selectors["stopSelector"]
         discard = selectors["cancelSelector"]
-        assert commit and discard, "ChatGPT offers both a commit and a discard control"
+        assert commit, "ChatGPT needs a stop/commit control"
+        assert 'button[data-dictation-button="dictating"]' in commit
+        assert discard == "", "the live row has no separate discard control"
         assert commit != discard
-        assert "submit dictation" in commit.lower()
-        assert "stop dictation" in discard.lower()
-        # The commit selector must not also answer to the discard label.
-        assert "stop dictation" not in commit.lower()
-        # The discard selector must not answer to the commit label.
-        assert "submit dictation" not in discard.lower()
 
 
 class TestCopy:
