@@ -46,9 +46,7 @@ def hermetic_source_config(monkeypatch, tmp_path):
     monkeypatch.setattr(
         verifier,
         "subprocess",
-        SimpleNamespace(
-            run=lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="ok", stderr="")
-        ),
+        SimpleNamespace(run=lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="ok", stderr="")),
     )
     return source.read_bytes()
 
@@ -176,8 +174,16 @@ class TestSync:
             timeout=60,
         )
         assert proc.returncode == 0, proc.stderr
-        for rel in ("manifest.json", "content.js", "service_worker.js", "tab_resolution.js", "popup.html", "popup.js",
-                    "icons/icon-16.png", "generated/config.js"):
+        for rel in (
+            "manifest.json",
+            "content.js",
+            "service_worker.js",
+            "tab_resolution.js",
+            "popup.html",
+            "popup.js",
+            "icons/icon-16.png",
+            "generated/config.js",
+        ):
             assert (target / rel).is_file(), rel
         assert not stale.exists(), "a renamed asset must not linger in the install path"
         assert "old-renamed-asset.js" not in proc.stdout
@@ -267,7 +273,7 @@ class TestSingleChromeInstance:
             ("claude", "https://claude.ai/new"),
             ("gemini", "https://gemini.google.com/app"),
             ("chatgpt", "https://chatgpt.com/"),
-        ]
+        ],
     )
     def test_arg_vector_is_identical_except_the_url(self, platform, url):
         args = chrome_profile.profile_args(chrome_profile.PROFILE_DIR, url)
@@ -280,12 +286,17 @@ class TestSingleChromeInstance:
         with pytest.raises(ValueError):
             chrome_profile._assert_plain(args + ["--load-extension=C:/anywhere"])
 
-    def test_switching_plugins_hands_the_port_back(self):
+    def test_switching_plugins_keeps_the_shared_daemon_up(self):
         with patch.object(anthropic, "_post") as a_post, patch.object(google, "_post") as g_post:
             anthropic.deactivate()
             google.deactivate()
-        a_post.assert_called_once()
-        g_post.assert_called_once()
-        for post in (a_post, g_post):
-            assert post.call_args.args[0] == "/shutdown"
+        a_post.assert_not_called()
+        g_post.assert_not_called()
         assert anthropic.DAEMON_URL == google.DAEMON_URL
+
+    def test_surface_teardown_still_shuts_the_daemon_down(self):
+        from voice_typer.server import internal_plugin_hook
+
+        with patch.object(internal_plugin_hook, "_shutdown_plugin_daemon") as shutdown:
+            internal_plugin_hook._deactivate_plugin("anthropic_stt", shutdown=True)
+        shutdown.assert_called_once_with("anthropic_stt")

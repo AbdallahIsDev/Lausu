@@ -224,6 +224,7 @@ def _launch_profile_if_due() -> bool:
         on_due=_record,
         bypass_fn=_profile_missing,
         running_fn=_profile_running,
+        caller="plugin-activation",
     )
     _last_launch_ts = new_ts
     return launched
@@ -312,7 +313,11 @@ def activate(app: Any) -> bool:
 
 
 def deactivate() -> None:
-    """Drop the session and stop the bridge when another engine is chosen."""
+    """Drop the session; keep the SHARED daemon up for the next plugin.
+
+    Shutting it down on every switch forced an extension reconnect plus the
+    content-script port retry ladder (~3 s). The relay re-reads the platform
+    from config on every request, so the same daemon serves the new plugin.
+    """
     _keepalive.stop()
     detach()
-    shutdown_daemon()
