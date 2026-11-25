@@ -52,7 +52,7 @@ class TestManifest:
         nothing, so an empty id is the honest choice: it never points at an
         asset that is not in the tree.
         """
-        assert _manifest()["icon"] == ""
+        assert _manifest()["icon"] == "chatgpt"
 
 
 class TestDescriptor:

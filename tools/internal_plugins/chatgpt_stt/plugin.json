@@ -2,6 +2,6 @@
   "id": "chatgpt_stt",
   "name": "ChatGPT STT",
   "vendor": "OpenAI",
-  "icon": "",
+  "icon": "chatgpt",
   "description": "Dictates through ChatGPT's own microphone in your own Chrome window."
 }

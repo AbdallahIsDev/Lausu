@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import openaiLogo from "@/assets/models/openai.svg";
 import { PluginsPanel } from "@/components/models/PluginsPanel";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -32,8 +33,8 @@ vi.mock("@/pages/plugins/hooks/usePlugins", () => ({
 				id: "chatgpt-stt",
 				name: "ChatGPT STT",
 				description: "Dictation in the browser",
-				vendor: "Owner",
-				icon: "",
+				vendor: "OpenAI",
+				icon: "chatgpt",
 				active: false,
 			},
 		],
@@ -99,6 +100,17 @@ describe("PluginsPanel (Models developer tab content)", () => {
 			);
 			ancestor = ancestor.parentElement;
 		}
+	});
+
+	it("uses the shared OpenAI logo asset for the ChatGPT card", () => {
+		renderPanel();
+
+		const logo = screen
+			.getByTestId("plugin-card-chatgpt-stt")
+			.querySelector('img[alt=""]');
+		expect(logo).toBeTruthy();
+		expect(logo?.getAttribute("src")).toBe(openaiLogo);
+		expect(logo?.className).toContain("dark:invert");
 	});
 
 	it("activates a plugin and restores the local model on deactivate", async () => {

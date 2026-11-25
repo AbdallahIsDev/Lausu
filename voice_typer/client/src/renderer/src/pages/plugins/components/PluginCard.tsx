@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import type { PluginInfo } from "@/types/plugins";
-import { pluginIconSrc } from "../lib/pluginIcon";
+import { pluginIconNeedsInvert, pluginIconSrc } from "../lib/pluginIcon";
 
 interface PluginCardProps {
 	plugin: PluginInfo;
@@ -45,7 +45,15 @@ export function PluginCard({ plugin, onActivate }: PluginCardProps) {
 				)}
 			>
 				{iconSrc ? (
-					<img src={iconSrc} alt="" className="size-8 object-contain" />
+					<img
+						src={iconSrc}
+						alt=""
+						className={
+							pluginIconNeedsInvert(plugin.icon)
+								? "size-8 object-contain dark:invert"
+								: "size-8 object-contain"
+						}
+					/>
 				) : (
 					initialOf(plugin)
 				)}
