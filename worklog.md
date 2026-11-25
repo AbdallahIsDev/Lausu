@@ -2100,3 +2100,12 @@ Live evidence (real dev app, UIAutomation + bridge + lausu.log):
 - Dev diagnostics: marker tools/internal_plugins/DEVELOPER_DIAGNOSTICS or env VOICE_TYPER_PLUGIN_DIAGNOSTICS=1; frozen builds refuse (test). tabs-dump/nav-bench + ram_probe.ps1 added; "tabs" permission added to the internal extension so URLs are visible.
 
 Validation: pytest scoped 799 passed; node bridge 101 passed; vitest touched files 66 passed; typecheck:ci OK; ruff + format clean; mypy ratchet PASS (baseline unchanged); pyrefly touched Python has pre-existing _entry:Any|None errors in session.py only. Full pytest not run (owner gate). Live visual dot colour and hotkey notification not captured -> UNVERIFIED.
+## 2026-11-26 - Part B measurements and decision
+
+nav-bench (3 runs each, real signed-in profile): Claude nav-complete 328-336 ms, content ready 162-238 ms, handshake 490-574 ms, already-open switch 10-12 ms, draft kept, signed in. Gemini 657-769 / 193-200 / 850-969 / 9-37 ms, draft kept, signed in. ChatGPT 885-2206 / 37-464 / 922-2447 / 21-156 ms, signed in, draft NOT kept on all 3 runs.
+
+RAM probe (Windows working set / private, whole plugin Chrome profile): 1 tab 1168.3 / 1053.7 MB; 2 tabs 1565.5 / 1331 MB; 3 tabs 2107.6 / 1619.7 MB. Each extra platform tab costs ~280-540 MB.
+
+Decision: KEEP one tab per plugin. Single-tab navigation would save ~940 MB working set at 3 tabs, but ChatGPT navigation reaches 2.2 s (>1.5 s switch target) and loses unsent composer text on every round trip; hotkey readiness is no better (already-open switch is 9-156 ms today). Owner rule prioritises RAM only after reliability/latency parity, which failed.
+
+Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or set VOICE_TYPER_PLUGIN_DIAGNOSTICS=1 in the shell that starts tauri dev), restart app, reload the unpacked extension once at chrome://extensions, then use GET /diagnostics/tabs-dump, POST /diagnostics/nav-bench and tools/ram_probe.ps1. Frozen builds refuse regardless of the flag.
