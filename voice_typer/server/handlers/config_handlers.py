@@ -153,11 +153,32 @@ class ConfigHandlersMixin(HandlerBase):
                 "running lock-free; concurrent set_config / change_model "
                 "may interleave (this warning fires once per process)"
             )
+        # Selecting a local model is an engine switch even when the model is
+        # ALREADY selected (the card still offers Select while a plugin owns
+        # dictation). Release the plugin in the same persisted write, never in
+        # a separate best-effort mutation that a no-op save can skip.
+        released_plugin = ""
+        current_plugin = getattr(app_ref.config, "active_plugin", "")
+        if (
+            {"model_size", "asr_backend"} & validated.keys()
+            and "active_plugin" not in validated
+            and isinstance(current_plugin, str)
+            and current_plugin
+        ):
+            released_plugin = current_plugin
+            validated["active_plugin"] = ""
+            app_ref.config.active_plugin = ""
         # RACE-011: hold _config_mutation_lock across change_model + persist.
         with contextlib.ExitStack() as stack:
             if config_lock is not None:
                 stack.enter_context(config_lock)
             self._swap_set_config_models(validated, applied, model_errors, model_loading, failed_keys)
+        # A refused model switch did not change engines: keep the plugin owner.
+        if released_plugin and any(err.get("field") in ("model_size", "asr_backend") for err in model_errors):
+            validated.pop("active_plugin", None)
+            app_ref.config.active_plugin = released_plugin
+            if "active_plugin" in applied:
+                applied.remove("active_plugin")
         return model_errors, applied, model_loading, failed_keys
 
     def _swap_set_config_models(
@@ -165,23 +186,6 @@ class ConfigHandlersMixin(HandlerBase):
     ) -> dict:
         """Swap model/backend inside the held lock; return the persist set."""
         if "model_size" in validated and validated["model_size"] != getattr(self.app.config, "model_size", None):
-            # Selecting a local model makes it the active engine: the plugin
-            # must give up ownership first (Item 6.3).
-            if "active_plugin" not in validated and getattr(self.app.config, "active_plugin", ""):
-                self.app.config.active_plugin = ""
-                try:
-                    import threading
-
-                    from voice_typer.server import internal_plugin_hook
-
-                    threading.Thread(
-                        target=internal_plugin_hook.sync_selection,
-                        args=(self.app,),
-                        name="plugin-selection-sync",
-                        daemon=True,
-                    ).start()
-                except Exception:
-                    log.warning("[IPC] plugin release on model select failed", exc_info=True)
             old_model_size = getattr(self.app.config, "model_size", None)
             old_backend = getattr(self.app.config, "asr_backend", None)
             try:

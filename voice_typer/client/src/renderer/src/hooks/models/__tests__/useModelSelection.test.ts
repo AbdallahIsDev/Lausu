@@ -109,6 +109,7 @@ describe("useModelSelection, selectModel success path", () => {
 		expect(args.updateConfig).toHaveBeenCalledWith({
 			asr_backend: "whisper",
 			model_size: "tiny",
+			active_plugin: "",
 		});
 
 		// setConfig mirrors the committed selection into config state
@@ -119,9 +120,18 @@ describe("useModelSelection, selectModel success path", () => {
 			.mock.calls[0]?.[0] as (
 			prev: Partial<LausuConfig> | null,
 		) => Partial<LausuConfig>;
-		expect(cfgUpdater({ asr_backend: "whisper", model_size: "" })).toEqual({
+		expect(
+			cfgUpdater({
+				asr_backend: "whisper",
+				model_size: "",
+				active_plugin: "anthropic_stt",
+				active_plugin_name: "Claude STT",
+			}),
+		).toEqual({
 			asr_backend: "whisper",
 			model_size: "tiny",
+			active_plugin: "",
+			active_plugin_name: "",
 		});
 
 		// setModels invoked with an updater that flips isActive on the

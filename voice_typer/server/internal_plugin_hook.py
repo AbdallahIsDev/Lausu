@@ -208,6 +208,35 @@ def plugin_display_name(app: Any | None = None) -> str:
         return ""
 
 
+def reconcile_status(app: Any) -> bool:
+    """Make the tray status agree with the engine that actually serves dictation.
+
+    ``LOADING`` is raised once by startup and normally cleared by the local
+    model loader. When a plugin owns dictation that loader never runs, so the
+    stale loading state would otherwise survive forever. Startup and runtime
+    plugin switches both call this one helper.
+    """
+    tray = getattr(app, "tray", None)
+    setter = getattr(tray, "set_state", None)
+    if not callable(setter):
+        return False
+    try:
+        from voice_typer.server.i18n import t as _t
+        from voice_typer.server.tray_types import AppState
+
+        owner = plugin_display_name(app)
+        if owner:
+            setter(AppState.IDLE, _t("state.plugin_serves_dictation", name=owner))
+            return True
+        config = getattr(app, "config", None)
+        if not str(getattr(config, "model_size", "") or ""):
+            setter(AppState.IDLE, _t("state.model_manager.no_model_selected"))
+            return True
+    except Exception:
+        log.debug("[PLUGIN] status reconcile failed", exc_info=True)
+    return False
+
+
 def sync_selection(app: Any) -> bool:
     """Bring the selected plugin's browser up, or tear the old one down.
 
@@ -222,13 +251,14 @@ def sync_selection(app: Any) -> bool:
     plugin_id = requested_plugin_id(app)
     previous = str(getattr(app, "_internal_plugin_selected_id", "") or "")
     if previous == plugin_id:
+        reconcile_status(app)
         return False
     app._internal_plugin_selected_id = plugin_id
     if previous:
         _deactivate_plugin(previous)
-    if not plugin_id:
-        return True
-    return _activate_plugin(plugin_id, app)
+    result = _activate_plugin(plugin_id, app) if plugin_id else True
+    reconcile_status(app)
+    return result
 
 
 def _activate_plugin(plugin_id: str, app: Any) -> bool:
@@ -243,10 +273,16 @@ def _activate_plugin(plugin_id: str, app: Any) -> bool:
         return False
 
 
-def _deactivate_plugin(plugin_id: str) -> None:
-    """Stop the plugin we just switched away from, browser included."""
+def _deactivate_plugin(plugin_id: str, *, shutdown: bool = False) -> None:
+    """Stop the plugin we just switched away from.
+
+    A switch keeps the shared daemon alive; only surface teardown shuts it
+    down. Restarting it per switch cost ~3 s of extension reconnect.
+    """
     plugin = _plugin_for(plugin_id)
     if plugin is None:
+        if shutdown:
+            _shutdown_plugin_daemon(plugin_id)
         return
     fn = getattr(plugin, "deactivate", None)
     if callable(fn):
@@ -254,8 +290,8 @@ def _deactivate_plugin(plugin_id: str) -> None:
             fn()
         except Exception:
             log.debug("[PLUGIN] %s deactivate failed", plugin_id, exc_info=True)
-        return
-    _shutdown_plugin_daemon(plugin_id)
+    if shutdown:
+        _shutdown_plugin_daemon(plugin_id)
 
 
 def teardown(app: Any) -> bool:
@@ -276,7 +312,7 @@ def teardown(app: Any) -> bool:
     selected = str(getattr(app, "_internal_plugin_selected_id", "") or "")
     app._internal_plugin_selected_id = ""
     if selected:
-        _deactivate_plugin(selected)
+        _deactivate_plugin(selected, shutdown=True)
     return True
 
 

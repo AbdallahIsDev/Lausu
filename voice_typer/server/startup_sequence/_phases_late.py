@@ -459,22 +459,9 @@ class LatePhases:
                 elapsed,
             )
             # The startup LOADING state was raised by app.start() and the
-            # local loader used to be the only thing that cleared it, so a
-            # plugin install sat on "Loading"/"Loading model…" forever with
-            # nothing loading. The dictation owner is the plugin, so IDLE is
-            # the true state; the tooltip names it.
-            try:
-                from voice_typer.server.tray_types import AppState as _PluginAppState
-
-                app.tray.set_state(
-                    _PluginAppState.IDLE,
-                    _t("state.plugin_serves_dictation", name=plugin_owner),
-                )
-            except Exception:
-                log.debug(
-                    "[STARTUP] plugin tray reconcile failed (non-fatal)",
-                    exc_info=True,
-                )
+            # local loader used to be the only thing that cleared it. One
+            # shared reconcile keeps startup and runtime switches identical.
+            internal_plugin_hook.reconcile_status(app)
         else:
             if not model_size:
                 complete_msg = "[STARTUP] Startup complete (no speech model selected)%s"

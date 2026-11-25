@@ -86,13 +86,18 @@ export function useModelSelection({
 					updates.asr_backend = model.backend as LausuConfig["asr_backend"];
 					updates.model_size = model.name as LausuConfig["model_size"];
 				}
+				// A local model is an engine switch: the plugin gives up
+				// ownership in the SAME set_config write (state consistency).
+				updates.active_plugin = "";
 				await updateConfig(updates);
 				// Optimistic config merge, same pattern as
 				// setCloudConsent. The backend publishes the `config_changed`
 				// echo for set_config, but the no-model banner (and every
 				// other config-derived surface) must flip on the committed
 				// user action, not on the transport echo's arrival time.
-				setConfig((prev) => (prev ? { ...prev, ...updates } : prev));
+				setConfig((prev) =>
+					prev ? { ...prev, ...updates, active_plugin_name: "" } : prev,
+				);
 				setModels((prev) =>
 					prev.map((m) => ({ ...m, isActive: m.name === model.name })),
 				);

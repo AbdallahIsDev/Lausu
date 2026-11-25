@@ -43,6 +43,22 @@ describe("SidebarActiveModel", () => {
 		expect(label.textContent).toContain("Claude STT");
 	});
 
+	it("never paints a loading dot for a plugin engine", () => {
+		setConfigSnapshot({
+			asr_backend: "parakeet",
+			model_size: "parakeet",
+			active_plugin: "anthropic_stt",
+			active_plugin_name: "Claude STT",
+		});
+		useAppStore.setState({ recordingState: "loading" });
+		render(<SidebarActiveModel />);
+
+		const label = screen.getByTestId("sidebar-active-model");
+		expect(label.textContent).toContain("Claude STT");
+		expect(dotColor()).not.toBe(STATUS_COLORS.loading);
+		expect(dotColor()).toBe(STATUS_COLORS.idle);
+	});
+
 	it("shows the live state as a DOT beside the name, never as a word", () => {
 		setConfigSnapshot({
 			asr_backend: "parakeet",

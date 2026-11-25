@@ -30,10 +30,15 @@ export function SidebarActiveModel({
 				? modelLabel
 				: t("models.noModelSelected");
 	if (collapsed) return null;
-	const color = statusColorFor(state, !!lastError);
+	// LOADING only describes a LOCAL model load. A plugin (or no engine at all)
+	// cannot be loading a local model — a stale startup push must not paint a
+	// yellow dot over the plugin caption (server state is the authority).
+	const dotState =
+		engineKind === "local" ? state : state === "loading" ? "idle" : state;
+	const color = statusColorFor(dotState, !!lastError);
 	// The dot is decorative; the state word stays reachable for assistive
 	// tech (and on hover) instead of living in the visible row.
-	const stateLabel = t(`trayState.${state}`);
+	const stateLabel = t(`trayState.${dotState}`);
 
 	return (
 		<div
