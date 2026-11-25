@@ -6,7 +6,7 @@
 // as long as a socket is open. The alarms entry is the reconnect backstop for
 // the case where Chrome terminated the worker while the daemon was down.
 
-importScripts('generated/config.js', 'tab_resolution.js');
+importScripts('generated/config.js', 'tab_resolution.js', 'nav_bench.js');
 
 const CFG = self.ANTHROPIC_STT_CONFIG || {};
 const { createTabResolver } = self.SttTabResolution;
@@ -335,6 +335,21 @@ function handleCommand(msg) {
             active: !!tab.active,
           })),
         });
+        return;
+      }
+      if (msg.cmd === 'nav-bench') {
+        if (CFG.diagnostics !== true) {
+          reply(msg.id, false, null, 'diagnostics-disabled', 'diagnostics are disabled');
+          return;
+        }
+        const bench = self.SttNavBench.createNavBench({
+          chromeApi: chrome,
+          resolve: (platform) => resolver().ensure(platform, { activate: false }),
+          sendToTab,
+          targetUrls: TARGET_URLS,
+          handshakeReady: () => accepted && !!socket && socket.readyState === WebSocket.OPEN,
+        });
+        reply(msg.id, true, await bench(msg.opts || {}));
         return;
       }
       if (msg.cmd === 'status') {

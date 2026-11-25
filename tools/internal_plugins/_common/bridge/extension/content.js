@@ -933,6 +933,21 @@
         return clearComposer();
       case 'probe':
         return probe();
+      case 'diagnostics-draft-set':
+      case 'diagnostics-draft-read': {
+        // Dev-only diagnostics (CFG.diagnostics) — never shipped in a frozen
+        // build. The text is cleared by the caller after the measurement.
+        if (!CFG.diagnostics) throw new CmdError('diagnostics-disabled', 'diagnostics are disabled');
+        if (msg.cmd === 'diagnostics-draft-read') return { text: composerText() };
+        const box = composerBox();
+        if (!box) throw new CmdError('composer-missing', 'no composer on this page');
+        await clearComposer();
+        box.focus();
+        try {
+          document.execCommand('insertText', false, String((msg.opts && msg.opts.text) || ''));
+        } catch (_) {}
+        return { text: composerText() };
+      }
       default:
         throw new CmdError('bridge-error', `unknown command ${msg.cmd}`);
     }
