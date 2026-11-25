@@ -77,6 +77,7 @@ def launch_profile_if_due(
     cooldown_s: float = _LAUNCH_COOLDOWN_S,
     bypass_fn: Any | None = None,
     running_fn: Any | None = None,
+    caller: str = "plugin-activation",
 ) -> tuple[bool, float]:
     """Open the dictation profile at most once per cooldown window (C-START-3).
 
@@ -102,13 +103,21 @@ def launch_profile_if_due(
         # A daemon started before the profile rename keeps the OLD path in
         # memory; the migrated path from install.json always wins here.
         profile = str(profile_dir()) if legacy is not None and configured and Path(configured) == legacy else configured
-        # Cold start must open the active platform READY, without a hotkey
-        # (P1). Chrome is launched only when the profile is genuinely absent,
-        # so this URL cannot produce a second tab in a running profile.
-        url = str(
-            config.get("url") or config.get("claudeUrl") or config.get("geminiUrl") or config.get("chatgptUrl") or ""
-        )
+        # The extension is the ONLY tab authority (C-PLUGIN-3). A platform URL
+        # on the command line races /ensure-tab on domains that redirect
+        # (chatgpt.com/accounts.google.com), so Chrome used to end up with two
+        # tabs of the same platform. The launch opens one blank tab, which the
+        # extension adopts and navigates to the target URL once.
+        url = "about:blank"
         launched = launch_fn(profile, url)
+        log.info(
+            "[PLUGIN] Chrome launch at=%s caller=%s url=%s pid=%s profile=%s",
+            time.strftime("%Y-%m-%dT%H:%M:%S"),
+            caller,
+            url,
+            launched,
+            profile,
+        )
         return launched, now
 
 
@@ -152,16 +161,19 @@ def activate_platform_async(
     The UI activation returns immediately; this thread does the slow daemon
     spawn, the profile launch or /warm, then makes the platform tab ready.
     """
+    started = time.perf_counter()
     if not ensure_daemon_fn():
         log.error("[PLUGIN] activation failed: the control daemon did not start")
         return
-    if not connected_fn(status_fn()):
+    daemon_s = time.perf_counter() - started
+    status_started = time.perf_counter()
+    connected = connected_fn(status_fn())
+    status_s = time.perf_counter() - status_started
+    if not connected:
         launch_fn()
-        log.info(
-            "[PLUGIN] %s activated; the dictation window is starting, the first hotkey press waits for it",
-            display_name,
-        )
+        log_line = "[PLUGIN] %s activated; the dictation window is starting, the first hotkey press waits for it"
     else:
+        warm_started = time.perf_counter()
         try:
             post_fn("/warm", timeout=120.0)
         except BridgeError as exc:
@@ -170,7 +182,9 @@ def activate_platform_async(
         except Exception:
             log.exception("[PLUGIN] activation warm-up failed")
             return
-        log.info("[PLUGIN] %s activated; browser is up", display_name)
+        status_s += time.perf_counter() - warm_started
+        log_line = "[PLUGIN] %s activated; browser is up"
+    prepare_started = time.perf_counter()
     prepare_platform(
         status_fn=status_fn,
         post_fn=post_fn,
@@ -178,6 +192,16 @@ def activate_platform_async(
         ready_fn=ready_fn,
         clock=clock,
     )
+    prepare_s = time.perf_counter() - prepare_started
+    total_s = time.perf_counter() - started
+    log.debug(
+        "[PLUGIN] activation stages daemon=%.1fs status=%.1fs prepare=%.1fs total=%.1fs",
+        daemon_s,
+        status_s,
+        prepare_s,
+        total_s,
+    )
+    log.info(log_line + " %.1fs", display_name, total_s)
 
 
 def prepare_platform(

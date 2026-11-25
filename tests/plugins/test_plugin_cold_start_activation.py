@@ -84,7 +84,7 @@ class TestActivationWithAColdBrowser:
         assert plugin.activate(MagicMock()) is True
         plugin._activate_target()
 
-        assert launches == [("P", "U")]
+        assert launches == [("P", "about:blank")]
         assert warmed == [], "a page that is not up yet cannot be warmed"
         assert waited == []
 
@@ -139,7 +139,7 @@ class TestActivationWithAColdBrowser:
 
 
 class TestBlankProfileLaunch:
-    def test_a_relaunch_opens_the_active_platform_url(self, plugin, monkeypatch):
+    def test_a_relaunch_opens_one_blank_tab_and_logs_its_caller(self, plugin, monkeypatch, caplog):
         launches: list[tuple[str, str]] = []
         monkeypatch.setattr(
             plugin,
@@ -152,9 +152,12 @@ class TestBlankProfileLaunch:
             lambda: {"profileDir": "P", "url": "https://claude.ai/new"},
         )
         monkeypatch.setattr(plugin, "_profile_missing", lambda: True)
+        caplog.set_level(logging.INFO, logger="voice_typer.internal_plugin.bridge")
 
         assert plugin._launch_profile_if_due() is True
-        assert launches == [("P", "https://claude.ai/new")]
+        assert launches == [("P", "about:blank")], "the extension owns the platform tab"
+        assert "caller=plugin-activation" in caplog.text
+        assert "url=about:blank" in caplog.text
 
 
 class TestActivationPreparesPlatform:
@@ -240,7 +243,7 @@ class TestLaunchSingleFlight:
         for thread in threads:
             thread.join()
 
-        assert launches == [("P", "U")]
+        assert launches == [("P", "about:blank")]
 
 
 class TestBrowserWaitBudget:

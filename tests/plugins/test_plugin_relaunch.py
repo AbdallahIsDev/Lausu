@@ -152,7 +152,7 @@ class TestRelaunchAfterClose:
         )
 
         assert plugin._launch_profile_if_due() is True
-        assert launches == [("P", "U")]
+        assert launches == [("P", "about:blank")]
 
     def test_an_open_profile_still_respects_the_cooldown(self, plugin, monkeypatch):
         monkeypatch.setattr(plugin, "_last_launch_ts", time.monotonic())

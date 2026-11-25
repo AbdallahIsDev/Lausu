@@ -59,7 +59,7 @@ def test_a_stale_config_cannot_launch_the_old_profile_path(roots, monkeypatch):
         clock=SimpleNamespace(monotonic=lambda: 100.0),
     )
 
-    assert launches == [(str(target), "https://claude.ai/new")]
+    assert launches == [(str(target), "about:blank")]
 
 
 def test_migration_is_idempotent_and_never_overwrites(roots):

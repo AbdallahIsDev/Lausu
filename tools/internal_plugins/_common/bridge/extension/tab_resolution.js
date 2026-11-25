@@ -57,7 +57,8 @@
     return tabs.reduce((best, tab) => (!best || tab.id < best.id ? tab : best), null);
   }
 
-  function createTab(chromeApi, url) {
+  function createTab(chromeApi, url, logEvent = () => {}) {
+    logEvent({ action: 'tabs.create', url, caller: 'tab_resolution.resolve' });
     return new Promise((resolve, reject) => {
       try {
         chromeApi.tabs.create({ url, active: false }, (tab) => {
@@ -66,6 +67,12 @@
             reject(new Error("chrome refused to create the target tab"));
             return;
           }
+          logEvent({
+            action: 'tabs.create.result',
+            url,
+            tabId: tab && tab.id,
+            caller: 'tab_resolution.resolve',
+          });
           resolve(tab || null);
         });
       } catch (err) {
@@ -85,6 +92,47 @@
         });
       } catch (_) {
         resolve();
+      }
+    });
+  }
+
+  function navigateTab(chromeApi, tabId, url, logEvent = () => {}) {
+    logEvent({ action: 'tabs.update.navigate', url, tabId, caller: 'tab_resolution.adoptBlank' });
+    return new Promise((resolve) => {
+      try {
+        chromeApi.tabs.update(tabId, { url }, () => {
+          if (chromeApi.runtime && chromeApi.runtime.lastError) void chromeApi.runtime.lastError;
+          resolve();
+        });
+      } catch (_) {
+        resolve();
+      }
+    });
+  }
+
+  // A cold launch opens ONE about:blank tab. Adopting it keeps the profile at
+  // one tab instead of leaving a blank tab beside the platform tab.
+  function findBlank(chromeApi) {
+    return new Promise((resolve) => {
+      try {
+        chromeApi.tabs.query({}, (tabs) => {
+          if (chromeApi.runtime && chromeApi.runtime.lastError) {
+            void chromeApi.runtime.lastError;
+            resolve(null);
+            return;
+          }
+          const all = tabs || [];
+          const blanks = all.filter(
+            (tab) =>
+              tab &&
+              typeof tab.id === 'number' &&
+              !tab.pendingUrl &&
+              (!tab.url || tab.url === 'about:blank' || tab.url === 'chrome://newtab'),
+          );
+          resolve(all.length === 1 && blanks.length === 1 ? blanks[0] : null);
+        });
+      } catch (_) {
+        resolve(null);
       }
     });
   }
@@ -118,6 +166,7 @@
     patterns,
     targetUrls,
     probe = async () => true,
+    logEvent = () => {},
     delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     maxWaitMs = SETTLE_MAX_MS,
     activate = true,
@@ -135,23 +184,27 @@
 
     // `tabs.query({url})` matches committed URLs only (Chrome docs). Query all
     // tabs as a fallback so a launch/redirect in flight is still recognised.
-    async function findPending(platform) {
+    async function pendingMatches(platform) {
       const pattern = patterns[platform];
-      if (!pattern) return null;
+      if (!pattern) return [];
       return new Promise((resolve) => {
         try {
           chromeApi.tabs.query({}, (tabs) => {
             if (chromeApi.runtime && chromeApi.runtime.lastError) {
               void chromeApi.runtime.lastError;
-              resolve(null);
+              resolve([]);
               return;
             }
-            resolve(pickTab((tabs || []).filter((tab) => tabMatches(tab, pattern))));
+            resolve((tabs || []).filter((tab) => tab && tabMatches(tab, pattern)));
           });
         } catch (_) {
-          resolve(null);
+          resolve([]);
         }
       });
+    }
+
+    async function findPending(platform) {
+      return pickTab(await pendingMatches(platform));
     }
 
     // One tab per platform. Only surplus tabs that matched THIS platform's
@@ -188,6 +241,11 @@
 
       const pending = await findPending(platform);
       if (pending) {
+        const pendingDupes = new Map();
+        for (const tab of [...(await allMatches(platform)), ...(await pendingMatches(platform))]) {
+          pendingDupes.set(tab.id, tab);
+        }
+        await dropSurplus([...pendingDupes.values()], pending.id);
         if (activate && opts.activate !== false) await activateTab(chromeApi, pending.id);
         return {
           tabId: pending.id,
@@ -197,9 +255,28 @@
         };
       }
 
+      const blank = await findBlank(chromeApi);
+      if (blank) {
+        await navigateTab(chromeApi, blank.id, targetUrl(platform, opts, patterns, targetUrls), logEvent);
+        tab = await waitForTab(platform, blank.id);
+        if (tab) {
+          await dropSurplus(await allMatches(platform), tab.id);
+          if (activate && opts.activate !== false) await activateTab(chromeApi, tab.id);
+          let ready = false;
+          try {
+            ready = !!(await probe(tab.id));
+          } catch (_) {}
+          return { tabId: tab.id, created: true, adopted: true, ready, url: tab.url };
+        }
+      }
+
       let created;
       try {
-        created = await createTab(chromeApi, targetUrl(platform, opts, patterns, targetUrls));
+        created = await createTab(
+          chromeApi,
+          targetUrl(platform, opts, patterns, targetUrls),
+          (event) => logEvent({ ...event, platform }),
+        );
       } catch (_) {
         return { tabId: null, created: false, ready: false, reason: "create-failed" };
       }

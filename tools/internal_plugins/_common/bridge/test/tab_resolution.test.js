@@ -285,6 +285,35 @@ test('P4 sequence: cold start, three plugins, revisit — never above one tab ea
   }
 });
 
+test('a cold-launch blank tab is adopted, not left beside a second tab', async () => {
+  const chrome = fakeChrome([{ id: 5, url: 'about:blank' }]);
+  const events = [];
+  const result = await resolverFor(chrome, { logEvent: (e) => events.push(e) }).ensure('chatgpt', {
+    url: 'https://chatgpt.com/',
+  });
+
+  assert.equal(result.adopted, true);
+  assert.equal(result.tabId, 5);
+  assert.equal(result.created, true);
+  assert.equal(chrome.calls.create.length, 0);
+  assert.equal(chrome.tabs.size, 1);
+  assert.equal([...chrome.tabs.values()][0].url, 'https://chatgpt.com/');
+  assert.ok(events.some((e) => e.action === 'tabs.update.navigate'));
+});
+
+test('two pending tabs of one platform collapse to one', async () => {
+  const chrome = fakeChrome([
+    { id: 5, url: 'about:blank', pendingUrl: 'https://chatgpt.com/' },
+    { id: 6, url: 'about:blank', pendingUrl: 'https://chatgpt.com/' },
+  ]);
+
+  const result = await resolverFor(chrome).ensure('chatgpt');
+
+  assert.equal(typeof result.tabId, 'number');
+  assert.equal(chrome.tabs.size, 1);
+  assert.equal(chrome.calls.remove.length, 1);
+});
+
 test('a manually closed tab is recreated without touching the others', async () => {
   const chrome = fakeChrome([
     { id: 7, url: 'https://claude.ai/new', active: true },

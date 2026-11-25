@@ -265,6 +265,8 @@ function resolver() {
       chromeApi: chrome,
       patterns: TAB_PATTERNS,
       targetUrls: TARGET_URLS,
+      logEvent: (event) =>
+        send({ event: 'tab-event', at: new Date().toISOString(), ...event }),
       // A created tab answers the port before its content script listens;
       // sendToTab's own retry ladder covers that window.
       probe: async (tabId) => {
@@ -313,6 +315,28 @@ function handleCommand(msg) {
   (async () => {
     try {
       const platform = (msg.opts && msg.opts.platform) || CFG.platform;
+      if (msg.cmd === 'tabs-dump') {
+        if (CFG.diagnostics !== true) {
+          reply(msg.id, false, null, 'diagnostics-disabled', 'diagnostics are disabled');
+          return;
+        }
+        const tabs = await new Promise((resolve) => {
+          chrome.tabs.query({}, (found) => resolve(found || []));
+        });
+        reply(msg.id, true, {
+          at: new Date().toISOString(),
+          tabs: tabs.map((tab) => ({
+            id: tab.id,
+            windowId: tab.windowId,
+            url: tab.url || '',
+            pendingUrl: tab.pendingUrl || '',
+            status: tab.status || '',
+            discarded: !!tab.discarded,
+            active: !!tab.active,
+          })),
+        });
+        return;
+      }
       if (msg.cmd === 'status') {
         const tab = await tabFor(platform);
         if (!tab) {
