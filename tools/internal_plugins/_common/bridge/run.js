@@ -87,21 +87,24 @@ function createServer(options = {}) {
 
   const server = http.createServer(async (req, res) => {
     req.resume();
+    const requestUrl = new URL(req.url, 'http://127.0.0.1');
+    // One daemon serves all platforms. The owning plugin is carried on EVERY
+    // request, so a switch never inherits the process-wide descriptor of the
+    // plugin that happened to spawn the daemon (C-PARITY-1).
+    const fresh = options.config
+      ? { ...options.config }
+      : loadConfig(dir, { persist: false }).config;
+    const requested = requestUrl.searchParams.get('platform');
+    const urlKeys = { claude: 'claudeUrl', gemini: 'geminiUrl', chatgpt: 'chatgptUrl' };
+    if (requested && urlKeys[requested]) {
+      fresh.platform = requested;
+      fresh.url = String(fresh[urlKeys[requested]] || fresh.url);
+    }
+    relay.config = fresh;
     // The Plugins page writes config.json while the daemon may already be
     // running, so the declared knobs are re-read per request instead of being
     // frozen at startup. A settings change also refreshes the generated file.
     if (!options.config) {
-      const fresh = loadConfig(dir, { persist: false }).config;
-      // One daemon serves all platforms: the owning plugin is carried on
-      // every request, so a switch never inherits the first plugin's
-      // process-wide descriptor (C-PARITY-1).
-      const requested = new URL(req.url, 'http://127.0.0.1').searchParams.get('platform');
-      const urlKeys = { claude: 'claudeUrl', gemini: 'geminiUrl', chatgpt: 'chatgptUrl' };
-      if (requested && urlKeys[requested]) {
-        fresh.platform = requested;
-        fresh.url = String(fresh[urlKeys[requested]] || fresh.url);
-      }
-      relay.config = fresh;
       try {
         build({ dir, config: fresh, persist: false, tokenAuthority: options.tokenAuthority, out: options.out });
         sync({
@@ -123,7 +126,6 @@ function createServer(options = {}) {
     }
     let result;
     try {
-      const requestUrl = new URL(req.url, 'http://127.0.0.1');
       const { pathname } = requestUrl;
       result = await handle(relay, req.method, pathname);
     } catch (err) {

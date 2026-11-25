@@ -2,6 +2,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const diagnostics = require('../diagnostics');
 const { handle } = require('../control_plane');
 const { compile } = require('../tools/build-extension');
@@ -36,6 +37,18 @@ test('diagnostics are opt-in and refuse in a frozen build', () => {
   setEnv('1', '1');
   assert.equal(diagnostics.frozen(), true);
   assert.equal(diagnostics.enabled(), false);
+});
+
+test('a workspace marker enables diagnostics but a frozen build still refuses', () => {
+  setEnv(undefined, undefined);
+  try {
+    fs.writeFileSync(diagnostics.MARKER, 'dev\n', 'utf8');
+    assert.equal(diagnostics.enabled(), true);
+    setEnv(undefined, '1');
+    assert.equal(diagnostics.enabled(), false);
+  } finally {
+    fs.rmSync(diagnostics.MARKER, { force: true });
+  }
 });
 
 test('control plane refuses every diagnostics route when disabled or frozen', async () => {
