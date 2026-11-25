@@ -28,6 +28,14 @@ vi.mock("@/pages/plugins/hooks/usePlugins", () => ({
 				icon: "google",
 				active: false,
 			},
+			{
+				id: "chatgpt-stt",
+				name: "ChatGPT STT",
+				description: "Dictation in the browser",
+				vendor: "Owner",
+				icon: "",
+				active: false,
+			},
 		],
 		activePluginId: "anthropic-stt",
 		shared: { visible: true, notify: false },
@@ -65,13 +73,32 @@ const renderPanel = () =>
 	);
 
 describe("PluginsPanel (Models developer tab content)", () => {
-	it("shows both plugin cards with Active/Inactive status", () => {
+	it("shows every plugin card with Active/Inactive status", () => {
 		renderPanel();
 
 		expect(screen.getByText("Anthropic STT")).toBeTruthy();
 		expect(screen.getByText("Google STT")).toBeTruthy();
+		expect(screen.getByText("ChatGPT STT")).toBeTruthy();
 		expect(screen.getAllByText("plugins.statusActive")).toHaveLength(1);
-		expect(screen.getAllByText("plugins.statusInactive")).toHaveLength(1);
+		expect(screen.getAllByText("plugins.statusInactive")).toHaveLength(2);
+	});
+
+	it("renders three plugins in one horizontal row with no enclosing card", () => {
+		renderPanel();
+
+		const ids = ["anthropic-stt", "google-stt", "chatgpt-stt"];
+		const cards = ids.map((id) => screen.getByTestId(`plugin-card-${id}`));
+		const row = cards[0]!.parentElement;
+		expect(row?.className).toContain("grid-cols-3");
+		for (const card of cards) expect(card.parentElement).toBe(row);
+
+		let ancestor: HTMLElement | null = row?.parentElement ?? null;
+		while (ancestor) {
+			expect(ancestor.className).not.toMatch(
+				/bg-surface-subtle|border-border\/8/,
+			);
+			ancestor = ancestor.parentElement;
+		}
 	});
 
 	it("activates a plugin and restores the local model on deactivate", async () => {

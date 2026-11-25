@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { RouteSkeleton } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
-import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
+import { usePluginsUnlocked } from "@/hooks/usePluginCatalog";
 import { useT } from "@/i18n/i18n";
 // Route-level code splitting. Home is the default landing page
 // and stays eagerly imported so first paint is fast. The other 9 pages
@@ -43,7 +43,7 @@ export function PageSwitch({
 	// Defense in depth: App redirects stale/locked plugin routes to Home;
 	// this route-level gate ensures the page itself never renders if a
 	// caller bypasses that navigation effect.
-	const pluginsAvailable = usePluginsAvailable();
+	const pluginsUnlocked = usePluginsUnlocked();
 	// Legacy routes (old Settings sections, the old collection pages and
 	// About & Privacy) resolve to their current home even if a caller
 	// bypasses the nav store and hands this switch the old literal.
@@ -66,7 +66,7 @@ export function PageSwitch({
 			case "microphone":
 				return <RouteChunk page="microphone" />;
 			case "plugins":
-				return pluginsAvailable ? <RouteChunk page="plugins" /> : null;
+				return pluginsUnlocked ? <RouteChunk page="plugins" /> : null;
 			case "providers":
 				return <RouteChunk page="providers" />;
 			case "analytics":

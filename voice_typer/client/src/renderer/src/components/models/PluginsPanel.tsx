@@ -53,28 +53,29 @@ export function PluginsPanel() {
 						onAction={() => void loadPlugins()}
 					/>
 				</SettingsSection>
+			) : plugins.length === 0 ? (
+				<EmptyState
+					icon={PuzzleIcon}
+					title={t("plugins.emptyTitle")}
+					description={t("plugins.emptyDescription")}
+					actionLabel={t("plugins.retry")}
+					onAction={() => void loadPlugins()}
+				/>
 			) : (
-				<SettingsSection title={t("plugins.title")}>
-					{plugins.length === 0 ? (
-						<EmptyState
-							icon={PuzzleIcon}
-							title={t("plugins.emptyTitle")}
-							description={t("plugins.emptyDescription")}
-							actionLabel={t("plugins.retry")}
-							onAction={() => void loadPlugins()}
-						/>
-					) : (
-						<div className="grid grid-cols-2 gap-4 p-2">
-							{plugins.map((plugin) => (
-								<PluginCard
-									key={plugin.id}
-									plugin={plugin}
-									onActivate={handleActivate}
-								/>
-							))}
-						</div>
-					)}
-				</SettingsSection>
+				<>
+					<h2 className="font-sans text-lg font-medium text-foreground">
+						{t("plugins.title")}
+					</h2>
+					<div className="grid grid-cols-3 gap-4">
+						{plugins.map((plugin) => (
+							<PluginCard
+								key={plugin.id}
+								plugin={plugin}
+								onActivate={handleActivate}
+							/>
+						))}
+					</div>
+				</>
 			)}
 
 			{activePlugin ? (
