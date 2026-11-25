@@ -43,11 +43,20 @@ def plugin(monkeypatch):
     monkeypatch.setattr(module, "ensure_daemon", lambda: True)
     monkeypatch.setattr(module, "_last_launch_ts", 0.0)
     monkeypatch.setattr(module, "_profile_running", lambda: False)
-    monkeypatch.setattr(
-        module,
-        "threading",
-        SimpleNamespace(Thread=lambda **_kwargs: SimpleNamespace(start=lambda: None)),
-    )
+    captured: dict[str, object] = {}
+
+    def _fake_thread(**kwargs):
+        captured["target"] = kwargs["target"]
+        return SimpleNamespace(start=lambda: None)
+
+    monkeypatch.setattr(module, "threading", SimpleNamespace(Thread=_fake_thread))
+
+    def _run_target():
+        with monkeypatch.context() as patch:
+            patch.setattr(module.session, "prepare_platform", lambda **_kwargs: None)
+            captured["target"]()
+
+    monkeypatch.setattr(module, "_activate_target", _run_target, raising=False)
     return module
 
 
@@ -73,6 +82,7 @@ class TestActivationWithAColdBrowser:
         caplog.set_level(logging.INFO, logger="voice_typer.internal_plugin.anthropic_stt.plugin")
 
         assert plugin.activate(MagicMock()) is True
+        plugin._activate_target()
 
         assert launches == [("P", "U")]
         assert warmed == [], "a page that is not up yet cannot be warmed"
@@ -85,6 +95,7 @@ class TestActivationWithAColdBrowser:
         caplog.set_level(logging.DEBUG)
 
         plugin.activate(MagicMock())
+        plugin._activate_target()
 
         errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
         assert errors == [], [r.getMessage() for r in errors]
@@ -106,6 +117,7 @@ class TestActivationWithAColdBrowser:
         monkeypatch.setattr(plugin, "_post", lambda path, timeout=None: warmed.append(path))
 
         assert plugin.activate(MagicMock()) is True
+        plugin._activate_target()
 
         assert launches == [], "the window is already open and answering"
         assert warmed == ["/warm"]
@@ -121,7 +133,8 @@ class TestActivationWithAColdBrowser:
         monkeypatch.setattr(pg, "_post", _boom)
         caplog.set_level(logging.ERROR)
 
-        assert pg.activate(MagicMock()) is False
+        assert pg.activate(MagicMock()) is True
+        pg._activate_target()
         assert "the Claude browser extension is not connected" in caplog.text
 
 

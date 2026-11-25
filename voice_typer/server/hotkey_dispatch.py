@@ -62,12 +62,51 @@ class HotkeyDispatchMixin:
             if keyboard_ownership().is_hotkey_capture_active():
                 log.debug("[HOTKEY] dictation ignored, frontend hotkey capture active")
                 return
+            if self._no_active_engine():
+                return
             if getattr(self._app.config, "recording_mode", "toggle") == "push_to_talk":
                 self._start_ptt_safety_timer()
             self._force_caps_lock_off_before_dictation()
             self._app.toggle_dictation()
 
         return _dictation_callback
+
+    def _no_active_engine(self) -> bool:
+        """Refuse the hotkey when neither a model nor a plugin owns dictation."""
+        from voice_typer.server import internal_plugin_hook
+        from voice_typer.server.i18n import t
+
+        cfg = getattr(self._app, "config", None)
+        if cfg is None:
+            return False
+        if internal_plugin_hook.plugin_display_name(self._app):
+            return False
+        if getattr(cfg, "model_size", "") or getattr(cfg, "asr_backend", "") == "cloud":
+            return False
+        from voice_typer.server import event_bus
+        from voice_typer.server.branding import APP_NAME
+
+        message = t("notify.model_manager.no_model_selected")
+        log.info("[HOTKEY] no active engine; dictation not started")
+        try:
+            event_bus.publish(
+                {
+                    "type": "notification",
+                    "data": {
+                        "title": APP_NAME,
+                        "message": message,
+                        "duration_ms": 0,
+                        "critical": False,
+                    },
+                }
+            )
+        except Exception:
+            log.debug("[HOTKEY] in-app no-engine notification failed", exc_info=True)
+        try:
+            self._app.tray.notify(message)
+        except Exception:
+            log.debug("[HOTKEY] no-engine notification failed", exc_info=True)
+        return True
 
     def _force_caps_lock_off_before_dictation(self) -> None:
         """Clear a leftover Caps Lock ON state before a dictation starts.

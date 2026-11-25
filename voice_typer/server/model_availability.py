@@ -12,9 +12,6 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-# Maximum age of a fingerprint-identical entry. mtime equality is the
-_FRESHNESS_MAX_AGE_S = 300.0
-
 
 # repo snapshot dir leaf for an HF repo id.
 def _snapshot_dir_name(repo_id: str) -> str:
@@ -116,12 +113,15 @@ def is_available(
     # Join-or-own loop: serve a fresh verdict, join an in-flight probe
     event: threading.Event | None = None
     for _ in range(3):
-        now = time.monotonic()
         with _LOCK:
             entry = _store.get(key)
             if entry is not None and not _download_in_flight():
-                verdict, fingerprint, ts = entry
-                if (now - ts) < _FRESHNESS_MAX_AGE_S and fingerprint == _fingerprint(watch):
+                verdict, fingerprint, _ts = entry
+                # Fingerprint equality is the whole freshness contract: a
+                # download or delete changes a watched dir's mtime, and an
+                # explicit invalidate() covers everything else. No time-based
+                # re-probe (Item 4: no per-model noise on unrelated actions).
+                if fingerprint == _fingerprint(watch):
                     return verdict
             event = _IN_FLIGHT.get(key)
             if event is None:

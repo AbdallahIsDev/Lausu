@@ -1540,6 +1540,7 @@
 		"cloudModels": "云端模型",
 		"cloudModelsDescription": "使用云端 API 进行更快的转录。需要 API 密钥。",
 		"ttsModels": "文本转语音",
+		"noModelSelected": "未选择模型",
 		"noModelBanner": "未选择语音模型。请在下方选择一个模型。"
 	},
 	"tooltips": {

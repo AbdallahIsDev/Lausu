@@ -1540,6 +1540,7 @@
 		"cloudModels": "نماذج سحابية",
 		"cloudModelsDescription": "استخدم واجهات API السحابية للحصول على تفريغ أسرع. يتطلب مفتاح API.",
 		"ttsModels": "تحويل النص إلى كلام",
+		"noModelSelected": "لم يتم تحديد نموذج",
 		"noModelBanner": "لم يتم تحديد نموذج كلام. حدد نموذجا أدناه."
 	},
 	"tooltips": {

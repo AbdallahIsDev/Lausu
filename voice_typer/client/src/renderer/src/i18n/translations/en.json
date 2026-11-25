@@ -1545,6 +1545,7 @@
 		"cloudModels": "Cloud Models",
 		"cloudModelsDescription": "Use cloud-based APIs for faster transcription. Requires API key.",
 		"ttsModels": "Text-to-Speech",
+		"noModelSelected": "No model selected",
 		"noModelBanner": "No speech model is selected. Select a model below."
 	},
 	"tooltips": {

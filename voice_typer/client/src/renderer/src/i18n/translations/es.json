@@ -1540,6 +1540,7 @@
 		"cloudModels": "Modelos en la Nube",
 		"cloudModelsDescription": "Usa APIs basadas en la nube para una transcripción más rápida. Requiere clave API.",
 		"ttsModels": "Texto a voz",
+		"noModelSelected": "Ningún modelo seleccionado",
 		"noModelBanner": "No hay ningún modelo de voz seleccionado. Seleccione un modelo a continuación."
 	},
 	"tooltips": {

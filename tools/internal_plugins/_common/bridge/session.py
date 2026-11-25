@@ -135,6 +135,51 @@ def wait_for_page_ready(
     return False
 
 
+def activate_platform_async(
+    *,
+    ensure_daemon_fn: Any,
+    status_fn: Any,
+    connected_fn: Any,
+    post_fn: Any,
+    launch_fn: Any,
+    ready_fn: Any,
+    clock: Any,
+    log: Any,
+    display_name: str,
+) -> None:
+    """Boot/warm the bridge off the plugin-selection thread (Item 2).
+
+    The UI activation returns immediately; this thread does the slow daemon
+    spawn, the profile launch or /warm, then makes the platform tab ready.
+    """
+    if not ensure_daemon_fn():
+        log.error("[PLUGIN] activation failed: the control daemon did not start")
+        return
+    if not connected_fn(status_fn()):
+        launch_fn()
+        log.info(
+            "[PLUGIN] %s activated; the dictation window is starting, the first hotkey press waits for it",
+            display_name,
+        )
+    else:
+        try:
+            post_fn("/warm", timeout=120.0)
+        except BridgeError as exc:
+            log.exception("[PLUGIN] activation warm-up failed: %s", exc)
+            return
+        except Exception:
+            log.exception("[PLUGIN] activation warm-up failed")
+            return
+        log.info("[PLUGIN] %s activated; browser is up", display_name)
+    prepare_platform(
+        status_fn=status_fn,
+        post_fn=post_fn,
+        connected_fn=connected_fn,
+        ready_fn=ready_fn,
+        clock=clock,
+    )
+
+
 def prepare_platform(
     *,
     status_fn: Any,

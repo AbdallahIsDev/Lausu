@@ -136,10 +136,8 @@ def _cached_active_config():
 # Runtime libraries whose files dominate cold import cost.
 _WORKER_WARM_PACKAGES: tuple[str, ...] = (
     "onnxruntime",
-    "ctranslate2",
     "numpy",
     "scipy",
-    "faster_whisper",
 )
 
 

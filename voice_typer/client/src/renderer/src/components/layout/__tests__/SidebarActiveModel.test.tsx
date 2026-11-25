@@ -167,16 +167,20 @@ describe("SidebarActiveModel", () => {
 		);
 	});
 
-	it("stays hidden when the cloud backend has no provider", () => {
+	it("shows the no-model state when the cloud backend has no provider", () => {
 		setConfigSnapshot({ asr_backend: "cloud", cloud_provider: "" });
-		const { container } = render(<SidebarActiveModel />);
-		expect(container).toBeEmptyDOMElement();
+		render(<SidebarActiveModel />);
+		expect(screen.getByTestId("sidebar-active-model").textContent).toContain(
+			"No model selected",
+		);
 	});
 
-	it("stays hidden when no model is active", () => {
+	it("shows the no-model state when no model is active", () => {
 		setConfigSnapshot({ asr_backend: "whisper", model_size: "" });
-		const { container } = render(<SidebarActiveModel />);
-		expect(container).toBeEmptyDOMElement();
+		render(<SidebarActiveModel />);
+		expect(screen.getByTestId("sidebar-active-model").textContent).toContain(
+			"No model selected",
+		);
 	});
 
 	it("stays hidden in the collapsed icon rail", () => {

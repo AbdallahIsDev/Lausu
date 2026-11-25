@@ -1030,6 +1030,7 @@
 		"cloudModels": "Modèles Cloud",
 		"cloudModelsDescription": "Utilisez des APIs cloud pour une transcription plus rapide. Clé API requise.",
 		"ttsModels": "Synthèse vocale",
+		"noModelSelected": "Aucun modèle sélectionné",
 		"noModelBanner": "Aucun modèle vocal n'est sélectionné. Sélectionnez un modèle ci-dessous."
 	},
 	"history": {

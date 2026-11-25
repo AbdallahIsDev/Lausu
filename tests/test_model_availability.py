@@ -256,5 +256,7 @@ class TestMonotonicHygiene:
         assert len(calls) == 1
         real_monotonic = time.monotonic
         monkeypatch.setattr(time, "monotonic", lambda: real_monotonic() + 10_000.0)
+        # A time jump alone must NOT re-probe: freshness is the filesystem
+        # fingerprint, invalidated by download/delete or explicit invalidate().
         assert ma.is_available("org/repo", tmp_path, probe=probe) is True
-        assert len(calls) == 2
+        assert len(calls) == 1

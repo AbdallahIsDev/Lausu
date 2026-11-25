@@ -40,11 +40,20 @@ def plugin(monkeypatch):
     monkeypatch.setattr(module, "ensure_daemon", lambda: True)
     monkeypatch.setattr(module, "_last_launch_ts", 0.0)
     monkeypatch.setattr(module, "_profile_running", lambda: False)
-    monkeypatch.setattr(
-        module,
-        "threading",
-        SimpleNamespace(Thread=lambda **_kwargs: SimpleNamespace(start=lambda: None)),
-    )
+    captured: dict[str, object] = {}
+
+    def _fake_thread(**kwargs):
+        captured["target"] = kwargs["target"]
+        return SimpleNamespace(start=lambda: None)
+
+    monkeypatch.setattr(module, "threading", SimpleNamespace(Thread=_fake_thread))
+
+    def _run_target():
+        with monkeypatch.context() as patch:
+            patch.setattr(module.session, "prepare_platform", lambda **_kwargs: None)
+            captured["target"]()
+
+    monkeypatch.setattr(module, "_activate_target", _run_target, raising=False)
     return module
 
 
@@ -81,6 +90,7 @@ class TestConnectedBrowserKeepsItsTabs:
         monkeypatch.setattr(plugin, "_post", lambda path, timeout=None: warmed.append(path) or {})
 
         assert plugin.activate(MagicMock()) is True
+        plugin._activate_target()
         assert launches == []
         assert warmed == ["/warm"]
 

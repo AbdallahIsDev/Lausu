@@ -288,54 +288,26 @@ def detach() -> None:
 
 
 def activate(app: Any) -> bool:
-    """Check the bridge because the user selected this plugin.
-
-    Selecting the plugin (and every app start while it stays selected) opens
-    the dictation profile if it is not already open, so the hotkey is ready
-    without a manual window launch. The profile is started with plain flags
-    only; nothing here moves, resizes or re-focuses it afterwards.
-    """
     if not plugins_enabled():
         return False
     if attach(app) is None:
         return False
-    if not ensure_daemon():
-        log.error("[PLUGIN] activation failed: the control daemon did not start")
-        return False
     _keepalive.start()
     threading.Thread(
-        target=lambda: session.prepare_platform(
+        target=lambda: session.activate_platform_async(
+            ensure_daemon_fn=ensure_daemon,
             status_fn=_daemon_status,
-            post_fn=_post,
             connected_fn=_browser_connected,
+            post_fn=_post,
+            launch_fn=_launch_profile_if_due,
             ready_fn=daemon_client.DaemonClient.page_ready,
             clock=time,
+            log=log,
+            display_name=DISPLAY_NAME,
         ),
         daemon=True,
         name="plugin-activate-platform",
     ).start()
-    if not _browser_connected(_daemon_status()):
-        # A cold browser is the normal case: opening the window is the useful
-        # action, and the first hotkey press waits for the handshake.
-        _launch_profile_if_due()
-        log.info(
-            "[PLUGIN] %s activated; the dictation window is starting, the first hotkey press waits for it",
-            DISPLAY_NAME,
-        )
-        return True
-    reason = ""
-    try:
-        _post("/warm", timeout=120.0)
-    except BridgeError as exc:
-        reason = str(exc)
-    except Exception:
-        log.exception("[PLUGIN] activation warm-up failed")
-        return False
-    if reason:
-        # The daemon already names the reason; a traceback would bury it.
-        log.error("[PLUGIN] activation warm-up failed: %s", reason)
-        return False
-    log.info("[PLUGIN] Claude STT activated; browser is up")
     return True
 
 

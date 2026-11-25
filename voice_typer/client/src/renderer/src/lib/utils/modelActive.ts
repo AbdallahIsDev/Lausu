@@ -27,8 +27,13 @@ import { INITIAL_MODELS, MODEL_DEFAULT } from "./modelCatalog";
  * so the app really does have nothing usable. `false` for a null config
  * means "still loading", never "nothing selected".
  */
-export function hasActiveSpeechModel(cfg: LausuConfig | null): boolean {
+export function hasActiveSpeechModel(
+	cfg: Partial<LausuConfig> | null,
+): boolean {
 	if (!cfg) return false;
+	// A plugin owns dictation; the local model fields are deliberately left
+	// untouched by plugin activation and must not claim an active engine.
+	if ((cfg.active_plugin_name ?? "").trim()) return true;
 	if (cfg.asr_backend === "cloud") return (cfg.cloud_provider ?? "") !== "";
 	return (cfg.model_size ?? "") !== "";
 }
@@ -77,6 +82,9 @@ export function applyActiveState(
 	cfg: LausuConfig | null,
 ): ModelInfo[] {
 	if (!cfg) return models;
+	if ((cfg.active_plugin_name ?? "").trim()) {
+		return models.map((m) => ({ ...m, isActive: false }));
+	}
 	const activeBackend = cfg.asr_backend ?? "whisper";
 	const activeModel = cfg.model_size ?? MODEL_DEFAULT;
 	return models.map((m) => ({
@@ -91,6 +99,7 @@ export function applyActiveState(
  */
 export function getActiveFamilyId(cfg: LausuConfig | null): string | null {
 	if (!cfg) return null;
+	if ((cfg.active_plugin_name ?? "").trim()) return null;
 	const activeBackend = cfg.asr_backend ?? "whisper";
 	const activeModel = cfg.model_size ?? MODEL_DEFAULT;
 	for (const m of INITIAL_MODELS) {

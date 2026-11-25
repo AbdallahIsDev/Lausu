@@ -78,7 +78,16 @@ def compute_tooltip(tray: TrayIcon, state: AppState, message: str) -> str:
     (e.g. ``Lausu | Ready | GPU | Whisper Large V3 | Caps Lock``). Shared
     by _apply_state + _publish_tray_state so pystray + Tauri stay in sync."""
     title = APP_NAME
-    if message:
+    plugin_name = ""
+    if tray._config is not None:
+        from voice_typer.server.internal_plugin_hook import plugin_display_name_for
+
+        plugin_name = plugin_display_name_for(tray._config)
+    if plugin_name:
+        # A plugin owns dictation: show app | plugin | hotkey only. The old
+        # "Ready"/model segments described a local model that is not active.
+        title += f" | {plugin_name}"
+    elif message:
         title += f" | {message}"
     elif state == AppState.IDLE:
         title += f" | {_idle_tooltip_label(tray)}"
@@ -91,7 +100,7 @@ def compute_tooltip(tray: TrayIcon, state: AppState, message: str) -> str:
         elapsed = time.monotonic() - tray._recording_started_at
         title += f" - {tray._format_elapsed(elapsed)}"
     # Model name suffix, only when the configured model is ACTUALLY
-    if tray._config:  # model name
+    if tray._config and not plugin_name:  # model name
         from voice_typer.server.tray_models import is_active_model_downloaded, tooltip_model_label
 
         label = tooltip_model_label(tray._config)

@@ -43,7 +43,8 @@ class BridgeKeepalive:
         if self._thread is not None and self._thread.is_alive():
             return
         self._stop.clear()
-        self._last_status = None
+        # Keep the last verdict across stop/start: a plugin switch must not
+        # re-log an unchanged connected state (Item 4).
         # Daemon: best-effort keepalive must not hold process exit; stop() signals the loop.
         self._thread = threading.Thread(target=self._run, daemon=True, name="plugin-keepalive")
         self._thread.start()

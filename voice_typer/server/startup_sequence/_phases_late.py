@@ -452,7 +452,7 @@ class LatePhases:
         loading = bool(getattr(load_thread, "is_alive", lambda: False)())
         plugin_owner = internal_plugin_hook.plugin_display_name(app)
         elapsed = format_duration(time.perf_counter() - self._t0)
-        if plugin_owner and not loading:
+        if plugin_owner:
             log.info(
                 "[STARTUP] Startup complete (%s serves dictation, no local model loaded)%s",
                 plugin_owner,

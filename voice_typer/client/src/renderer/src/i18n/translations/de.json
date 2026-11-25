@@ -1540,6 +1540,7 @@
 		"cloudModels": "Cloud-Modelle",
 		"cloudModelsDescription": "Verwenden Sie cloudbasierte APIs für schnellere Transkription. Erfordert einen API-Schlüssel.",
 		"ttsModels": "Sprachausgabe",
+		"noModelSelected": "Kein Modell ausgewählt",
 		"noModelBanner": "Kein Sprachmodell ist ausgewählt. Wählen Sie unten ein Modell aus."
 	},
 	"tooltips": {

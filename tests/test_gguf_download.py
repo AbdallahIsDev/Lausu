@@ -161,7 +161,7 @@ def test_inference_lookup_is_local_only(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert hub.calls == [{"repo_id": spec.repo_id, "filename": spec.filename, "local_files_only": True}]
 
 
-def test_expected_cache_misses_do_not_dump_tracebacks(
+def test_expected_cache_misses_are_silent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     spec, _ = _real_spec(tmp_path)
@@ -172,9 +172,7 @@ def test_expected_cache_misses_do_not_dump_tracebacks(
     with caplog.at_level("DEBUG", logger="voice_typer.server.gguf_download"):
         assert gguf_download.resolve_gguf_model_path("parakeet") is None
     records = [r for r in caplog.records if r.name == "voice_typer.server.gguf_download"]
-    assert len(records) == 1
-    assert "not in local cache" in records[0].getMessage()
-    assert records[0].exc_info is None, "an expected cache miss must not print a traceback"
+    assert records == [], "a normal cache miss must not log one line per model"
 
 
 def test_install_from_file_lands_in_the_cache_the_downloader_reads(
@@ -214,3 +212,19 @@ def test_install_from_file_refuses_unverified_sources(monkeypatch: pytest.Monkey
         "source_missing",
     )
     assert not cache.exists()
+
+
+def test_repeated_availability_probes_do_not_log_per_model(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    from voice_typer.server import model_availability
+
+    spec, _ = _real_spec(tmp_path)
+    _use_spec(monkeypatch, spec)
+    model_availability.invalidate()
+
+    with caplog.at_level("DEBUG", logger="voice_typer.server.gguf_download"):
+        for _ in range(5):
+            assert model_availability.is_available("org/missing", tmp_path) is False
+
+    assert not [r for r in caplog.records if "not in local cache" in r.getMessage()]

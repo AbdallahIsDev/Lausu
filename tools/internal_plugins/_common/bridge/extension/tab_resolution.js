@@ -18,6 +18,13 @@
       : url === pattern;
   }
 
+  // A tab launched from the Chrome command line can still have a pending URL
+  // (or be mid-redirect) while its committed `url` is about:blank. Match both
+  // so the second tab is never created (Item 3).
+  function tabMatches(tab, pattern) {
+    return matchesUrl(tab.url, pattern) || matchesUrl(tab.pendingUrl, pattern);
+  }
+
   function queryTabs(chromeApi, pattern) {
     return new Promise((resolve) => {
       try {
@@ -32,7 +39,7 @@
               (tab) =>
                 tab &&
                 typeof tab.id === "number" &&
-                matchesUrl(tab.url, pattern),
+                tabMatches(tab, pattern),
             ),
           );
         });
@@ -126,6 +133,27 @@
       return pickTab(await allMatches(platform));
     }
 
+    // `tabs.query({url})` matches committed URLs only (Chrome docs). Query all
+    // tabs as a fallback so a launch/redirect in flight is still recognised.
+    async function findPending(platform) {
+      const pattern = patterns[platform];
+      if (!pattern) return null;
+      return new Promise((resolve) => {
+        try {
+          chromeApi.tabs.query({}, (tabs) => {
+            if (chromeApi.runtime && chromeApi.runtime.lastError) {
+              void chromeApi.runtime.lastError;
+              resolve(null);
+              return;
+            }
+            resolve(pickTab((tabs || []).filter((tab) => tabMatches(tab, pattern))));
+          });
+        } catch (_) {
+          resolve(null);
+        }
+      });
+    }
+
     // One tab per platform. Only surplus tabs that matched THIS platform's
     // URL pattern are removed; other platforms and unrelated tabs are never
     // touched, and the preferred tab is always kept.
@@ -156,6 +184,17 @@
         await dropSurplus(matches, tab.id);
         if (activate && opts.activate !== false) await activateTab(chromeApi, tab.id);
         return { tabId: tab.id, created: false, ready: true, url: tab.url };
+      }
+
+      const pending = await findPending(platform);
+      if (pending) {
+        if (activate && opts.activate !== false) await activateTab(chromeApi, pending.id);
+        return {
+          tabId: pending.id,
+          created: false,
+          ready: true,
+          url: pending.url || pending.pendingUrl,
+        };
       }
 
       let created;

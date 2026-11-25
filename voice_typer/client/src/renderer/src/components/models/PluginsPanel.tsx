@@ -23,7 +23,6 @@ export function PluginsPanel() {
 	const t = useT();
 	const {
 		plugins,
-		activePluginId,
 		shared,
 		loadError,
 		loadPlugins,
@@ -37,8 +36,6 @@ export function PluginsPanel() {
 		},
 		[setActivePlugin],
 	);
-
-	const activePlugin = plugins.find((p) => p.id === activePluginId) ?? null;
 
 	return (
 		<section aria-label={t("plugins.title")} className="flex flex-col gap-4">
@@ -79,44 +76,34 @@ export function PluginsPanel() {
 				</div>
 			)}
 
-			{activePlugin ? (
-				<SettingsSection
-					title={t("plugins.settingsSection")}
-					description={t("plugins.sharedSettingsDescription")}
-					descriptionMode="tooltip"
+			<SettingsSection
+				title={t("plugins.settingsSection")}
+				description={t("plugins.sharedSettingsDescription")}
+				descriptionMode="tooltip"
+			>
+				<SettingRow
+					label={t("plugins.visibleLabel")}
+					info={t("plugins.visibleDescription")}
 				>
-					<SettingRow
-						label={t("plugins.visibleLabel")}
-						info={t("plugins.visibleDescription")}
-					>
-						<Switch
-							checked={shared.visible}
-							onCheckedChange={(value) =>
-								void setSharedSetting("visible", value)
-							}
-							aria-label={t("plugins.visibleLabel")}
-							data-testid="plugin-setting-visible"
-						/>
-					</SettingRow>
-					<SettingRow
-						label={t("plugins.notifyLabel")}
-						info={t("plugins.notifyDescription")}
-					>
-						<Switch
-							checked={shared.notify}
-							onCheckedChange={(value) =>
-								void setSharedSetting("notify", value)
-							}
-							aria-label={t("plugins.notifyLabel")}
-							data-testid="plugin-setting-notify"
-						/>
-					</SettingRow>
-				</SettingsSection>
-			) : (
-				<p className="text-sm text-muted-foreground">
-					{t("plugins.noActivePlugin")}
-				</p>
-			)}
+					<Switch
+						checked={shared.visible}
+						onCheckedChange={(value) => void setSharedSetting("visible", value)}
+						aria-label={t("plugins.visibleLabel")}
+						data-testid="plugin-setting-visible"
+					/>
+				</SettingRow>
+				<SettingRow
+					label={t("plugins.notifyLabel")}
+					info={t("plugins.notifyDescription")}
+				>
+					<Switch
+						checked={shared.notify}
+						onCheckedChange={(value) => void setSharedSetting("notify", value)}
+						aria-label={t("plugins.notifyLabel")}
+						data-testid="plugin-setting-notify"
+					/>
+				</SettingRow>
+			</SettingsSection>
 		</section>
 	);
 }

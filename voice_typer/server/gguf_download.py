@@ -72,9 +72,9 @@ def resolve_gguf_model_path(model_key: str) -> Path | None:
             )
         )
     except Exception:
-        # A missing local file is the normal "not downloaded" verdict; a
-        # traceback here floods every cold start with five HF stack dumps.
-        log.debug("[GGUF] model %s not in local cache", model_key)
+        # A missing local file is the normal "not downloaded" verdict.
+        # Never log per model: this probe runs for every catalogue entry on
+        # every status refresh (Item 4).
         return None
     return path if path.is_file() else None
 

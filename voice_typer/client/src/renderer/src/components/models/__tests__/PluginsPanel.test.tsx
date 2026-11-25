@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const fake = vi.hoisted(() => ({
 	activate: vi.fn(),
 	sharedSetting: vi.fn(),
+	activePluginId: "anthropic-stt",
 	plugins: [
 		{
 			id: "anthropic-stt",
@@ -39,7 +40,7 @@ const fake = vi.hoisted(() => ({
 vi.mock("@/pages/plugins/hooks/usePlugins", () => ({
 	usePlugins: () => ({
 		plugins: fake.plugins,
-		activePluginId: "anthropic-stt",
+		activePluginId: fake.activePluginId,
 		shared: { visible: true, notify: false },
 		loadError: null,
 		loadPlugins: vi.fn(),
@@ -67,6 +68,7 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 
 afterEach(() => {
 	cleanup();
+	fake.activePluginId = "anthropic-stt";
 	fake.plugins = [
 		{
 			id: "anthropic-stt",
@@ -145,6 +147,14 @@ describe("PluginsPanel (Models developer tab content)", () => {
 
 		const row = screen.getByTestId("plugin-card-anthropic-stt").parentElement;
 		expect(row?.getAttribute("style")).toContain("repeat(2");
+	});
+
+	it("keeps the shared settings visible when no plugin is active", () => {
+		fake.activePluginId = "";
+		renderPanel();
+
+		expect(screen.getByTestId("plugin-setting-visible")).toBeTruthy();
+		expect(screen.getByTestId("plugin-setting-notify")).toBeTruthy();
 	});
 
 	it("uses the shared OpenAI logo asset for the ChatGPT card", () => {

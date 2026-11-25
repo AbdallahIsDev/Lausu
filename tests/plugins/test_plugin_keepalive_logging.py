@@ -48,14 +48,14 @@ class TestKeepaliveLogging:
         assert len(lines) == 2, lines
         assert "browser=unknown" in lines[1] and "page=unknown" in lines[1]
 
-    def test_start_resets_dedupe_for_a_new_activation(self, caplog) -> None:
+    def test_reactivation_does_not_relog_an_unchanged_status(self, caplog) -> None:
         keepalive = plugin_module.BridgeKeepalive(interval_s=3600.0)
         keepalive._last_status = ("connected", "ok")
         try:
             keepalive.start()
             with caplog.at_level(logging.DEBUG, logger=_LOGGER):
                 keepalive._note_status(_CONNECTED)
-            assert len(_lines(caplog)) == 1, "a fresh activation reports its first status once"
+            assert _lines(caplog) == [], "unchanged state must not be logged again"
         finally:
             keepalive.stop()
             if keepalive._thread is not None:

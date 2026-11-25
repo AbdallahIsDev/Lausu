@@ -165,6 +165,23 @@ class ConfigHandlersMixin(HandlerBase):
     ) -> dict:
         """Swap model/backend inside the held lock; return the persist set."""
         if "model_size" in validated and validated["model_size"] != getattr(self.app.config, "model_size", None):
+            # Selecting a local model makes it the active engine: the plugin
+            # must give up ownership first (Item 6.3).
+            if "active_plugin" not in validated and getattr(self.app.config, "active_plugin", ""):
+                self.app.config.active_plugin = ""
+                try:
+                    import threading
+
+                    from voice_typer.server import internal_plugin_hook
+
+                    threading.Thread(
+                        target=internal_plugin_hook.sync_selection,
+                        args=(self.app,),
+                        name="plugin-selection-sync",
+                        daemon=True,
+                    ).start()
+                except Exception:
+                    log.warning("[IPC] plugin release on model select failed", exc_info=True)
             old_model_size = getattr(self.app.config, "model_size", None)
             old_backend = getattr(self.app.config, "asr_backend", None)
             try:
@@ -315,9 +332,7 @@ class ConfigHandlersMixin(HandlerBase):
                 # (which never refetches) cannot keep the previous plugin.
                 from voice_typer.server import internal_plugin_hook
 
-                effective["active_plugin_name"] = (
-                    internal_plugin_hook.plugin_display_name_for(self.app.config)
-                )
+                effective["active_plugin_name"] = internal_plugin_hook.plugin_display_name_for(self.app.config)
             event_bus.publish({"type": "config_changed", "data": effective})
         except Exception:
             log.debug("[IPC] config_changed push failed", exc_info=True)

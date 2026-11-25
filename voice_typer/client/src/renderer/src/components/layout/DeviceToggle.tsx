@@ -5,6 +5,7 @@ import { isRunningStatus } from "@/hooks/useCudaInstallToast";
 import { usePython, usePythonEvent } from "@/hooks/usePython";
 import { t } from "@/i18n/i18n";
 import { asComputeDevice, isGpuDevice } from "@/lib/computeDevices";
+import { activeEngine } from "@/lib/utils/activeEngine";
 import { useAppStore } from "@/stores/appStore";
 
 // The pill has two positions, but the persisted/effective value can be
@@ -45,8 +46,8 @@ export function DeviceToggle({ collapsed = false }: { collapsed?: boolean }) {
 	// A selected plugin owns dictation end to end (its own browser, its own
 	// audio path), so the CPU/GPU switch is meaningless: the local model is
 	// not running. The caption above carries the plugin name + state instead.
-	const pluginActive = useAppStore(
-		(s) => (s.config?.active_plugin ?? "") !== "",
+	const localEngine = useAppStore(
+		(s) => activeEngine(s.config).kind === "local",
 	);
 	const { call } = usePython();
 	const [dialogOpen, setDialogOpen] = useState(false);
@@ -121,7 +122,7 @@ export function DeviceToggle({ collapsed = false }: { collapsed?: boolean }) {
 		[active, call, capability, gpuAvailable, needsCuda, requested],
 	);
 
-	if (collapsed || pluginActive || !visible) return null;
+	if (collapsed || !localEngine || !visible) return null;
 	const requestedDevice = asComputeDevice(requested);
 	if (requestedDevice === null) return null;
 	const effective = asComputeDevice(active) ?? requestedDevice;

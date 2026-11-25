@@ -301,8 +301,10 @@ def build_models_submenu_data(
         else:
             downloaded = False
 
-        # ``no_model``: with ``model_size == ""`` the user has NO active
-        no_model = current_model == ""
+        # A plugin owning dictation means NO local model is active, even when
+        # the raw config still carries a model_size (Item 6).
+        plugin_owner = bool(getattr(config_provider, "active_plugin_name", "") or "")
+        no_model = plugin_owner or current_model == ""
         is_active = not no_model and (
             (name == current_model and current_backend == backend)
             or (name == "parakeet" and current_backend == "parakeet")

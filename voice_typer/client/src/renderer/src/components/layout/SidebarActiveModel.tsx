@@ -5,6 +5,7 @@
 
 import { useT } from "@/i18n/i18n";
 import { statusColorFor } from "@/lib/dictationStatus";
+import { activeEngine } from "@/lib/utils/activeEngine";
 import { formatActiveModel } from "@/lib/utils/configDisplay";
 import { useAppStore } from "@/stores/appStore";
 
@@ -18,11 +19,17 @@ export function SidebarActiveModel({
 	// re-render this caption.
 	const pluginName = useAppStore((s) => s.config?.active_plugin_name ?? "");
 	const modelLabel = useAppStore((s) => formatActiveModel(s.config));
+	const engineKind = useAppStore((s) => activeEngine(s.config).kind);
 	const state = useAppStore((s) => s.recordingState);
 	const lastError = useAppStore((s) => s.lastError);
 
-	const engine = pluginName || modelLabel;
-	if (collapsed || engine === "") return null;
+	const engine =
+		engineKind === "plugin"
+			? pluginName
+			: engineKind === "local"
+				? modelLabel
+				: t("models.noModelSelected");
+	if (collapsed) return null;
 	const color = statusColorFor(state, !!lastError);
 	// The dot is decorative; the state word stays reachable for assistive
 	// tech (and on hover) instead of living in the visible row.

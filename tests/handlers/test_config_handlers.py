@@ -92,6 +92,18 @@ class TestSetConfig:
         assert resp["type"] == "ack"
         fake_service.change_model.assert_called_once_with("large-v3-turbo")
 
+    def test_selecting_a_local_model_releases_the_plugin_owner(self, ipc_server, fake_app, fake_service):
+        """A local model selection is an engine change: plugins go off."""
+        fake_app.config.model_size = "tiny"
+        fake_app.config.active_plugin = "anthropic_stt"
+        fake_app.config.active_plugin_name = "Claude STT"
+
+        resp = ipc_server._handle_set_config({"model_size": "large-v3-turbo"}, {})
+
+        assert resp["type"] == "ack"
+        assert fake_app.config.active_plugin == ""
+        fake_service.change_model.assert_called_once_with("large-v3-turbo")
+
     def test_change_model_failure_does_not_abort_set_config(self, ipc_server, fake_app, fake_service):
         """continues, set_config must still apply the rest of the payload"""
         fake_app.config.model_size = "tiny"
@@ -284,9 +296,7 @@ class TestSetConfigEndpointHosts:
         resp = ipc_server._handle_set_config({"openrouter_base_url": "https://openrouter.ai/api/v1"}, {})
 
         assert resp["type"] == "ack"
-        assert fake_service.apply_config.call_args[0][0] == {
-            "openrouter_base_url": "https://openrouter.ai/api/v1"
-        }
+        assert fake_service.apply_config.call_args[0][0] == {"openrouter_base_url": "https://openrouter.ai/api/v1"}
 
     def test_host_trusted_in_the_same_payload_is_accepted(self, ipc_server, fake_service):
         from voice_typer.server.security.url_allowlist import _user_extensions

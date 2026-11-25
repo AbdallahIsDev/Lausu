@@ -29,6 +29,7 @@ function fakeChrome(initial = []) {
     tabs.set(tab.id, {
       id: tab.id,
       url: tab.url,
+      pendingUrl: tab.pendingUrl,
       active: !!tab.active,
       windowId: 1,
     });
@@ -236,6 +237,29 @@ test('stop and cancel never create a replacement tab', async () => {
   await dispatcher.dispatch('claude', 'stop', {});
   assert.equal(ensured, 0);
   assert.equal(found, 1);
+});
+
+test('a command-line tab with a pending platform URL is reused, not duplicated', async () => {
+  const chrome = fakeChrome([
+    { id: 5, url: 'about:blank', pendingUrl: 'https://chatgpt.com/' },
+  ]);
+
+  const result = await resolverFor(chrome).ensure('chatgpt');
+
+  assert.equal(result.tabId, 5);
+  assert.equal(result.created, false);
+  assert.equal(chrome.calls.create.length, 0);
+});
+
+test('a redirecting tab is recognised by its pending URL', async () => {
+  const chrome = fakeChrome([
+    { id: 6, url: 'https://accounts.google.com/signin', pendingUrl: 'https://gemini.google.com/app' },
+  ]);
+
+  const result = await resolverFor(chrome).ensure('gemini');
+
+  assert.equal(result.tabId, 6);
+  assert.equal(chrome.calls.create.length, 0);
 });
 
 test('P4 sequence: cold start, three plugins, revisit — never above one tab each', async () => {
