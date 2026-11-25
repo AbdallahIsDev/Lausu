@@ -79,7 +79,7 @@ try:
 except Exception as e:  # noqa: BLE001
     check(
         "unreachable daemon is readable",
-        "cannot reach the Anthropic STT bridge" in str(e),
+        "cannot reach the Claude STT bridge" in str(e),
         f'reason="{e}"',
     )
 

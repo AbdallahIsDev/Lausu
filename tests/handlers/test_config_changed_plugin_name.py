@@ -12,7 +12,7 @@ def test_plugin_switch_pushes_active_plugin_name(ipc_server, monkeypatch):
     monkeypatch.setattr(
         internal_plugin_hook,
         "plugin_display_name_for",
-        lambda config: "Anthropic STT",
+        lambda config: "Claude STT",
     )
 
     ipc_server._handle_set_config({"active_plugin": "anthropic_stt"}, {})
@@ -21,7 +21,7 @@ def test_plugin_switch_pushes_active_plugin_name(ipc_server, monkeypatch):
     assert events, "config_changed must be published for a plugin switch"
     data = events[0]["data"]
     assert data["active_plugin"] == "anthropic_stt"
-    assert data["active_plugin_name"] == "Anthropic STT", (
+    assert data["active_plugin_name"] == "Claude STT", (
         "the sidebar reads active_plugin_name, which is computed only in "
         "get_config; a partial push without it leaves a stale caption"
     )

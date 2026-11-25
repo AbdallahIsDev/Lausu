@@ -35,26 +35,26 @@ describe("SidebarActiveModel", () => {
 			asr_backend: "parakeet",
 			model_size: "large-v3",
 			active_plugin: "anthropic_stt",
-			active_plugin_name: "Anthropic STT",
+			active_plugin_name: "Claude STT",
 		});
 		render(<SidebarActiveModel />);
 
 		const label = screen.getByTestId("sidebar-active-model");
-		expect(label.textContent).toContain("Anthropic STT");
+		expect(label.textContent).toContain("Claude STT");
 	});
 
 	it("shows the live state as a DOT beside the name, never as a word", () => {
 		setConfigSnapshot({
 			asr_backend: "parakeet",
 			active_plugin: "anthropic_stt",
-			active_plugin_name: "Anthropic STT",
+			active_plugin_name: "Claude STT",
 		});
 		useAppStore.setState({ recordingState: "recording" });
 		render(<SidebarActiveModel />);
 
 		// The visible row is the dot + the engine name only.
 		const row = screen.getByTestId("sidebar-active-model");
-		expect(row.textContent).toBe("Anthropic STTrecording");
+		expect(row.textContent).toBe("Claude STTrecording");
 		expect(row.querySelector("[data-testid]")?.textContent).toBe("");
 		expect(dotColor()).toBe(STATUS_COLORS.recording);
 	});
@@ -65,7 +65,7 @@ describe("SidebarActiveModel", () => {
 		setConfigSnapshot({
 			asr_backend: "whisper",
 			active_plugin: "anthropic_stt",
-			active_plugin_name: "Anthropic STT",
+			active_plugin_name: "Claude STT",
 		});
 		render(<SidebarActiveModel />);
 
@@ -217,12 +217,12 @@ describe("SidebarActiveModel", () => {
 		act(() => {
 			useAppStore.getState().mergeConfig({
 				active_plugin: "anthropic_stt",
-				active_plugin_name: "Anthropic STT",
+				active_plugin_name: "Claude STT",
 			});
 		});
 
 		expect(screen.getByTestId("sidebar-active-model").textContent).toContain(
-			"Anthropic STT",
+			"Claude STT",
 		);
 		expect(
 			screen.getByTestId("sidebar-active-model").textContent,

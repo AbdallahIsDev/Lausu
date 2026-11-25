@@ -425,7 +425,7 @@ describe("DeviceToggle, plugin owns dictation", () => {
 			gpu_available: true,
 			gpu_hardware_present: true,
 			active_plugin: "anthropic_stt",
-			active_plugin_name: "Anthropic STT",
+			active_plugin_name: "Claude STT",
 		});
 		const { container } = render(<DeviceToggle />);
 		expect(container).toBeEmptyDOMElement();

@@ -165,7 +165,7 @@ class TestGateAllows:
         """The plugin owns its own language support, not the local model list."""
         monkeypatch.setattr(
             "voice_typer.server.internal_plugin_hook.plugin_display_name",
-            lambda app=None: "Anthropic STT",
+            lambda app=None: "Claude STT",
         )
         app = _App(_Config(asr_backend="parakeet", model_size="parakeet", language="ar"))
         assert gate_dictation_language(app) is True

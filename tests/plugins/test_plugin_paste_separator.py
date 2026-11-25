@@ -1,6 +1,6 @@
 """Plugin delivery: the separating space reaches the paste, never the history row.
 
-The plugin path (Anthropic STT) mirrors the local pipeline's paste step: the
+The plugin path (Claude STT) mirrors the local pipeline's paste step: the
 clipboard copy and the paste keystroke carry the padded text, while
 ``history_db.add_transcription``, ``_last_transcription`` and the
 ``transcription_final`` payload keep the transcript exactly as returned.

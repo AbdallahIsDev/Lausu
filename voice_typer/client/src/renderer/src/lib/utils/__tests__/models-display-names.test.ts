@@ -52,7 +52,7 @@ describe("formatModelDisplayName, slug → display label (display-layer only)", 
 describe("formatSourceDisplayName, history/plugin engine ids → user-facing labels", () => {
 	it("drops the internal 'web' suffix and keeps STT uppercase", () => {
 		expect(formatSourceDisplayName("google-stt-web")).toBe("Google STT");
-		expect(formatSourceDisplayName("anthropic-stt-web")).toBe("Anthropic STT");
+		expect(formatSourceDisplayName("anthropic-stt-web")).toBe("Claude STT");
 		expect(formatSourceDisplayName("openai-stt-web")).toBe("OpenAI STT");
 	});
 

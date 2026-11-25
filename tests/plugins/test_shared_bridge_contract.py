@@ -132,7 +132,7 @@ class TestPlatformGuards:
     @pytest.mark.parametrize(
         ("module", "display"),
         [
-            (anthropic, "Anthropic STT"),
+            (anthropic, "Claude STT"),
             (google, "Google STT"),
             (chatgpt, "ChatGPT STT"),
         ]

@@ -134,7 +134,7 @@ STT was selected — both plugins now use the same normal Chrome session.
    ```
 7. Unlock the hidden Plugins page (three `ctrl+shift+alt+d` presses in 1.5 s),
    create `tools/internal_plugins/PLUGINS_ENABLED` if needed, then select either
-   Anthropic STT or Google STT. Selecting one shuts the other's bridge down.
+   Claude STT or Google STT. Selecting one shuts the other's bridge down.
 
 ### Everyday use
 

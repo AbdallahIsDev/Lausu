@@ -1,4 +1,4 @@
-"""User-facing copy and log vocabulary for the Anthropic STT plugin.
+"""User-facing copy and log vocabulary for the Claude STT plugin.
 
 One table for the daemon's failure slugs and the plugin's display names, so a
 copy change lands in one place. The session and entry modules render from here
@@ -14,11 +14,11 @@ from typing import Any
 
 LOG_NAME = "voice_typer.internal_plugin.anthropic_stt"
 MODEL_LABEL = "anthropic-stt-web"
-DISPLAY_NAME = "Anthropic STT"
+DISPLAY_NAME = "Claude STT"
 
-START_FAILURE_FALLBACK = "Anthropic STT could not start. See log."
-BRIDGE_UNAVAILABLE = "Anthropic STT bridge unavailable (daemon did not start)."
-STOP_FAILURE_FALLBACK = "Anthropic STT stop failed. See log."
+START_FAILURE_FALLBACK = "Claude STT could not start. See log."
+BRIDGE_UNAVAILABLE = "Claude STT bridge unavailable (daemon did not start)."
+STOP_FAILURE_FALLBACK = "Claude STT stop failed. See log."
 
 # Daemon failure kinds → what the user is actually told. The daemon reports a
 # slug; without this the toast said nothing useful and the log carried a
@@ -33,7 +33,7 @@ START_HINTS = {
         "The Claude page did not answer in time. Check that its window is open on the Claude tab, "
         "then press the hotkey again."
     ),
-    "mic-missing": "Anthropic STT could not find the dictation button on the Claude page.",
+    "mic-missing": "Claude STT could not find the dictation button on the Claude page.",
     "no-recording-indicator": "The Claude page never started recording.",
     "platform-not-recording": "The Claude page did not start capturing audio.",
     "composer-dirty": "The Claude prompt box would not clear - press the hotkey again.",

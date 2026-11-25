@@ -1,6 +1,6 @@
 {
   "id": "anthropic_stt",
-  "name": "Anthropic STT",
+  "name": "Claude STT",
   "vendor": "Anthropic",
   "icon": "anthropic",
   "description": "Dictates through Claude's microphone in your own Chrome window."

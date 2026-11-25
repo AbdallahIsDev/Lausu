@@ -15,7 +15,7 @@ vi.mock("@/pages/plugins/hooks/usePlugins", () => ({
 		plugins: [
 			{
 				id: "anthropic-stt",
-				name: "Anthropic STT",
+				name: "Claude STT",
 				description: "Dictation in the browser",
 				vendor: "Owner",
 				icon: "",
@@ -77,7 +77,7 @@ describe("PluginsPanel (Models developer tab content)", () => {
 	it("shows every plugin card with Active/Inactive status", () => {
 		renderPanel();
 
-		expect(screen.getByText("Anthropic STT")).toBeTruthy();
+		expect(screen.getByText("Claude STT")).toBeTruthy();
 		expect(screen.getByText("Google STT")).toBeTruthy();
 		expect(screen.getByText("ChatGPT STT")).toBeTruthy();
 		expect(screen.getAllByText("plugins.statusActive")).toHaveLength(1);
@@ -124,7 +124,7 @@ describe("PluginsPanel (Models developer tab content)", () => {
 
 		await userEvent.click(
 			screen.getByRole("switch", {
-				name: "plugins.activateAria: Anthropic STT",
+				name: "plugins.activateAria: Claude STT",
 			}),
 		);
 		expect(fake.activate).toHaveBeenCalledWith("");

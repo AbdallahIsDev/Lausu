@@ -2,7 +2,7 @@
 
 Bundled but gated: ``voice_typer/server/internal_plugin_hook.py`` loads this
 only when ``plugins_enabled()`` is true. The transport is the SAME shared
-Chrome-extension bridge Anthropic STT uses; this module is only the hotkey
+Chrome-extension bridge Claude STT uses; this module is only the hotkey
 seam, bubble/cues, clipboard/paste and History wiring for the Gemini tab.
 """
 

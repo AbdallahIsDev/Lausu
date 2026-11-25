@@ -46,7 +46,7 @@ class _ConfigSchema:
     # Set from the Plugins page; a non-empty value must match an installed
     # plugin id, otherwise the local model stays in charge (fail-closed).
     active_plugin: str = ""
-    # Shared plugin settings. Canonical for BOTH Anthropic STT and Google STT:
+    # Shared plugin settings. Canonical for BOTH Claude STT and Google STT:
     # one value each, projected into the plugin daemons' own config files so
     # they take effect without a restart. No per-plugin settings store.
     plugin_visible: bool = True

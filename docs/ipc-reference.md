@@ -204,7 +204,7 @@ runtime). Packs live under `<HF cache>/tts/{bin,models}/<engine>`.
 
 Plugin settings are ordinary config writes: `set_config {plugin_visible: bool}` and
 `set_config {plugin_notify: bool}` are the single shared interface for both
-Anthropic STT and Google STT. The backend projects them into each plugin
+Claude STT and Google STT. The backend projects them into each plugin
 daemon's own `config.json` and applies visibility to the running browser right
 away; no plugin-specific settings command exists.
 

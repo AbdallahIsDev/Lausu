@@ -1,4 +1,4 @@
-"""Internal Anthropic STT plugin - entry module.
+"""Internal Claude STT plugin - entry module.
 
 Bundled but gated: ``voice_typer/server/internal_plugin_hook.py`` loads this
 module only when ``plugins_enabled()`` is true (the plugin workspace's
@@ -72,7 +72,7 @@ _BRIDGE_DIR = PLUGINS_DIR / "_common" / "bridge"
 # client instance, configured with this plugin's platform descriptor.
 _CLIENT = daemon_client.DaemonClient(
     "ANTHROPIC_STT_URL",
-    "Anthropic STT bridge",
+    "Claude STT bridge",
     config_dir=str(HERE),
     daemon_script=str(_BRIDGE_DIR / "run.js"),
     daemon_cwd=str(_BRIDGE_DIR),
@@ -257,7 +257,7 @@ def attach(app: Any) -> PluginSession | None:
             copy_mod=_copy,
             log=log,
         )
-    log.info("[PLUGIN] Anthropic STT plugin attached")
+    log.info("[PLUGIN] Claude STT plugin attached")
     return _session
 
 
@@ -310,7 +310,7 @@ def activate(app: Any) -> bool:
         # The daemon already names the reason; a traceback would bury it.
         log.error("[PLUGIN] activation warm-up failed: %s", reason)
         return False
-    log.info("[PLUGIN] Anthropic STT activated; browser is up")
+    log.info("[PLUGIN] Claude STT activated; browser is up")
     return True
 
 

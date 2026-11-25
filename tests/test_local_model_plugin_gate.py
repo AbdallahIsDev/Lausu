@@ -58,14 +58,14 @@ def _patch_owner(monkeypatch, name: str) -> None:
 
 class TestStartupPhaseSkipsTheLocalModel:
     def test_plugin_owner_skips_the_background_load(self, phase7_app, monkeypatch, caplog):
-        _patch_owner(monkeypatch, "Anthropic STT")
+        _patch_owner(monkeypatch, "Claude STT")
         caplog.set_level(logging.INFO, logger="voice_typer.server.startup_sequence")
 
         result = _phase_7(phase7_app)
 
         assert result.success is True
         phase7_app.models.start_background_load.assert_not_called()
-        assert "Anthropic STT serves dictation, skipping the local model load" in caplog.text
+        assert "Claude STT serves dictation, skipping the local model load" in caplog.text
 
     def test_no_plugin_still_loads_the_local_model(self, phase7_app, monkeypatch):
         _patch_owner(monkeypatch, "")
@@ -91,14 +91,14 @@ class TestStartupPhaseSkipsTheLocalModel:
         phase7_app.models.start_background_load.assert_called_once()
 
     def test_completion_line_names_the_plugin_instead_of_a_fake_load(self, phase7_app, monkeypatch, caplog):
-        _patch_owner(monkeypatch, "Anthropic STT")
+        _patch_owner(monkeypatch, "Claude STT")
         phase7_app.config.model_size = "parakeet-ultra"
         phase7_app.models._model_load_thread = None
         caplog.set_level(logging.INFO, logger="voice_typer.server.startup_sequence")
 
         _phase_8(phase7_app)
 
-        assert "Anthropic STT serves dictation, no local model loaded" in caplog.text
+        assert "Claude STT serves dictation, no local model loaded" in caplog.text
         assert "model still loading in background" not in caplog.text
 
     def test_completion_moves_the_tray_off_the_startup_loading_state(self, phase7_app, monkeypatch):
@@ -110,7 +110,7 @@ class TestStartupPhaseSkipsTheLocalModel:
         """
         from voice_typer.server.tray_types import AppState
 
-        _patch_owner(monkeypatch, "Anthropic STT")
+        _patch_owner(monkeypatch, "Claude STT")
         phase7_app.models._model_load_thread = None
 
         _phase_8(phase7_app)
@@ -118,7 +118,7 @@ class TestStartupPhaseSkipsTheLocalModel:
         phase7_app.tray.set_state.assert_called_once()
         state, message = phase7_app.tray.set_state.call_args.args
         assert state is AppState.IDLE
-        assert message == "Anthropic STT serves dictation"
+        assert message == "Claude STT serves dictation"
 
     def test_local_model_startup_leaves_the_tray_alone(self, phase7_app, monkeypatch):
         """The plugin branch must not run for a local-model install."""
@@ -131,7 +131,7 @@ class TestStartupPhaseSkipsTheLocalModel:
         _phase_8(phase7_app)
 
         for call in phase7_app.tray.set_state.call_args_list:
-            assert call.args[0] is not AppState.IDLE or call.args[1] != "Anthropic STT serves dictation"
+            assert call.args[0] is not AppState.IDLE or call.args[1] != "Claude STT serves dictation"
 
 
 class _LoadingStub:
@@ -152,7 +152,7 @@ class _LoadingStub:
 
 class TestModelManagerGate:
     def test_background_load_is_skipped_while_a_plugin_owns_dictation(self, monkeypatch, caplog):
-        _patch_owner(monkeypatch, "Anthropic STT")
+        _patch_owner(monkeypatch, "Claude STT")
         stub = _LoadingStub(MagicMock(name="app"))
         caplog.set_level(logging.INFO, logger="voice_typer.server.model_manager")
 
@@ -161,7 +161,7 @@ class TestModelManagerGate:
         assert stub.thread is None
         stub.load_background.assert_not_called()
         stub._thread_registry.register.assert_not_called()
-        assert "background load skipped: Anthropic STT serves dictation" in caplog.text
+        assert "background load skipped: Claude STT serves dictation" in caplog.text
 
     def test_background_load_still_spawns_for_the_local_model(self, monkeypatch):
         _patch_owner(monkeypatch, "")

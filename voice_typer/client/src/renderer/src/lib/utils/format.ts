@@ -135,7 +135,12 @@ const LABEL_ACRONYMS: ReadonlySet<string> = new Set([
 	"ai",
 	"gpt",
 ]);
-const LABEL_SPELLINGS: Record<string, string> = { openai: "OpenAI" };
+const LABEL_SPELLINGS: Record<string, string> = {
+	openai: "OpenAI",
+	// The plugin is presented by its product name, not its vendor id; this
+	// also relabels legacy history rows written as `anthropic-stt-web`.
+	anthropic: "Claude",
+};
 
 /**
  * User-facing label for the engine that produced a transcription, used by
