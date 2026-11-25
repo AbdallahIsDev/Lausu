@@ -92,6 +92,15 @@ function createServer(options = {}) {
     // frozen at startup. A settings change also refreshes the generated file.
     if (!options.config) {
       const fresh = loadConfig(dir, { persist: false }).config;
+      // One daemon serves all platforms: the owning plugin is carried on
+      // every request, so a switch never inherits the first plugin's
+      // process-wide descriptor (C-PARITY-1).
+      const requested = new URL(req.url, 'http://127.0.0.1').searchParams.get('platform');
+      const urlKeys = { claude: 'claudeUrl', gemini: 'geminiUrl', chatgpt: 'chatgptUrl' };
+      if (requested && urlKeys[requested]) {
+        fresh.platform = requested;
+        fresh.url = String(fresh[urlKeys[requested]] || fresh.url);
+      }
       relay.config = fresh;
       try {
         build({ dir, config: fresh, persist: false, tokenAuthority: options.tokenAuthority, out: options.out });
@@ -114,7 +123,8 @@ function createServer(options = {}) {
     }
     let result;
     try {
-      const { pathname } = new URL(req.url, 'http://127.0.0.1');
+      const requestUrl = new URL(req.url, 'http://127.0.0.1');
+      const { pathname } = requestUrl;
       result = await handle(relay, req.method, pathname);
     } catch (err) {
       result = {

@@ -67,6 +67,7 @@ _CLIENT = daemon_client.DaemonClient(
     daemon_script=str(_BRIDGE_DIR / "run.js"),
     daemon_cwd=str(_BRIDGE_DIR),
     daemon_args=(f"--plugin-dir={HERE}", "--platform=gemini"),
+    platform="gemini",
 )
 DAEMON_URL = _CLIENT.url
 _post = _CLIENT.post

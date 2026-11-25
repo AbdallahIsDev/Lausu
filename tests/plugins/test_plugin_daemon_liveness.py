@@ -34,13 +34,7 @@ class TestFailedDaemonLog:
         from pathlib import Path
         from unittest.mock import MagicMock
 
-        path = (
-            Path(__file__).resolve().parents[2]
-            / "tools"
-            / "internal_plugins"
-            / "anthropic_stt"
-            / "plugin.py"
-        )
+        path = Path(__file__).resolve().parents[2] / "tools" / "internal_plugins" / "anthropic_stt" / "plugin.py"
         name = "anthropic_stt_liveness_log_under_test"
         spec = importlib.util.spec_from_file_location(name, path)
         assert spec is not None and spec.loader is not None
@@ -56,6 +50,24 @@ class TestFailedDaemonLog:
         session.start()
 
         assert not any("bridge ready" in r.getMessage() for r in caplog.records)
+
+
+class TestSharedDaemonPlatformScope:
+    def test_every_request_carries_the_owning_platform(self, monkeypatch):
+        seen: list[str] = []
+
+        def _post(url, path, timeout, bridge_name, *, platform=""):
+            seen.append(url + path + (f"?platform={platform}" if platform else ""))
+            return {}
+
+        monkeypatch.setenv("TEST_PLUGIN_URL", "http://local/")
+        monkeypatch.setattr(daemon_common, "post", _post)
+        monkeypatch.setattr(urllib.request, "urlopen", lambda _r, timeout: _Response())
+        client = DaemonClient("TEST_PLUGIN_URL", port=17875, platform="gemini")
+
+        client.post("/status")
+        assert seen == ["http://local//status?platform=gemini"]
+        assert client._url_for("/config") == "http://local//config?platform=gemini"
 
 
 class TestDaemonLiveness:

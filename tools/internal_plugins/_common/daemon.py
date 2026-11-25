@@ -40,9 +40,12 @@ def plugins_enabled(plugins_dir: Path) -> bool:
     return (plugins_dir / "PLUGINS_ENABLED").is_file()
 
 
-def post(daemon_url: str, path: str, timeout: float, bridge_name: str) -> dict:
+def post(daemon_url: str, path: str, timeout: float, bridge_name: str, *, platform: str = "") -> dict:
     """POST to the daemon and decode its JSON answer."""
-    req = urllib.request.Request(daemon_url + path, data=b"", method="POST")
+    target = daemon_url + path
+    if platform:
+        target += "?platform=" + urllib.parse.quote(platform)
+    req = urllib.request.Request(target, data=b"", method="POST")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))

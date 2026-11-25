@@ -30,7 +30,9 @@ class DaemonClient:
         daemon_script: str | None = None,
         daemon_cwd: str | None = None,
         daemon_args: tuple[str, ...] = (),
+        platform: str = "",
     ) -> None:
+        self.platform = platform
         self.env_var = env_var
         self.bridge_name = bridge_name
         self.url = os.environ.get(env_var, f"http://127.0.0.1:{port}")
@@ -39,13 +41,26 @@ class DaemonClient:
         self.daemon_cwd = daemon_cwd or ""
         self.daemon_args = daemon_args
 
+    def _url_for(self, path: str) -> str:
+        """Scope each request to the owning plugin's platform.
+
+        One shared daemon serves all three plugins; its process-wide config
+        descriptor belongs to whichever plugin spawned it first, so the
+        platform MUST travel with the request (C-PARITY-1).
+        """
+        url = self.url + path
+        if self.platform:
+            separator = "&" if "?" in url else "?"
+            url += f"{separator}platform={urllib.parse.quote(self.platform)}"
+        return url
+
     def post(self, path: str, timeout: float = 60.0) -> dict:
-        return _daemon_common.post(self.url, path, timeout, self.bridge_name)
+        return _daemon_common.post(self.url, path, timeout, self.bridge_name, platform=self.platform)
 
     def status(self, timeout: float = 1.5) -> dict | None:
         """The daemon's bridge snapshot, or None when it is not answering."""
         try:
-            with urllib.request.urlopen(self.url + "/status", timeout=timeout) as r:
+            with urllib.request.urlopen(self._url_for("/status"), timeout=timeout) as r:
                 data = json.loads(r.read().decode("utf-8"))
                 return data if isinstance(data, dict) else None
         except Exception:
@@ -75,7 +90,7 @@ class DaemonClient:
     def config(self) -> dict:
         """The daemon's browser knobs, or {} if unavailable."""
         try:
-            with urllib.request.urlopen(self.url + "/config", timeout=2.0) as r:
+            with urllib.request.urlopen(self._url_for("/config"), timeout=2.0) as r:
                 data = json.loads(r.read().decode("utf-8"))
                 return data if isinstance(data, dict) else {}
         except Exception:
