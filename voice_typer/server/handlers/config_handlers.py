@@ -290,9 +290,11 @@ class ConfigHandlersMixin(HandlerBase):
 
                 from voice_typer.server import internal_plugin_hook
 
+                local_engine_selected = bool(validated.get("active_plugin") == "") and bool(
+                    {"model_size", "asr_backend"} & validated.keys()
+                )
                 threading.Thread(
-                    target=internal_plugin_hook.sync_selection,
-                    args=(self.app,),
+                    target=lambda: internal_plugin_hook.sync_selection(self.app, shutdown_empty=local_engine_selected),
                     name="plugin-selection-sync",
                     daemon=True,
                 ).start()

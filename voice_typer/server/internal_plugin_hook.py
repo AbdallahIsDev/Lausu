@@ -230,21 +230,20 @@ def reconcile_status(app: Any) -> bool:
             return True
         config = getattr(app, "config", None)
         if not str(getattr(config, "model_size", "") or ""):
-            setter(AppState.IDLE, _t("state.model_manager.no_model_selected"))
+            # No engine is a real, actionable error state — same as startup.
+            setter(AppState.ERROR, _t("state.model_manager.no_model_selected"))
             return True
     except Exception:
         log.debug("[PLUGIN] status reconcile failed", exc_info=True)
     return False
 
 
-def sync_selection(app: Any) -> bool:
+def sync_selection(app: Any, *, shutdown_empty: bool = False) -> bool:
     """Bring the selected plugin's browser up, or tear the old one down.
 
-    Called when ``active_plugin`` changes and once at startup. Selecting a
-    plugin has to have an immediate, visible effect — the browser window
-    opens (per the plugin's own ``visible`` setting) instead of waiting for
-    the first hotkey press. Idempotent: syncing the same selection twice
-    does nothing.
+    Called when ``active_plugin`` changes and once at startup. A plugin
+    switch keeps the shared daemon up (no reconnect cost); leaving plugins
+    for a LOCAL model shuts it down, because no plugin needs it any more.
     """
     if not internal_surface_enabled(getattr(app, "config", None)):
         return False
@@ -255,7 +254,7 @@ def sync_selection(app: Any) -> bool:
         return False
     app._internal_plugin_selected_id = plugin_id
     if previous:
-        _deactivate_plugin(previous)
+        _deactivate_plugin(previous, shutdown=shutdown_empty and not plugin_id)
     result = _activate_plugin(plugin_id, app) if plugin_id else True
     reconcile_status(app)
     return result

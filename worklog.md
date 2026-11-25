@@ -2084,3 +2084,19 @@ Known Limitations:
 - STATE-CONSISTENCY RULE: enumerate the full state/transition matrix for shared state; one source of truth; test every cell. Added because plugin/local-model selection only handled one cell in the real app.
 - REAL-APP VERIFICATION RULE: fakes are not proof; reproduce in the real app with before/after evidence or mark UNVERIFIED. Added because green unit tests hid four owner-visible bugs.
 
+## 2026-11-26 - Plugin engine/tab/latency live verification
+
+Root causes (real wiring, not fakes):
+- A1: commit 0616c7717 put the platform URL on the Chrome command line; /ensure-tab raced it on redirecting domains (chatgpt.com / accounts.google.com) and created a second tab. fdd3758fd had the correct about:blank contract. Fix: launch about:blank; extension adopts the single blank tab via tabs.update; pending matches dedupe; tab-create events logged with timestamp/caller.
+- A2: startup sets tray LOADING; plugin path skips the local loader that used to clear it. One-shot phase-8 reconcile missed runtime activation. Fix: shared internal_plugin_hook.reconcile_status called from startup AND every sync_selection; renderer never paints a loading dot for a non-local engine.
+- A3: Select on an already-selected local model sent only {model_size, asr_backend}; the previous release gate required a model_size CHANGE, so plugin ownership survived while the Models card flipped to Active optimistically. Fix: renderer sends active_plugin:"" in the same write; handler normalises release for local-engine keys and persists it; local selection shuts the plugin daemon down while plugin-to-plugin switches keep it up.
+- A4: per-switch daemon shutdown forced an extension reconnect (1 s backoff) + status port retry ladder (300+700+1400 ms). Fix: keep the shared daemon alive on switches and scope every HTTP request to the owning plugin via ?platform=<id> (C-PARITY-1); teardown/local-selection still shuts it down.
+
+Live evidence (real dev app, UIAutomation + bridge + lausu.log):
+- BEFORE A1: plugin profile had 4 tabs: two Gemini, one ChatGPT, one Claude. AFTER: cold start 5/5 runs for each of ChatGPT, Gemini and Claude -> exactly 1 tab, URL correct (tabs-dump).
+- BEFORE A3: 00:24:58 "apply_config detected no state change"; Models showed "Active: parakeet", sidebar "Google STT", config active_plugin=google_stt. AFTER: 00:49:41 selecting parakeet cleared active_plugin, Models "Active: parakeet", no plugin caption.
+- BEFORE A4: 00:13:49 attached -> 00:13:52 activated (3 s), repeated. AFTER: 01:10:51 attached -> 01:10:53 activated, activation stages total=1.2s, bridge gemini/ok; cold start 6.6s unchanged (daemon spawn).
+- A2 AFTER: plugin active sidebar shows "Google STT" + idle, no Loading text. No-model start shows "No model selected" with error status, no CPU/GPU toggle.
+- Dev diagnostics: marker tools/internal_plugins/DEVELOPER_DIAGNOSTICS or env VOICE_TYPER_PLUGIN_DIAGNOSTICS=1; frozen builds refuse (test). tabs-dump/nav-bench + ram_probe.ps1 added; "tabs" permission added to the internal extension so URLs are visible.
+
+Validation: pytest scoped 799 passed; node bridge 101 passed; vitest touched files 66 passed; typecheck:ci OK; ruff + format clean; mypy ratchet PASS (baseline unchanged); pyrefly touched Python has pre-existing _entry:Any|None errors in session.py only. Full pytest not run (owner gate). Live visual dot colour and hotkey notification not captured -> UNVERIFIED.

@@ -45,11 +45,11 @@ def test_selecting_a_local_model_releases_the_plugin(real_ipc, monkeypatch):
     from voice_typer.server import internal_plugin_hook
 
     server, app, config = real_ipc
-    synced: list[object] = []
+    synced: list[tuple[object, bool]] = []
     monkeypatch.setattr(
         internal_plugin_hook,
         "sync_selection",
-        lambda target: synced.append(target) or True,
+        lambda target, *, shutdown_empty=False: synced.append((target, shutdown_empty)) or True,
     )
     events: list[dict] = []
     monkeypatch.setattr(
@@ -63,6 +63,7 @@ def test_selecting_a_local_model_releases_the_plugin(real_ipc, monkeypatch):
     assert config.active_plugin == ""
     assert config.model_size == "parakeet"
     assert len(synced) == 1, "the plugin browser must be deactivated on the real path"
+    assert synced[0][1] is True, "leaving plugins for a local model shuts the daemon down"
     assert events and events[-1]["data"]["active_plugin"] == ""
     assert events[-1]["data"]["active_plugin_name"] == ""
 
@@ -75,7 +76,7 @@ def test_enabling_a_plugin_keeps_the_selection_authoritative(real_ipc, monkeypat
     monkeypatch.setattr(
         internal_plugin_hook,
         "sync_selection",
-        lambda target: synced.append(target) or True,
+        lambda target, *, shutdown_empty=False: synced.append(target) or True,
     )
     monkeypatch.setattr(
         internal_plugin_hook,
@@ -99,14 +100,14 @@ def test_plugin_off_with_no_local_model_is_a_true_no_engine_state(real_ipc, monk
     monkeypatch.setattr(
         internal_plugin_hook,
         "sync_selection",
-        lambda target: True,
+        lambda target, *, shutdown_empty=False: True,
     )
 
     server._handle_set_config({"active_plugin": ""}, {})
     assert config.active_plugin == ""
     assert internal_plugin_hook.reconcile_status(app) is True
     state, message = app.tray.set_state.call_args.args
-    assert state == AppState.IDLE
+    assert state == AppState.ERROR
     assert "No model selected" in message
 
 
@@ -115,7 +116,11 @@ def test_local_only_changes_do_not_touch_plugin_ownership(real_ipc, monkeypatch)
 
     server, _app, config = real_ipc
     called: list[object] = []
-    monkeypatch.setattr(internal_plugin_hook, "sync_selection", lambda target: called.append(target))
+    monkeypatch.setattr(
+        internal_plugin_hook,
+        "sync_selection",
+        lambda target, *, shutdown_empty=False: called.append(target),
+    )
 
     server._handle_set_config({"hotkey": "<f4>"}, {})
 

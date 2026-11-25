@@ -445,7 +445,6 @@ class LatePhases:
                 log.warning("[STARTUP] Failed to show bubble at startup: %s", e)
 
         # Honest completion line: the old static "(model still loading
-        from voice_typer.server.i18n import t as _t
 
         model_size = getattr(getattr(app, "config", None), "model_size", "") or ""
         load_thread = getattr(getattr(app, "models", None), "_model_load_thread", None)
@@ -471,20 +470,10 @@ class LatePhases:
                 complete_msg = "[STARTUP] Startup complete%s"
             log.info(complete_msg, elapsed)
 
-        # Terminal tray reconcile (no-model hole): with no speech model
+        # Terminal tray reconcile (no-model hole). One helper covers startup
+        # and runtime switches; no engine is not a LOADING state.
         if not model_size and not loading and not getattr(app, "_shutting_down", False):
-            try:
-                from voice_typer.server.tray_types import AppState as _AppState
-
-                app.tray.set_state(
-                    _AppState.ERROR,
-                    _t("state.model_manager.no_model_selected"),
-                )
-            except Exception:
-                log.debug(
-                    "[STARTUP] terminal tray reconcile failed (non-fatal)",
-                    exc_info=True,
-                )
+            internal_plugin_hook.reconcile_status(app)
 
         # Post-ready maintenance: the stale backup/``.tmp`` sweeps run on
         with contextlib.suppress(Exception):
