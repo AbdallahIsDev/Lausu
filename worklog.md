@@ -2109,3 +2109,9 @@ RAM probe (Windows working set / private, whole plugin Chrome profile): 1 tab 11
 Decision: KEEP one tab per plugin. Single-tab navigation would save ~940 MB working set at 3 tabs, but ChatGPT navigation reaches 2.2 s (>1.5 s switch target) and loses unsent composer text on every round trip; hotkey readiness is no better (already-open switch is 9-156 ms today). Owner rule prioritises RAM only after reliability/latency parity, which failed.
 
 Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or set VOICE_TYPER_PLUGIN_DIAGNOSTICS=1 in the shell that starts tauri dev), restart app, reload the unpacked extension once at chrome://extensions, then use GET /diagnostics/tabs-dump, POST /diagnostics/nav-bench and tools/ram_probe.ps1. Frozen builds refuse regardless of the flag.
+
+## 2026-11-26 - Two more permanent rules
+
+- REGRESSION-PRESERVATION RULE: enumerate old behavior from code/tests/history before changing it; keep all cases unless explicitly dropped; prove with tests + real-app evidence. Added after hand testing found two regressions hidden by green unit tests.
+- EDGE-CASE RULE: brainstorm and test edge cases before declaring done; owner must not find them by hand.
+

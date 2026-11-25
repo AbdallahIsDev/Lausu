@@ -116,6 +116,10 @@ DEEP-DIVE RULE: For every task or request from the owner, do a real deep dive be
 STATE-CONSISTENCY RULE: When a task changes or touches a shared piece of state (active engine, active plugin, model loading status, selection, enabled flags), do not implement only the literal request. Enumerate the full state/transition matrix (every source state x every user action), decide the correct result for EACH cell including consequences the owner did not spell out (for example: selecting a local model while a plugin is active must also deactivate that plugin; deactivating the plugin with no local model selected must produce the 'no model' state), implement all of them from ONE source of truth, and test each cell.
 
 REAL-APP VERIFICATION RULE: Unit tests with fakes are not proof a bug is fixed. Reproduce the reported behavior in the real running app (or via the real code path with real wiring, not mocks of the code under test), capture evidence (logs with timestamps, tab dumps), apply the fix, and capture the same evidence after. If the real app cannot be driven in your environment, say so explicitly and mark the result UNVERIFIED; never write 'fixed' without evidence.
+
+REGRESSION-PRESERVATION RULE: When you change, replace or remove a behavior, first list every behavior and edge case the old code handled (from its code, tests and git history), keep all of them working unless the owner explicitly asked to drop one, and prove with tests and real-app evidence that they still work. Implementing only the literal new instruction while breaking previously working cases is a defect.
+
+EDGE-CASE RULE: For every feature or flow you touch, brainstorm the edge cases yourself (failure modes, stale state, user actions in unexpected order, external things closing or changing underneath the app, concurrency, timeouts, offline, permissions) BEFORE declaring it done; write the list in the report, test each case in the real app (or mark UNVERIFIED with the reason), and fix the problems you find. The owner must not have to discover them by hand.
 ```
 
 ## Web-search first (W0, binds before everything)
