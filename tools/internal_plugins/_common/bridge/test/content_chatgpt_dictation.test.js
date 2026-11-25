@@ -269,6 +269,24 @@ domTest('stop clicks the live dictating toggle and keeps the streamed text', asy
   assert.equal(reply.result.text, 'hello world');
 });
 
+domTest('the live dictating toggle wins over a legacy submit control', async () => {
+  const legacy =
+    '<button type="button" data-testid="submit-dictation" aria-label="Submit dictation">' +
+    `<svg viewBox="0 0 24 24"><path d="${CHECK_PATH}"></path></svg>` +
+    '</button>';
+  const page = createPage({ body: RECORDING_BODY + legacy });
+
+  await page.send('start', FAST);
+  const reply = await page.send('stop', FAST);
+
+  assert.equal(reply.ok, true, JSON.stringify(reply));
+  assert.ok(page.clicks.includes('Stop dictation'), JSON.stringify(page.clicks));
+  assert.ok(
+    !page.clicks.includes('Submit dictation'),
+    `the live toggle must win when both controls exist: ${JSON.stringify(page.clicks)}`,
+  );
+});
+
 domTest('cancel with no discard control falls back to the same toggle', async () => {
   const page = createPage();
   await page.send('start', FAST);

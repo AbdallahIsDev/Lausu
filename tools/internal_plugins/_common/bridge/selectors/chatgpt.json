@@ -8,8 +8,8 @@
   "stopSelector": "button[data-dictation-button=\"dictating\"], button[aria-label=\"Submit dictation\"], button[aria-label*=\"submit dictation\" i], button:has(svg path[d*=\"M20 6L9 17l-5-5\"])",
   "cancelSelector": "",
   "micButton": "button \"Start dictation\" (data-start-dictation; the current live chatgpt.com control; the blue Voice orb is never clicked)",
-  "recordingIndicator": "the mic is replaced by the recording row: a waveform plus 'Submit dictation' (checkmark, commit) and 'Stop dictation' (discard)",
-  "stopButton": "button \"Submit dictation\" (checkmark) -- the COMMIT control; the sibling \"Stop dictation\" is the DISCARD control and must never be used to finish a dictation",
+  "recordingIndicator": "the mic is replaced by one toggle: button[data-dictation-button=\"dictating\"] labelled 'Stop dictation'",
+  "stopButton": "button[data-dictation-button=\"dictating\"] -- the live COMMIT/stop toggle; no separate discard control exists, so cancelSelector is empty",
   "promptBox": "textbox \"Message ChatGPT\"",
   "newChatNames": [
     "New chat"

@@ -84,8 +84,25 @@
     }
   }
 
+  // ChatGPT serves the guest composer at "/" with visible Log in / Sign up
+  // controls; the URL never changes, so a URL-only check misses the state and
+  // the mic click silently no-ops (OpenAI requires a signed-in session).
+  function isSignedOutPage() {
+    if (PLATFORM !== 'chatgpt') return false;
+    try {
+      const labels = Array.from(document.querySelectorAll('button, a'))
+        .filter(isClickable)
+        .map((el) => (el.textContent || el.getAttribute('aria-label') || '').trim());
+      const hasLogin = labels.some((text) => /^(log in|sign in)$/i.test(text));
+      const hasSignup = labels.some((text) => /^(sign up|sign up for free)$/i.test(text));
+      return hasLogin && hasSignup;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function pageState() {
-    if (isSignedOutUrl(location.href)) return 'signed_out';
+    if (isSignedOutUrl(location.href) || isSignedOutPage()) return 'signed_out';
     if (isChallenge()) return 'challenge';
     return 'ok';
   }
@@ -315,13 +332,14 @@
     try {
       const all = Array.from(document.querySelectorAll(STOP_SELECTOR));
       const clickable = all.filter(isClickable);
-      // Prefer the explicit commit label when several controls match (a
-      // label fallback plus a glyph fallback can both hit). Claude calls it
-      // "Finish dictation", ChatGPT "Submit dictation".
+      // Prefer the platform's live stable control over older label/glyph
+      // fallbacks: on a transitional page both can exist, and the legacy
+      // "Submit dictation" must not steal the click from the current toggle.
       const rank = (el) => {
+        if (el.getAttribute('data-dictation-button') === 'dictating') return 0;
         const label = (el.getAttribute('aria-label') || '').toLowerCase();
-        if (label.includes('finish dictation') || label.includes('submit dictation')) return 0;
-        return 1;
+        if (label.includes('finish dictation') || label.includes('submit dictation')) return 1;
+        return 2;
       };
       return (clickable.length ? clickable : []).sort((a, b) => rank(a) - rank(b));
     } catch (_) {
@@ -817,7 +835,40 @@
     }
   }
 
-  function probe() {
+  // Read-only page facts for selector work: what the live page actually
+  // exposes (labels/testids/dialogs) when a control cannot be matched.
+  function pageFacts() {
+    const facts = { title: '', url: location.href, auth: [], dialogs: [], buttons: [] };
+    try {
+      facts.title = document.title || '';
+    } catch (_) {}
+    try {
+      facts.auth = Array.from(document.querySelectorAll('a, button'))
+        .map((el) => (el.textContent || el.getAttribute('aria-label') || '').trim())
+        .filter((text) => /^(log in|sign up|sign in)$/i.test(text))
+        .slice(0, 6);
+    } catch (_) {}
+    try {
+      facts.dialogs = Array.from(document.querySelectorAll('[role="dialog"], dialog'))
+        .filter((el) => !isHiddenElement(el))
+        .map((el) => (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 160))
+        .slice(0, 4);
+    } catch (_) {}
+    try {
+      facts.buttons = Array.from(document.querySelectorAll('button, [role="button"]'))
+        .map((el) => ({
+          label: (el.getAttribute('aria-label') || '').slice(0, 60),
+          testid: el.getAttribute('data-testid') || '',
+          text: (el.textContent || '').trim().slice(0, 40),
+          hidden: isHiddenElement(el),
+        }))
+        .filter((button) => button.label || button.testid || button.text)
+        .slice(0, 60);
+    } catch (_) {}
+    return facts;
+  }
+
+  async function probe() {
     const checks = [];
     const add = (name, ok, detail) => checks.push({ name, ok: !!ok, detail: detail || '' });
     const page = pageState();
@@ -839,7 +890,14 @@
     add('stopCandidates', true, stopCandidates());
     const newChatCount = newChatCandidates().length;
     add('newChatNames', newChatCount > 0, `count=${newChatCount}`);
-    return { checks, dump: composerDump() };
+    const facts = pageFacts();
+    try {
+      facts.micPermission = (await navigator.permissions.query({ name: 'microphone' })).state;
+    } catch (_) {
+      facts.micPermission = 'unknown';
+    }
+    add('micPermission', facts.micPermission !== 'denied', facts.micPermission);
+    return { checks, dump: composerDump(), facts };
   }
 
   async function run(msg) {
