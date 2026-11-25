@@ -66,7 +66,7 @@ export function PluginsPanel() {
 					<h2 className="font-sans text-lg font-medium text-foreground">
 						{t("plugins.title")}
 					</h2>
-					<div className="grid grid-cols-3 gap-4">
+					<div className="grid grid-cols-2 gap-4">
 						{plugins.map((plugin) => (
 							<PluginCard
 								key={plugin.id}

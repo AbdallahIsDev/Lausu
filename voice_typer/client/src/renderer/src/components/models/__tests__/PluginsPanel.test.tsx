@@ -83,13 +83,13 @@ describe("PluginsPanel (Models developer tab content)", () => {
 		expect(screen.getAllByText("plugins.statusInactive")).toHaveLength(2);
 	});
 
-	it("renders three plugins in one horizontal row with no enclosing card", () => {
+	it("renders two plugins per row with no enclosing card", () => {
 		renderPanel();
 
 		const ids = ["anthropic-stt", "google-stt", "chatgpt-stt"];
 		const cards = ids.map((id) => screen.getByTestId(`plugin-card-${id}`));
 		const row = cards[0]!.parentElement;
-		expect(row?.className).toContain("grid-cols-3");
+		expect(row?.className).toContain("grid-cols-2");
 		for (const card of cards) expect(card.parentElement).toBe(row);
 
 		let ancestor: HTMLElement | null = row?.parentElement ?? null;
