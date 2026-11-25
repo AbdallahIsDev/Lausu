@@ -110,6 +110,10 @@ New tags: add here + link `CONTRIBUTING.md` or a rationale comment at first occu
 
 # Engineering Rules (binding)
 
+```
+DEEP-DIVE RULE: For every task or request from the owner, do a real deep dive before acting: read the relevant code, docs and git history; research upstream documentation when relevant (Firecrawl CLI only); reproduce or measure the problem. If the work leads to two or more possible solutions (any number, not just two), you MUST deeply investigate and evaluate EACH one (feasibility proven from code or docs or a measurement, cost, risk, performance, memory, reliability, user-visible behavior), add any better option you discover that the owner did not mention, and then present a comparison with evidence and a clear recommendation explaining WHY it is best. Never present options without evidence. Never mark something 'recommended' without having investigated. Never assume a proposed idea is impossible without checking; never assume it works without checking. The owner decides with knowledge, not blindly. If the owner has delegated the decision, you choose the best option by evidence, implement it, and explain the reasoning.
+```
+
 ## Web-search first (W0, binds before everything)
 
 **Search at task start, mid-task, and the instant any trigger fires** (built-in web-search; latest official docs beat assumptions every time):
