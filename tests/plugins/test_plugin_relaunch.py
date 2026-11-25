@@ -15,13 +15,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-_PLUGIN_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "tools"
-    / "internal_plugins"
-    / "anthropic_stt"
-    / "plugin.py"
-)
+_PLUGIN_PATH = Path(__file__).resolve().parents[2] / "tools" / "internal_plugins" / "anthropic_stt" / "plugin.py"
 
 
 def _load_plugin() -> object:
@@ -50,9 +44,7 @@ class TestBrowserClosedMidCapture:
         session = plugin.PluginSession(MagicMock())
         monkeypatch.setattr(session, "_active", True)
         monkeypatch.setattr(session, "_t0", time.monotonic() - 3.0)
-        monkeypatch.setattr(
-            session, "_status", lambda: {"browser": "disconnected", "state": "no-page"}
-        )
+        monkeypatch.setattr(session, "_status", lambda: {"browser": "disconnected", "state": "no-page"})
         posts: list[str] = []
         notes: list[str] = []
         monkeypatch.setattr(session, "_post", lambda path, timeout=None: posts.append(path))
@@ -112,12 +104,38 @@ class TestStartAfterBrowserDisconnect:
         assert posts == ["/ensure-tab", "/start", "/ensure-tab", "/start"]
 
 
+class TestExpectedStartFailures:
+    def test_a_signed_out_tab_is_a_clean_actionable_line(self, plugin, monkeypatch, caplog):
+        import logging
+
+        session = plugin.PluginSession(MagicMock())
+        monkeypatch.setattr(session, "_ensure_daemon", lambda: True)
+        monkeypatch.setattr(session, "_ensure_browser", lambda timeout=None: True)
+        monkeypatch.setattr(session, "_status", lambda: {"browser": "connected", "page": "signed_out"})
+        monkeypatch.setattr(session, "_watch_platform", lambda: None)
+
+        def _post(path, timeout=None):
+            if path == "/start":
+                raise plugin.BridgeError("the tab is signed out", "signed-out")
+            return {}
+
+        monkeypatch.setattr(session, "_post", _post)
+        notes: list[str] = []
+        monkeypatch.setattr(session, "_notify", notes.append)
+        caplog.set_level(logging.DEBUG)
+
+        session.start()
+
+        assert session.active is False
+        assert "Traceback" not in caplog.text
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert any("signed out" in note.lower() for note in notes)
+
+
 class TestRelaunchAfterClose:
     def test_a_closed_profile_relaunches_inside_the_cooldown(self, plugin, monkeypatch):
         monkeypatch.setattr(plugin, "_last_launch_ts", time.monotonic())
-        monkeypatch.setattr(
-            plugin, "_daemon_config", lambda: {"profileDir": "P", "claudeUrl": "U"}
-        )
+        monkeypatch.setattr(plugin, "_daemon_config", lambda: {"profileDir": "P", "claudeUrl": "U"})
         monkeypatch.setattr(plugin, "_profile_missing", lambda: True)
         launches: list[tuple[str, str]] = []
         monkeypatch.setattr(
@@ -127,13 +145,11 @@ class TestRelaunchAfterClose:
         )
 
         assert plugin._launch_profile_if_due() is True
-        assert launches == [("P", "U")]
+        assert launches == [("P", "about:blank")]
 
     def test_an_open_profile_still_respects_the_cooldown(self, plugin, monkeypatch):
         monkeypatch.setattr(plugin, "_last_launch_ts", time.monotonic())
-        monkeypatch.setattr(
-            plugin, "_daemon_config", lambda: {"profileDir": "P", "claudeUrl": "U"}
-        )
+        monkeypatch.setattr(plugin, "_daemon_config", lambda: {"profileDir": "P", "claudeUrl": "U"})
         monkeypatch.setattr(plugin, "_profile_missing", lambda: False)
         launches: list[tuple[str, str]] = []
         monkeypatch.setattr(

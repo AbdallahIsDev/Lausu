@@ -30,6 +30,21 @@ _LAUNCH_COOLDOWN_S = 30.0
 _START_ATTEMPTS = 2
 _START_RETRY_PAUSE_S = 0.4
 _START_RETRY_KINDS = frozenset({"browser-not-open", "browser-closed", "wrong-platform"})
+# Platform states the user can fix in the browser. They are expected outcomes,
+# not crashes: one actionable line, no traceback (C-UXERR-1, C-LOG-3).
+_EXPECTED_START_KINDS = frozenset(
+    {
+        "signed-out",
+        "challenge",
+        "mic-missing",
+        "no-recording-indicator",
+        "platform-not-recording",
+        "composer-dirty",
+        "selectors-missing",
+        "page-not-ready",
+        "bridge-timeout",
+    }
+)
 
 log = logging.getLogger("voice_typer.internal_plugin.bridge")
 
@@ -71,16 +86,11 @@ def launch_profile_if_due(
     # Launching it makes Chrome create a brand-new empty profile and lose every
     # sign-in, so the migrated path from install.json always wins here.
     profile = str(profile_dir()) if legacy is not None and configured and Path(configured) == legacy else configured
-    launched = launch_fn(
-        profile,
-        str(
-            config.get("url")
-            or config.get("claudeUrl")
-            or config.get("geminiUrl")
-            or config.get("chatgptUrl")
-            or ""
-        ),
-    )
+    # The extension is the ONLY tab authority: Chrome is opened on a blank
+    # page, then /ensure-tab resolves or creates the platform tab. Putting a
+    # platform URL on the command line here opens a second tab in a profile
+    # that is already running (C-PLUGIN-3).
+    launched = launch_fn(profile, "about:blank")
     return launched, now
 
 
@@ -116,16 +126,21 @@ def ensure_browser(
 
 def _fallback_ensure_daemon(client, log):
     return _daemon_common.ensure_daemon(
-        Path(client.config_dir), client.alive, log,
-        daemon_script=client.daemon_script, cwd=client.daemon_cwd,
+        Path(client.config_dir),
+        client.alive,
+        log,
+        daemon_script=client.daemon_script,
+        cwd=client.daemon_cwd,
         daemon_args=client.daemon_args,
     )
 
 
 def _fallback_ensure_browser(client):
     return ensure_browser(
-        status_fn=client.status, launch_fn=lambda: False,
-        ready_fn=client.bridge_ready, clock=time,
+        status_fn=client.status,
+        launch_fn=lambda: False,
+        ready_fn=client.bridge_ready,
+        clock=time,
     )
 
 
@@ -256,8 +271,14 @@ class PluginSession:
         # Deliberately a plain error line: a failed hotkey press is a routine,
         # recoverable event, and the old traceback-per-press buried the actual
         # reason. The traceback stays available at DEBUG.
-        self._log.error("[PLUGIN] start failed: %s", exc)
-        self._log.debug("[PLUGIN] start failure context", exc_info=True)
+        # Expected page states (signed out, challenge, missing mic) are routine
+        # outcomes the user can act on: one warning line, never a traceback.
+        # Unexpected failures keep the error plus DEBUG context.
+        if exc.kind in _EXPECTED_START_KINDS:
+            self._log.warning("[PLUGIN] start needs user action (%s): %s", exc.kind, exc)
+        else:
+            self._log.error("[PLUGIN] start failed: %s", exc)
+            self._log.debug("[PLUGIN] start failure context", exc_info=True)
         hint = self._copy.START_HINTS.get(exc.kind, self._copy.START_FAILURE_FALLBACK)
         if exc.kind in ("browser-not-open", "browser-closed", "wrong-platform"):
             from tools.internal_plugins._common.bridge.install_paths import install_hint
@@ -332,8 +353,7 @@ class PluginSession:
                     # /start understands the old command and resolves its tab, so
                     # this is a capability gap, not a failed start. No traceback.
                     self._log.debug(
-                        "[PLUGIN] target-tab pre-resolution needs an extension reload; "
-                        "/start still resolves its tab"
+                        "[PLUGIN] target-tab pre-resolution needs an extension reload; /start still resolves its tab"
                     )
                     if not type(self)._stale_extension_warned:
                         type(self)._stale_extension_warned = True
@@ -354,8 +374,7 @@ class PluginSession:
                 transient = exc.kind in _START_RETRY_KINDS or "extension disconnected" in str(exc).lower()
                 if attempt + 1 < _START_ATTEMPTS and transient:
                     self._log.warning(
-                        "[PLUGIN] the browser disconnected while starting (cycle=#%d); "
-                        "reopening and retrying once",
+                        "[PLUGIN] the browser disconnected while starting (cycle=#%d); reopening and retrying once",
                         cycle,
                     )
                     time.sleep(_START_RETRY_PAUSE_S)
@@ -438,8 +457,7 @@ class PluginSession:
             # The page-side split (click vs transcript scrape) is the part the
             # user actually waits through, so it belongs in this log too.
             self._log.info(
-                "[PLUGIN] platform returned the transcript (cycle=#%d, trigger=%s, "
-                "state=%s, click=%s, scrape=%s)%s",
+                "[PLUGIN] platform returned the transcript (cycle=#%d, trigger=%s, state=%s, click=%s, scrape=%s)%s",
                 cycle,
                 trigger,
                 res.get("state") or "unknown",
@@ -486,10 +504,7 @@ class PluginSession:
             # a failure, and must not wait out the platform timeout.
             reason = str(res.get("empty_reason") or "")
             stopped_with_no_text = reason in ("empty_after_stop", "no_text")
-            label = (
-                reason
-                or ("auto_stopped" if res.get("auto_stopped") else "empty_transcript")
-            )
+            label = reason or ("auto_stopped" if res.get("auto_stopped") else "empty_transcript")
             self._log.warning(
                 "[PLUGIN] no transcript (cycle=#%d, reason=%s, page_state=%s)%s",
                 cycle,
@@ -504,13 +519,11 @@ class PluginSession:
                 )
             elif res.get("auto_stopped"):
                 self._notify(
-                    "The page ended the recording on its own and sent "
-                    "no transcription. Speak again in a shorter burst."
+                    "The page ended the recording on its own and sent no transcription. Speak again in a shorter burst."
                 )
             else:
                 self._notify(
-                    "No transcript arrived in time. Nothing was pasted; "
-                    "check the dictation window and try again."
+                    "No transcript arrived in time. Nothing was pasted; check the dictation window and try again."
                 )
             return
         t_deliver = time.monotonic()

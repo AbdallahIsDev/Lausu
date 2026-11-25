@@ -31,7 +31,7 @@ function fakeChrome(initial = []) {
       windowId: 1,
     });
   }
-  const calls = { query: [], create: [], update: [] };
+  const calls = { query: [], create: [], update: [], remove: [] };
   const api = {
     tabs: {
       query(opts, cb) {
@@ -58,6 +58,11 @@ function fakeChrome(initial = []) {
         const tab = tabs.get(id);
         if (tab) Object.assign(tab, opts);
         cb(tab);
+      },
+      remove(id, cb) {
+        calls.remove.push([id]);
+        tabs.delete(id);
+        if (cb) cb();
       },
     },
     runtime: { lastError: undefined },
@@ -137,17 +142,47 @@ test('never selects an unrelated active tab just because it is active', async ()
   assert.equal(urlMatches(PATTERNS.claude, chrome.tabs.get(result.tabId).url), true);
 });
 
-test('coalesces simultaneous resolutions into one created tab', async () => {
+test('coalesces three simultaneous resolutions into one created tab', async () => {
   const chrome = fakeChrome();
   const resolver = resolverFor(chrome);
 
-  const [first, second] = await Promise.all([
+  const [first, second, third] = await Promise.all([
+    resolver.ensure('claude'),
     resolver.ensure('claude'),
     resolver.ensure('claude'),
   ]);
 
   assert.equal(chrome.calls.create.length, 1);
   assert.equal(first.tabId, second.tabId);
+  assert.equal(second.tabId, third.tabId);
+});
+
+test('dedupes surplus tabs of the active platform and keeps unrelated tabs', async () => {
+  const chrome = fakeChrome([
+    { id: 7, url: 'https://claude.ai/chat/a', active: true },
+    { id: 8, url: 'https://claude.ai/chat/b' },
+    { id: 9, url: 'https://example.com/' },
+  ]);
+
+  const result = await resolverFor(chrome).ensure('claude');
+
+  assert.equal(result.tabId, 7);
+  assert.deepEqual(chrome.calls.remove, [[8]]);
+  assert.equal(chrome.tabs.has(7), true);
+  assert.equal(chrome.tabs.has(9), true, 'an unrelated tab must never be closed');
+});
+
+test('dedupe never removes another plugin platform tab', async () => {
+  const chrome = fakeChrome([
+    { id: 7, url: 'https://claude.ai/new', active: true },
+    { id: 6, url: 'https://claude.ai/chat/old' },
+    { id: 8, url: 'https://gemini.google.com/app' },
+  ]);
+
+  await resolverFor(chrome).ensure('claude');
+
+  assert.deepEqual(chrome.calls.remove, [[6]]);
+  assert.equal(chrome.tabs.has(8), true);
 });
 
 test('re-resolves once when the tab disappears before dispatch', async () => {

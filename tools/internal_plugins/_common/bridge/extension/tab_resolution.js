@@ -69,6 +69,19 @@
 
   // Tab selection inside Chrome, never window focus: the dictation path must
   // not steal focus from the user's target field.
+  function removeTab(chromeApi, tabId) {
+    return new Promise((resolve) => {
+      try {
+        chromeApi.tabs.remove(tabId, () => {
+          if (chromeApi.runtime && chromeApi.runtime.lastError) void chromeApi.runtime.lastError;
+          resolve();
+        });
+      } catch (_) {
+        resolve();
+      }
+    });
+  }
+
   function activateTab(chromeApi, tabId) {
     return new Promise((resolve) => {
       try {
@@ -104,10 +117,23 @@
   }) {
     const inflight = new Map();
 
-    async function find(platform) {
+    async function allMatches(platform) {
       const pattern = patterns[platform];
-      if (!pattern) return null;
-      return pickTab(await queryTabs(chromeApi, pattern));
+      return pattern ? queryTabs(chromeApi, pattern) : [];
+    }
+
+    async function find(platform) {
+      return pickTab(await allMatches(platform));
+    }
+
+    // One tab per platform. Only surplus tabs that matched THIS platform's
+    // URL pattern are removed; other platforms and unrelated tabs are never
+    // touched, and the preferred tab is always kept.
+    async function dropSurplus(tabs, keepId) {
+      for (const tab of tabs) {
+        if (tab.id === keepId) continue;
+        await removeTab(chromeApi, tab.id);
+      }
     }
 
     async function waitForTab(platform, expectedId) {
@@ -124,8 +150,10 @@
       const pattern = patterns[platform];
       if (!pattern) return { tabId: null, created: false, ready: false, reason: "unknown-platform" };
 
-      let tab = await find(platform);
+      let matches = await allMatches(platform);
+      let tab = pickTab(matches);
       if (tab) {
+        await dropSurplus(matches, tab.id);
         if (activate && opts.activate !== false) await activateTab(chromeApi, tab.id);
         return { tabId: tab.id, created: false, ready: true, url: tab.url };
       }
@@ -140,6 +168,8 @@
 
       tab = await waitForTab(platform, created.id);
       if (!tab) return { tabId: created.id, created: true, ready: false, reason: "not-visible" };
+      matches = await allMatches(platform);
+      await dropSurplus(matches, tab.id);
       if (activate && opts.activate !== false) await activateTab(chromeApi, tab.id);
       let ready = false;
       try {

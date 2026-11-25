@@ -73,7 +73,7 @@ class TestActivationWithAColdBrowser:
 
         assert plugin.activate(MagicMock()) is True
 
-        assert launches == [("P", "U")]
+        assert launches == [("P", "about:blank")]
         assert warmed == [], "a page that is not up yet cannot be warmed"
         assert waited == []
 
@@ -122,6 +122,25 @@ class TestActivationWithAColdBrowser:
 
         assert pg.activate(MagicMock()) is False
         assert "the Claude browser extension is not connected" in caplog.text
+
+
+class TestBlankProfileLaunch:
+    def test_a_relaunch_opens_a_blank_profile_not_a_platform_url(self, plugin, monkeypatch):
+        launches: list[tuple[str, str]] = []
+        monkeypatch.setattr(
+            plugin,
+            "launch_profile",
+            lambda profile, url: launches.append((profile, url)) or True,
+        )
+        monkeypatch.setattr(
+            plugin,
+            "_daemon_config",
+            lambda: {"profileDir": "P", "url": "https://claude.ai/new"},
+        )
+        monkeypatch.setattr(plugin, "_profile_missing", lambda: True)
+
+        assert plugin._launch_profile_if_due() is True
+        assert launches == [("P", "about:blank")]
 
 
 class TestBrowserWaitBudget:
