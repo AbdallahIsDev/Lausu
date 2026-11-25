@@ -6,6 +6,7 @@ const { mockPluginsAvailable } = vi.hoisted(() => ({
 }));
 vi.mock("@/hooks/usePluginCatalog", () => ({
 	usePluginsAvailable: mockPluginsAvailable,
+	usePluginsUnlocked: mockPluginsAvailable,
 }));
 
 vi.mock("@/pages/Home", () => ({

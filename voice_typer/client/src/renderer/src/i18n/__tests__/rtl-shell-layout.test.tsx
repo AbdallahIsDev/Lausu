@@ -30,6 +30,7 @@ vi.mock("@/hooks/useTheme", () => ({
 vi.mock("@/hooks/useSoundFeedback", () => ({ useSoundFeedback: () => {} }));
 vi.mock("@/hooks/usePluginCatalog", () => ({
 	usePluginsAvailable: () => false,
+	usePluginsUnlocked: () => false,
 }));
 
 vi.mock("@/components/layout/Sidebar", () => ({

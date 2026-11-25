@@ -27,6 +27,7 @@ import { APP_NAME } from "@/branding";
 
 vi.mock("@/hooks/usePluginCatalog", () => ({
 	usePluginsAvailable: () => true,
+	usePluginsUnlocked: () => true,
 }));
 
 import { Sidebar } from "@/components/layout/Sidebar";

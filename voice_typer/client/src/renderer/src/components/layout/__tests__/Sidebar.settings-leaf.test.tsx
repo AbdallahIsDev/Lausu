@@ -29,6 +29,7 @@ import { SHORTCUTS } from "@/components/hotkey/shortcuts";
 // is covered by Sidebar.plugins-gated.test.tsx.
 vi.mock("@/hooks/usePluginCatalog", () => ({
 	usePluginsAvailable: () => true,
+	usePluginsUnlocked: () => true,
 }));
 
 import { Sidebar } from "@/components/layout/Sidebar";

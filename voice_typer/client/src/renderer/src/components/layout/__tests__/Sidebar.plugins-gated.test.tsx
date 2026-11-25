@@ -25,6 +25,7 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 const mockPluginsAvailable = vi.fn<() => boolean>();
 vi.mock("@/hooks/usePluginCatalog", () => ({
 	usePluginsAvailable: () => mockPluginsAvailable(),
+	usePluginsUnlocked: () => mockPluginsAvailable(),
 }));
 
 import { Sidebar } from "@/components/layout/Sidebar";

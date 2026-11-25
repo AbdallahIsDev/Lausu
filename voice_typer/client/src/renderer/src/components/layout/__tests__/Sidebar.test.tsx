@@ -29,6 +29,7 @@ import { APP_NAME } from "@/branding";
 // is covered by Sidebar.plugins-gated.test.tsx.
 vi.mock("@/hooks/usePluginCatalog", () => ({
 	usePluginsAvailable: () => true,
+	usePluginsUnlocked: () => true,
 }));
 
 import { Sidebar } from "@/components/layout/Sidebar";

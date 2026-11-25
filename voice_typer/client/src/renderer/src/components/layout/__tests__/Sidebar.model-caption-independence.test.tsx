@@ -39,6 +39,7 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 
 vi.mock("@/hooks/usePluginCatalog", () => ({
 	usePluginsAvailable: () => true,
+	usePluginsUnlocked: () => true,
 }));
 
 // The switch is the thing under test's blast radius: let each test decide

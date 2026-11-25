@@ -21,6 +21,7 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 // components/layout/__tests__/Sidebar.plugins-gated.test.tsx.
 vi.mock("@/hooks/usePluginCatalog", () => ({
 	usePluginsAvailable: () => true,
+	usePluginsUnlocked: () => true,
 }));
 
 import { Sidebar } from "@/components/layout/Sidebar";
