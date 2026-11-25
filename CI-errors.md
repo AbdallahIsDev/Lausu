@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-25T23:25:23Z
+> Generated: 2026-11-25T23:32:57Z
 > Data branch commit: `86a656d`
 
 ## Currently failing
@@ -1152,14 +1152,14 @@
 - Run: [45234245830](https://github.com/AbdallahIsDev/Lausu/actions/runs/45234245830) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
 
 ## Resolved recently
@@ -1265,13 +1265,13 @@
 - Run: [45234245830](https://github.com/AbdallahIsDev/Lausu/actions/runs/45234245830) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
 - Category: other
 - Fixed by: [45234346608](https://github.com/AbdallahIsDev/Lausu/actions/runs/45234346608) (success)
 
 - Error excerpt:
 
 ```text
-(no job log available)
+(job log unavailable: HTTP 403)
 ```
