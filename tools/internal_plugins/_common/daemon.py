@@ -101,6 +101,9 @@ def daemon_env() -> dict[str, str]:
     so the standard paths are filled in here for both plugins.
     """
     env = dict(os.environ)
+    # Frozen builds must refuse dev diagnostics even if a dev flag leaked in.
+    if getattr(sys, "frozen", False) or getattr(sys, "_MEIPASS", None):
+        env["VOICE_TYPER_FROZEN"] = "1"
     # C-HOST-1: run.js watches this PID and shuts the bridge down when the
     # host dies, so a POSIX sidecar kill cannot leave it orphaned.
     parent_pid = os.environ.get(PARENT_PID_ENV_VAR)

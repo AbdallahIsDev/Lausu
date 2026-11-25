@@ -47,6 +47,8 @@ const DEADLINES = {
   cancel: 30000,
   clean: 5000,
   probe: 15000,
+  'tabs-dump': 5000,
+  'nav-bench': 180000,
 };
 
 class BridgeError extends Error {
@@ -173,6 +175,14 @@ class Relay {
       }
       if (msg && msg.ping) {
         this._send(state, { pong: 1 });
+        return;
+      }
+      if (msg && msg.event === 'tab-event') {
+        this.log.log(
+          `[stt-bridge] tab-event ${String(msg.at || '')} ${String(msg.action || '')} ` +
+            `tab=${String(msg.tabId ?? '')} platform=${String(msg.platform || '')} ` +
+            `caller=${String(msg.caller || '')} url=${String(msg.url || '')}`,
+        );
         return;
       }
       if (msg && msg.id) this._settle(msg);

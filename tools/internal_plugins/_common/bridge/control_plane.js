@@ -5,6 +5,7 @@
 // connection belonging to the OTHER tab can never drive this plugin.
 
 const paths = require('./install_paths');
+const diagnostics = require('./diagnostics');
 const PLATFORM_NAMES = { claude: 'Claude', gemini: 'Gemini', chatgpt: 'ChatGPT' };
 
 function failure(err) {
@@ -279,6 +280,32 @@ async function handle(relay, method, pathname) {
 
   if (method === 'POST' && pathname === '/shutdown') {
     return { status: 200, body: { ok: true }, shutdown: true };
+  }
+
+  // Dev-only diagnostics. Frozen builds refuse even when the flag leaks into
+  // the environment; the same gate is compiled into the extension config.
+  if (pathname.startsWith('/diagnostics/')) {
+    if (!diagnostics.enabled()) {
+      return { status: 403, body: { error: 'diagnostics are disabled', kind: 'diagnostics-disabled' } };
+    }
+    if (method === 'GET' && pathname === '/diagnostics/tabs-dump') {
+      try {
+        return { status: 200, body: await relay.request('tabs-dump', scoped()) };
+      } catch (err) {
+        return failure(err);
+      }
+    }
+    if (method === 'POST' && pathname === '/diagnostics/nav-bench') {
+      try {
+        const body = await relay.request('nav-bench', scoped({
+          runs: Number((cfg.navBenchRuns) || 3),
+        }));
+        return { status: 200, body };
+      } catch (err) {
+        return failure(err);
+      }
+    }
+    return { status: 404, body: { error: 'unknown' } };
   }
 
   return { status: 404, body: { error: 'unknown' } };

@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { loadConfig, BRIDGE_DIR } = require('../config_store');
+const diagnostics = require('../diagnostics');
 
 const EXTENSION_DIR = path.join(BRIDGE_DIR, 'extension');
 const PLATFORMS = ['claude', 'gemini', 'chatgpt'];
@@ -43,6 +44,7 @@ function compile(options = {}) {
     wsUrl: `ws://127.0.0.1:${config.port}/extension`,
     platform: config.platform,
     platforms,
+    diagnostics: diagnostics.enabled(),
   };
   return {
     tokenMissing,
@@ -85,7 +87,8 @@ function check(options = {}) {
 function withoutRuntimeValues(text) {
   return text
     .replace(/"token":\s*"[^"]*"/, '"token":"<rotated>"')
-    .replace(/"platform":\s*"[^"]*"/, '"platform":"<active>"');
+    .replace(/"platform":\s*"[^"]*"/, '"platform":"<active>"')
+    .replace(/"diagnostics":\s*(true|false)/, '"diagnostics":<dev>');
 }
 
 if (require.main === module) {
