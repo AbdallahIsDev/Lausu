@@ -2078,3 +2078,9 @@ Known Limitations:
 - Pyrefly 1.1.1 reports 2553 repo-wide raw errors (baseline file has 352; baseline-accuracy test 19 passed); zero errors in files touched by this program. Environment/baseline discrepancy, recorded as such, not claimed green.
 - C-PLUGIN-4 was added to AGENTS.md and announced in worklog.md by sub-agent B; owner may veto.
 - UNVERIFIED: no GUI walkthrough/screenshots, no Windows frozen build, no GPUI link/run on a real desktop, no translation benchmark with the real model (see bench/README.md for the exact command). All such claims stay UNVERIFIED.
+
+## 2026-11-26 - Two permanent rules added by owner direction
+
+- STATE-CONSISTENCY RULE: enumerate the full state/transition matrix for shared state; one source of truth; test every cell. Added because plugin/local-model selection only handled one cell in the real app.
+- REAL-APP VERIFICATION RULE: fakes are not proof; reproduce in the real app with before/after evidence or mark UNVERIFIED. Added because green unit tests hid four owner-visible bugs.
+
