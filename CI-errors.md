@@ -1,7 +1,7 @@
 # CI Errors
 
-> Generated: 2026-11-25T20:02:57Z
-> Data branch commit: `0616c77`
+> Generated: 2026-11-25T20:30:38Z
+> Data branch commit: `e1c3bbe`
 
 ## Currently failing
 
@@ -1107,36 +1107,6 @@
 - Run: [45191371852](https://github.com/AbdallahIsDev/Lausu/actions/runs/45191371852) (attempt 1)
 - Event: push · Branch: main
 - Commit: `4b69717` — docs(adr): ONNX to GGUF migration brief for cloud and local agents
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 66. Build installer — failure
-
-- Run: [45183273572](https://github.com/AbdallahIsDev/Lausu/actions/runs/45183273572) (attempt 1)
-- Event: push · Branch: main
-- Commit: `c10d162` — docs(adr): GGUF follow-up research (Fluid Speech Pro, gate, sizes)
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 67. Build installer — failure
-
-- Run: [45175552237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45175552237) (attempt 1)
-- Event: push · Branch: main
-- Commit: `e316165` — docs(adr): ONNX to GGUF spike results
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
 - Category: other
