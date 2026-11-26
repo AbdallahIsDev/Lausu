@@ -111,18 +111,13 @@ PRODUCTION_MODEL_KEYS = frozenset({"parakeet", "large-v3-turbo", "qwen3-1.7b", "
 DEFAULT_MODEL_KEY = "large-v3-turbo"
 NO_MODEL_SIZE: str = ""
 
-# Keys and repo ids from older builds. Legacy repo ids are model ids that were
-# once written to ``config.model_size`` by older code paths; a frozen build
-# maps all of them to the production default, never to a dev-only model.
-LEGACY_MODEL_ALIASES: dict[str, str] = {"qwen": "qwen3-1.7b", "qwen-0.6b": "qwen3-0.6b"}
-LEGACY_REPO_ID_KEYS: dict[str, str] = {
-    "Systran/faster-whisper-tiny": "tiny",
-    "Systran/faster-whisper-large-v3": "large-v3",
-    "dropbox-dash/faster-whisper-large-v3-turbo": "large-v3-turbo",
-    "Masterx/parakeet-tdt-0.6b-ultra-onnx": "parakeet",
-    "andrewleech/qwen3-asr-1.7b-onnx": "qwen3-1.7b",
-    "andrewleech/qwen3-asr-0.6b-onnx": "qwen3-0.6b",
-}
+# Old settings migration data lives in the dependency-free
+# ``model_legacy_ids`` module so security can load its manifest without
+# importing the registry's media/ipc chain. Re-exported here for callers.
+from voice_typer.server.model_legacy_ids import (  # noqa: E402
+    LEGACY_MODEL_ALIASES,
+    LEGACY_REPO_ID_KEYS,
+)
 
 
 def is_frozen() -> bool:

@@ -59,7 +59,7 @@ def resolve_whisper_repo_id(model_size: str) -> str:
             model_size,
             exc_info=True,
         )
-    from voice_typer.server.gguf_model_registry import LEGACY_REPO_ID_KEYS
+    from voice_typer.server.model_legacy_ids import LEGACY_REPO_ID_KEYS
 
     return next((repo for repo, key in LEGACY_REPO_ID_KEYS.items() if key == model_size), model_size)
 

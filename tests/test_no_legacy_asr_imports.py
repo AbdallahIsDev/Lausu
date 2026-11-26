@@ -54,7 +54,7 @@ LEGACY_TERMS: tuple[tuple[str, re.Pattern[str]], ...] = (
 ALLOWED_TERM_FILES = frozenset(
     {
         "docs/adr/0031-onnx-to-gguf-migration.md",
-        "voice_typer/server/gguf_model_registry.py",
+        "voice_typer/server/model_legacy_ids.py",
     }
 )
 CHANGELOG_FILE = "CHANGELOG.md"

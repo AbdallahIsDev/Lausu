@@ -33,7 +33,7 @@ def _security_pkg():
 
 def _expand_repo_keys(entries: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
     """Map catalogue keys back to their old repo ids from the one migration map."""
-    from voice_typer.server.gguf_model_registry import LEGACY_REPO_ID_KEYS
+    from voice_typer.server.model_legacy_ids import LEGACY_REPO_ID_KEYS
 
     by_key = {key: repo for repo, key in LEGACY_REPO_ID_KEYS.items()}
     return {by_key.get(name, name): value for name, value in entries.items()}
