@@ -98,10 +98,12 @@ async function snapshot(relay) {
       platform: platformOf(relay),
       url: status.url || '',
       readiness: status.readiness || {
-        browser: 'up', tab: 'ready', content_script: ['ok', 'signed_out', 'challenge'].includes(status.page) ? 'present' : 'absent',
+        browser: 'up', tab: 'unknown',
+        content_script: ['ok', 'signed_out', 'challenge'].includes(status.page) ? 'present' : 'absent',
         control: Number(status.micCount) > 0 ? 'present' : 'missing',
         signed_in: status.page === 'signed_out' ? 'no' : 'unknown',
-        reason: 'ready',
+        document_ready: false, control_stable: false, tab_quiet_ms: 0,
+        reason: 'readiness.incomplete',
       },
     };
   } catch (_) {

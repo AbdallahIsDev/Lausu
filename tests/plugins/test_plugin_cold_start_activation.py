@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from tests.fixtures.sleep_seam import patch_module_time
+from tests.plugins.conftest import ready_snapshot
 
 _PLUGIN_PATH = Path(__file__).resolve().parents[2] / "tools" / "internal_plugins" / "anthropic_stt" / "plugin.py"
 
@@ -111,7 +112,7 @@ class TestActivationWithAColdBrowser:
         monkeypatch.setattr(
             plugin,
             "_daemon_status",
-            lambda: {"browser": "connected", "page": "ok"},
+            lambda: ready_snapshot(),
         )
         warmed: list[str] = []
         monkeypatch.setattr(plugin, "_post", lambda path, timeout=None: warmed.append(path))
@@ -125,7 +126,7 @@ class TestActivationWithAColdBrowser:
     def test_a_failing_warm_is_still_reported(self, plugin, monkeypatch, caplog):
         """A ready bridge that refuses to warm is a real failure, not cold start."""
         pg = plugin
-        monkeypatch.setattr(pg, "_daemon_status", lambda: {"browser": "connected", "page": "ok"})
+        monkeypatch.setattr(pg, "_daemon_status", lambda: ready_snapshot())
 
         def _boom(path, timeout=None):
             raise pg.BridgeError("the Claude browser extension is not connected", "bridge")
@@ -165,12 +166,7 @@ class TestActivationPreparesPlatform:
         from tools.internal_plugins._common.bridge import session as shared_session
         from tools.internal_plugins._common.bridge.daemon_client import DaemonClient
 
-        ready = {
-            "browser": "connected",
-            "page": "ok",
-            "micCount": 1,
-            "selectorsReady": True,
-        }
+        ready = ready_snapshot()
         statuses = iter([{"browser": "disconnected"}, ready])
         posts: list[str] = []
         monkeypatch.setattr(plugin, "_daemon_status", lambda: next(statuses, ready))
@@ -201,7 +197,7 @@ class TestActivationPreparesPlatform:
 
         monkeypatch.setattr(plugin.threading, "Thread", FakeThread)
         monkeypatch.setattr(plugin, "_daemon_config", lambda: {"profileDir": "P", "claudeUrl": "U"})
-        monkeypatch.setattr(plugin, "_daemon_status", lambda: {"browser": "connected", "page": "ok"})
+        monkeypatch.setattr(plugin, "_daemon_status", lambda: ready_snapshot())
         monkeypatch.setattr(plugin, "_post", lambda path, timeout=None: {})
 
         assert plugin.activate(MagicMock()) is True

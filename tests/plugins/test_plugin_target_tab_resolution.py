@@ -20,6 +20,28 @@ import pytest
 _PLUGIN_PATH = Path(__file__).resolve().parents[2] / "tools" / "internal_plugins" / "anthropic_stt" / "plugin.py"
 
 
+def _ready(**changes):
+    status = {
+        "browser": "connected",
+        "page": "ok",
+        "micCount": 1,
+        "selectorsReady": True,
+        "readiness": {
+            "browser": "up",
+            "tab": "ready",
+            "content_script": "present",
+            "control": "present",
+            "signed_in": "unknown",
+            "document_ready": True,
+            "control_stable": True,
+            "tab_quiet_ms": 500,
+            "reason": "ready",
+        },
+    }
+    status.update(changes)
+    return status
+
+
 def _load_plugin() -> object:
     name = "anthropic_stt_tab_resolution_under_test"
     if name in sys.modules:
@@ -97,9 +119,7 @@ class TestConnectedBrowserKeepsItsTabs:
     def test_a_disconnected_browser_still_launches_the_profile(self, plugin, monkeypatch):
         launches: list[str] = []
         monkeypatch.setattr(plugin, "launch_profile", lambda profile, url: launches.append(url) or True)
-        polls = iter(
-            [{"browser": "disconnected"}, {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True}]
-        )
+        polls = iter([{"browser": "disconnected"}, _ready()])
         monkeypatch.setattr(plugin, "_daemon_status", lambda: next(polls))
 
         assert plugin._ensure_browser() is True
@@ -118,7 +138,7 @@ class TestStartResolvesTheTargetTab:
         monkeypatch.setattr(
             plugin,
             "_daemon_status",
-            lambda: {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True},
+            lambda: _ready(),
         )
         monkeypatch.setattr(plugin, "ensure_daemon", lambda: True)
 
@@ -150,7 +170,7 @@ class TestStartResolvesTheTargetTab:
         monkeypatch.setattr(
             plugin,
             "_daemon_status",
-            lambda: {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True},
+            lambda: _ready(),
         )
         monkeypatch.setattr(plugin, "ensure_daemon", lambda: True)
 

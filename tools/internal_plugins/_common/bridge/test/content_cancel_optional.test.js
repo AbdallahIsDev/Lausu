@@ -124,7 +124,9 @@ test('start without a discard control is not rejected as selectors-missing', asy
   const reply = await h.start(FAST);
   assert.notEqual(reply.kind, 'selectors-missing', JSON.stringify(reply));
   // The platform's own control was clicked, so the flow ran past the gate.
-  assert.equal(h.micClicks(), 1, JSON.stringify(reply));
+  // A no-op click is retried with a fresh probe (bounded to 3 attempts).
+  assert.ok(h.micClicks() >= 1 && h.micClicks() <= 3, JSON.stringify(reply));
+  assert.ok(reply.details && reply.details.attempts.length >= 1, JSON.stringify(reply));
 });
 
 test('a platform WITH a discard control still reports selectors-missing when the composer is absent', async () => {

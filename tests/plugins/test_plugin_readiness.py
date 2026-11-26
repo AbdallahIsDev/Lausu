@@ -44,8 +44,27 @@ def test_page_ready_requires_browser_page_mic_and_selectors() -> None:
         "page": "ok",
         "micCount": 1,
         "selectorsReady": True,
+        "readiness": {
+            "browser": "up",
+            "tab": "ready",
+            "content_script": "present",
+            "control": "present",
+            "signed_in": "unknown",
+            "document_ready": True,
+            "control_stable": True,
+            "tab_quiet_ms": 500,
+            "reason": "ready",
+        },
     }
     assert DaemonClient.page_ready(ready) is True
+    assert (
+        DaemonClient.page_ready(
+            {**ready, "readiness": {**ready["readiness"], "tab": "loading", "reason": "tab.loading"}}
+        )
+        is False
+    )
+    assert DaemonClient.page_ready({**ready, "readiness": {**ready["readiness"], "document_ready": False}}) is False
+    assert DaemonClient.page_ready({**ready, "readiness": {**ready["readiness"], "control_stable": False}}) is False
     assert DaemonClient.page_ready({**ready, "micCount": 0}) is False
     assert DaemonClient.page_ready({**ready, "selectorsReady": False}) is False
     assert DaemonClient.page_ready({**ready, "page": "signed_out"}) is False
@@ -78,13 +97,30 @@ class TestStartWaitsForARealMic:
 
     def test_start_does_not_post_before_the_mic_exists(self, plugin, monkeypatch):
         session = self._session(plugin, monkeypatch)
-        states = iter(
-            [
-                {"browser": "connected", "page": "ok", "micCount": 0, "selectorsReady": True},
-                {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True},
-            ]
-        )
-        last = {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True}
+        base = {
+            "browser": "connected",
+            "page": "ok",
+            "micCount": 1,
+            "selectorsReady": True,
+            "readiness": {
+                "browser": "up",
+                "tab": "ready",
+                "content_script": "present",
+                "control": "present",
+                "signed_in": "unknown",
+                "document_ready": True,
+                "control_stable": True,
+                "tab_quiet_ms": 500,
+                "reason": "ready",
+            },
+        }
+        not_ready = {
+            **base,
+            "micCount": 0,
+            "readiness": {**base["readiness"], "control": "missing", "reason": "control.missing"},
+        }
+        states = iter([not_ready, base, base])
+        last = base
         monkeypatch.setattr(session, "_status", lambda: next(states, last))
         posts: list[str] = []
         monkeypatch.setattr(session, "_post", lambda path, timeout=None: posts.append(path) or {})

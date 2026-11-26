@@ -53,9 +53,10 @@
   } catch (_) {}
 
   class CmdError extends Error {
-    constructor(kind, message) {
+    constructor(kind, message, details) {
       super(message);
       this.kind = kind;
+      if (details !== undefined) this.details = details;
     }
   }
 
@@ -529,34 +530,56 @@
     // The bridge already waits for a clickable mic, but a page can change
     // between the status read and this click. Wait again here instead of
     // clicking a stale or hidden control (P2).
-    const micDeadline = Date.now() + (opts.startTimeoutMs || 5000);
-    let mic = micButtons().filter(isClickable);
-    while (!mic.length && Date.now() < micDeadline) {
-      await sleep(50);
-      mic = micButtons().filter(isClickable);
-    }
-    if (!mic.length) throw new CmdError('page-not-ready', 'the dictation control is not ready');
-    clickElement(mic[0]);
     const budget = Date.now() + (opts.startTimeoutMs || 5000);
-    let started = false;
-    while (Date.now() < budget) {
+    const maxAttempts = 3;
+    const attempts = [];
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      // A second click on a toggle that DID start would stop the dictation.
+      // Re-probe the platform signal before every click (C-ASR-4).
       if (recordingState() === 'recording') {
-        started = true;
-        break;
+        state.recording = true;
+        return { ok: true, already: true, attempts: attempt - 1 };
       }
-      await sleep(100);
+      let mic = micButtons().filter(isClickable)[0];
+      const probeDeadline = Math.min(Date.now() + 600, budget);
+      while (!mic && Date.now() < probeDeadline) {
+        await sleep(50);
+        mic = micButtons().filter(isClickable)[0];
+      }
+      if (!mic) {
+        attempts.push({ attempt, reason: 'control.missing' });
+        if (attempt < maxAttempts && Date.now() < budget) continue;
+        releaseIdleSlot();
+        throw new CmdError('page-not-ready', 'the dictation control is not ready');
+      }
+      const before = describeControl(mic);
+      clickElement(mic);
+      const verifyUntil = Math.min(Date.now() + 350, budget);
+      let started = false;
+      while (Date.now() < verifyUntil) {
+        if (recordingState() === 'recording') {
+          started = true;
+          break;
+        }
+        await sleep(50);
+      }
+      attempts.push({ attempt, control: before, started });
+      if (started) {
+        state.recording = true;
+        return { ok: true, attempts };
+      }
+      if (attempt < maxAttempts && Date.now() < budget) {
+        // Give the page a moment to hydrate before the next verified click.
+        await sleep(120);
+      }
     }
-    if (!started) {
-      // Name which signal never arrived: a missing control means the click
-      // never registered, a still-idle toggle means the page is not capturing.
-      releaseIdleSlot();
-      const remaining = micButtons().length;
-      throw remaining === 0
-        ? new CmdError('no-recording-indicator', 'the Dictate control vanished after the click')
-        : new CmdError('platform-not-recording', 'the control never changed to Stop');
-    }
-    state.recording = true;
-    return { ok: true };
+    releaseIdleSlot();
+    const remaining = micButtons().length;
+    throw new CmdError(
+      remaining === 0 ? 'no-recording-indicator' : 'platform-not-recording',
+      `the control never changed to Stop after ${attempts.length} verified attempts`,
+      { attempts },
+    );
   }
 
   // Two start commands in a row must not double-click: the first click owns
@@ -819,6 +842,16 @@
       // gate itself still uses micCount + selectorsReady only (P2).
       signed_in: page === 'signed_out' ? 'no' : 'unknown',
       control_disabled: /:(?:aria-)?disabled/.test(String(stopCandidates())) ? 1 : 0,
+      // The mic can be in the DOM before the app attaches handlers. A gate
+      // that only counts buttons can click a dead element (Item 1).
+      document_ready: document.readyState === 'complete',
+      control_signature: (() => {
+        const live = micButtons().filter(isClickable)[0];
+        if (!live) return '';
+        const r = live.getBoundingClientRect();
+        const label = live.getAttribute('aria-label') || live.getAttribute('data-testid') || '';
+        return `${label}|${Math.round(r.x)}|${Math.round(r.y)}|${Math.round(r.width)}|${Math.round(r.height)}`;
+      })(),
     };
   }
 
@@ -957,7 +990,7 @@
     }
   }
 
-  function reply(port, id, ok, result, kind, error) {
+  function reply(port, id, ok, result, kind, error, details) {
     const payload = ok
       ? { id, ok: true, result }
       : {
@@ -965,6 +998,7 @@
           ok: false,
           kind: kind || 'bridge-error',
           error: String(error || 'command failed').slice(0, 200),
+          details,
         };
     try {
       port.postMessage(payload);
@@ -978,7 +1012,10 @@
       run(msg)
         .then((result) => reply(port, msg.id, true, result))
         .catch((err) =>
-          reply(port, msg.id, false, null, (err && err.kind) || 'bridge-error', (err && err.message) || err),
+          reply(
+            port, msg.id, false, null, (err && err.kind) || 'bridge-error',
+            (err && err.message) || err, (err && err.details) || undefined,
+          ),
         );
     });
   });

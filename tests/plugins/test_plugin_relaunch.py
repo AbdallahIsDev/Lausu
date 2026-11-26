@@ -68,7 +68,25 @@ class TestStartAfterBrowserDisconnect:
         session = plugin.PluginSession(MagicMock())
         monkeypatch.setattr(session, "_ensure_daemon", lambda: True)
         monkeypatch.setattr(
-            session, "_status", lambda: {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True}
+            session,
+            "_status",
+            lambda: {
+                "browser": "connected",
+                "page": "ok",
+                "micCount": 1,
+                "selectorsReady": True,
+                "readiness": {
+                    "browser": "up",
+                    "tab": "ready",
+                    "content_script": "present",
+                    "control": "present",
+                    "signed_in": "unknown",
+                    "document_ready": True,
+                    "control_stable": True,
+                    "tab_quiet_ms": 500,
+                    "reason": "ready",
+                },
+            },
         )
         browsers = []
         monkeypatch.setattr(session, "_ensure_browser", lambda timeout=None: browsers.append(1) or True)
@@ -117,7 +135,23 @@ class TestExpectedStartFailures:
         monkeypatch.setattr(
             session,
             "_status",
-            lambda: {"browser": "connected", "page": "ok", "micCount": 1, "selectorsReady": True},
+            lambda: {
+                "browser": "connected",
+                "page": "ok",
+                "micCount": 1,
+                "selectorsReady": True,
+                "readiness": {
+                    "browser": "up",
+                    "tab": "ready",
+                    "content_script": "present",
+                    "control": "present",
+                    "signed_in": "unknown",
+                    "document_ready": True,
+                    "control_stable": True,
+                    "tab_quiet_ms": 500,
+                    "reason": "ready",
+                },
+            },
         )
         monkeypatch.setattr(session, "_watch_platform", lambda: None)
 

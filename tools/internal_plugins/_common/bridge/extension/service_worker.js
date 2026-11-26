@@ -32,6 +32,12 @@ let backoffIndex = 0;
 let reconnectTimer = null;
 let pingTimer = null;
 let cachedStatus = null;
+// A tab that just navigated may still expose the previous document's mic
+// button. Track the last tab update so readiness requires a quiet tab.
+const tabUpdatedAt = new Map();
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status || changeInfo.url || changeInfo.pendingUrl) tabUpdatedAt.set(tabId, Date.now());
+});
 
 function send(payload) {
   if (!socket || socket.readyState !== WebSocket.OPEN) return false;
@@ -219,7 +225,14 @@ function attemptTab(tabId, cmd, opts) {
       if (!msg || msg.id !== id) return;
       answered = true;
       if (msg.ok) finish(msg.result || {}, false);
-      else finish({ kind: msg.kind || 'bridge-error', error: msg.error || 'the tab refused the command' }, true);
+      else finish(
+        {
+          kind: msg.kind || 'bridge-error',
+          error: msg.error || 'the tab refused the command',
+          details: msg.details,
+        },
+        true,
+      );
     });
     port.onDisconnect.addListener(() => {
       void chrome.runtime.lastError;
@@ -319,32 +332,45 @@ function readinessOf({ platform, tab, info, result }) {
   if (!tab || !info) {
     return {
       browser, tab: 'missing', content_script: 'absent', control: 'missing',
-      signed_in: 'unknown', reason: 'tab.missing',
+      signed_in: 'unknown', document_ready: false, control_stable: false,
+      tab_quiet_ms: 0, reason: 'tab.missing',
     };
   }
-  const url = info.pendingUrl || info.url || (result && result.url) || '';
+  const url = info.url || (result && result.url) || '';
   const tabState = info.discarded
     ? 'discarded'
-    : info.status === 'loading' || !url
+    : info.pendingUrl || info.status !== 'complete' || !url
       ? 'loading'
       : matchesUrl(url, TAB_PATTERNS[platform])
         ? 'ready'
         : 'wrong_url';
+  const quietMs = Date.now() - (tabUpdatedAt.get(tab.id) || 0);
   const answered = !!(result && (result.page === 'ok' || result.page === 'signed_out' || result.page === 'challenge'));
-  const control = result && result.micCount > 0 ? 'present' : 'missing';
-  const signedIn = result && result.page === 'signed_out' ? 'no' : answered ? 'unknown' : 'unknown';
+  const documentReady = !!(result && result.document_ready === true);
+  const controlStable = !!(result && result.control_signature && result.micCount > 0);
+  const control = controlStable ? 'present' : 'missing';
+  const signedIn = result && result.page === 'signed_out' ? 'no' : 'unknown';
+  const challenge = !!(result && result.page === 'challenge');
+  const quiet = quietMs >= 150;
   const reason = tabState !== 'ready'
     ? `tab.${tabState}`
-    : !answered
-      ? 'content_script.absent'
-      : control === 'missing'
-        ? 'control.missing'
+    : !quiet
+      ? 'tab.navigating'
+      : !answered
+        ? 'content_script.absent'
         : signedIn === 'no'
           ? 'signed_in.no'
-          : 'ready';
+          : challenge
+            ? 'challenge'
+            : !documentReady
+              ? 'document.loading'
+              : control === 'missing'
+                ? 'control.missing'
+                : 'ready';
   return {
     browser, tab: tabState, content_script: answered ? 'present' : 'absent',
-    control, signed_in: signedIn, reason,
+    control, signed_in: signedIn, document_ready: documentReady,
+    control_stable: controlStable, tab_quiet_ms: quietMs, reason,
   };
 }
 

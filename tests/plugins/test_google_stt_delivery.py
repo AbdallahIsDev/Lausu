@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from tests.plugins.conftest import ready_snapshot
 from tools.internal_plugins.google_stt import plugin as google_plugin
 from voice_typer.server import event_bus
 from voice_typer.server.clipboard_target_safety import caret_text
@@ -94,8 +95,9 @@ class TestGoogleBubbleLevels:
         monkeypatch.setattr(google_plugin, "ensure_daemon", lambda: True)
         monkeypatch.setattr(google_plugin, "_post", lambda path, timeout=None: {})
         monkeypatch.setattr(
-            google_plugin, "_daemon_status",
-            lambda: {"browser": "connected", "page": "ok", "platform": "gemini", "micCount": 1, "selectorsReady": True},
+            google_plugin,
+            "_daemon_status",
+            lambda: ready_snapshot(platform="gemini"),
         )
         app = _make_app()
         session = google_plugin.PluginSession(app)
@@ -110,9 +112,7 @@ class TestGoogleBubbleLevels:
             "the hardcoded bubble_level publisher must be deleted, not left dormant"
         )
 
-    def test_stop_and_deliver_uses_stop_time_snapshot_before_post_stop(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_stop_and_deliver_uses_stop_time_snapshot_before_post_stop(self, monkeypatch: pytest.MonkeyPatch) -> None:
         app = _make_app()
         session = google_plugin.PluginSession(app)
         session._active = True

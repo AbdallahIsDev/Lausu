@@ -108,19 +108,30 @@ class DaemonClient:
 
     @staticmethod
     def page_ready(snapshot: dict | None) -> bool:
-        """The target tab is loaded AND its dictation control is clickable.
+        """ALL-of gate: a live, quiet, fully hydrated tab with a stable control.
 
-        A live WebSocket only proves the extension exists; the content script
-        re-injects at document_idle and the page hydrates later. Clicking a
-        mic that is not there yet starts nothing (P2).
+        A WebSocket, a mic-shaped DIV, page=="ok" or tab=loading are each
+        necessary but not sufficient. The old gate accepted tab=loading and
+        clicked a control before the platform attached its handler (Item 1).
         """
         if not DaemonClient.bridge_ready(snapshot):
             return False
         snapshot = snapshot or {}
-        return (
+        if not (
             snapshot.get("page") == "ok"
             and int(snapshot.get("micCount") or 0) > 0
             and snapshot.get("selectorsReady") is True
+        ):
+            return False
+        state = DaemonClient.readiness_state(snapshot)
+        return (
+            state["reason"] == "ready"
+            and state["tab"] == "ready"
+            and state["content_script"] == "present"
+            and state["control"] == "present"
+            and state["signed_in"] not in ("no", "challenge")
+            and state["document_ready"] is True
+            and state["control_stable"] is True
         )
 
     @staticmethod
@@ -139,7 +150,11 @@ class DaemonClient:
                 "content_script": "present" if DaemonClient.bridge_ready(snapshot) else "absent",
                 "control": "present" if int(snapshot.get("micCount") or 0) > 0 else "missing",
                 "signed_in": "no" if snapshot.get("page") == "signed_out" else "unknown",
-                "reason": "ready" if DaemonClient.page_ready(snapshot) else "page-not-ready",
+                # A legacy snapshot cannot prove hydration or control stability.
+                "document_ready": False,
+                "control_stable": False,
+                "tab_quiet_ms": 0,
+                "reason": "readiness.incomplete",
             }
         return {
             "browser": str(readiness.get("browser") or "down"),
@@ -147,6 +162,9 @@ class DaemonClient:
             "content_script": str(readiness.get("content_script") or "absent"),
             "control": str(readiness.get("control") or "missing"),
             "signed_in": str(readiness.get("signed_in") or "unknown"),
+            "document_ready": readiness.get("document_ready") is True,
+            "control_stable": readiness.get("control_stable") is True,
+            "tab_quiet_ms": int(readiness.get("tab_quiet_ms") or 0),
             "reason": str(readiness.get("reason") or "unknown"),
         }
 

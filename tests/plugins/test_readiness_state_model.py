@@ -42,6 +42,9 @@ def _ready(**overrides):
             "content_script": "present",
             "control": "present",
             "signed_in": "unknown",
+            "document_ready": True,
+            "control_stable": True,
+            "tab_quiet_ms": 500,
             "reason": "ready",
         },
     }
@@ -60,6 +63,9 @@ def _missing():
             "content_script": "absent",
             "control": "missing",
             "signed_in": "unknown",
+            "document_ready": False,
+            "control_stable": False,
+            "tab_quiet_ms": 0,
             "reason": "tab.missing",
         },
     )
@@ -67,18 +73,12 @@ def _missing():
 
 def test_readiness_state_uses_the_extension_tuple():
     state = DaemonClient.readiness_state(_missing())
-    assert state == {
-        "browser": "up",
-        "tab": "missing",
-        "content_script": "absent",
-        "control": "missing",
-        "signed_in": "unknown",
-        "reason": "tab.missing",
-    }
+    assert state["tab"] == "missing" and state["reason"] == "tab.missing"
+    assert state["document_ready"] is False and state["control_stable"] is False
     # A legacy extension without the field still gets a truthful fallback.
     legacy = _ready()
     legacy.pop("readiness")
-    assert DaemonClient.readiness_state(legacy)["reason"] == "ready"
+    assert DaemonClient.readiness_state(legacy)["reason"] == "readiness.incomplete"
 
 
 class _SessionHarness:
@@ -134,6 +134,9 @@ def test_signed_out_fails_fast_with_a_real_message(plugin, monkeypatch):
             "content_script": "present",
             "control": "missing",
             "signed_in": "no",
+            "document_ready": True,
+            "control_stable": False,
+            "tab_quiet_ms": 500,
             "reason": "signed_in.no",
         },
     )

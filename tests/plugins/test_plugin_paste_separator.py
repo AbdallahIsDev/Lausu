@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from tests.plugins.conftest import ready_snapshot
 from tools.internal_plugins.anthropic_stt import plugin as plugin_module
 from voice_typer.server import event_bus
 from voice_typer.server.clipboard_target_safety import caret_text
@@ -179,12 +180,7 @@ class TestPluginSeparator:
         monkeypatch.setattr(
             session,
             "_status",
-            lambda: {
-                "browser": "connected",
-                "page": "ok",
-                "micCount": 1,
-                "selectorsReady": True,
-            },
+            lambda: ready_snapshot(),
         )
         session.start()
 
