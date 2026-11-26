@@ -1,0 +1,1 @@
+The prompt cache keeps the instruction text between requests. A second request can reuse that work. The answer can still change slightly.
