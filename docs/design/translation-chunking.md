@@ -215,9 +215,11 @@ stops, so Stage B latency at stop could shrink.
 5. **Amends the ADR.** This is not compatible with the current whole-text rule
    (ADR-0021 §5.2:69-87; `docs/design/translation-audit.md:98-100`). Any ship
    requires the amendment draft in §8, owner-approved.
-6. **No evidence of benefit.** There is no LOCAL-RUN measurement of per-chunk
-   latency; the benchmark exists but every number is `LOCAL-RUN-REQUIRED`
-   (`docs/design/translation-audit.md:40-42`; `bench/bench_translation.py:8,141,178-184`).
+6. **No evidence of benefit.** The local run in §11a measured 8 per-sentence
+   requests at ~108 ms median each and 2 chunk requests at ~268 ms median each;
+   the joined chunk output differed from whole-text output (a lost boundary
+   space and drifted wording). That is evidence AGAINST shipping live chunking
+   yet, not for it.
 
 ### Verdict
 
@@ -404,11 +406,12 @@ the owner's machine is UNVERIFIED (no run).
 
 **Recommend A as the default answer, do not build B or C yet.** Keep the
 existing switch, document "if both models fight over the GPU, turn the
-translator GPU switch off". Revisit B/C only if `bench/bench_translation.py`
-(`bench/bench_translation.py:8,141,178-184`) plus a real ASR run show contention;
-all its numbers are currently `LOCAL-RUN-REQUIRED`
-(`docs/design/translation-audit.md:40-42`). A shared scheduler would also risk
-violating ADR-0030 §1 if it ever let two models decode at once.
+translator GPU switch off". The local run in §11a simulated ASR-like CPU load
+and measured a 1.64x median slowdown per translation request — a reason to
+measure before adding concurrency, but not proof of real GPU contention
+(no CUDA on this machine). Revisit B/C only if a real ASR + translator run
+shows contention. A shared scheduler would also risk violating ADR-0030 §1
+if it ever let two models decode at once.
 
 ## 9. DECISIONS FOR THE OWNER
 
@@ -469,9 +472,8 @@ No file under `docs/adr/` was modified by this proposal.
   the absence of any media translation call; the existence and non-use of
   `bounded_chunks`, `translate_segments`, `translate_batch` and `prewarm`.
 - UNVERIFIED (reason stated):
-  - real latency of a cold translator, per-chunk translation or any GPU
-    contention — no model or runtime was run; benchmark numbers are all
-    `LOCAL-RUN-REQUIRED` (`docs/design/translation-audit.md:40-42`).
+  - real latency, cold start and CPU-load contention were MEASURED locally in
+    §11a; real GPU contention remains UNVERIFIED (CUDA unavailable here).
   - token count of 1600 characters of Arabic/CJK against `-c 4096` — no
     tokenizer run.
   - the browser plugins' live STT algorithm — owned by another session, not
@@ -481,3 +483,38 @@ No file under `docs/adr/` was modified by this proposal.
   - actual GPU selection by ASR and llama-server on the owner's machine — no run.
 - No tests were run for this design-only change; no config, code, IPC surface,
   locale, ADR or existing document was edited.
+
+## 11a. LOCAL BENCHMARK EVIDENCE (measured 2026-11-26, real GGUF + llama-server)
+
+The translator GGUF (1,312,164,352 bytes) and `llama-server.exe` were already on
+this machine and were resolved through the app's own
+`voice_typer/server/translation/paths.py`; nothing was downloaded. The harness
+`bench/bench_translation.py` ran 10 iterations with 2 warmups on `ar_long`
+(361 characters, 8 sentences, 2 bounded chunks) and exited 0. All numbers below
+are real; the readable output comparison is in `bench/results/translation-compare.txt`.
+
+- Cold `llama-server` launch → healthy `/health`: **15.4 s** with a warm OS file
+  cache; an earlier cold-cache run measured **33.9 s**. Launch → first complete
+  response: **16.2 s** / **34.5 s**. Cold start dominates the wait — this is why
+  background warm-up at recording start is the recommended first change.
+- Whole-text translation: **467 ms median** (p90 493 ms). Per-sentence:
+  **108 ms median** × 8. Per-chunk: **268 ms median** × 2. Batching both chunks
+  through one runtime cost **498 ms** total. Chunking was not faster here.
+- Throughput: **181 tokens/s wall**, **212 tokens/s decode**. Bench-process peak
+  RSS **49 MB**; sampled `llama-server` child RSS **1405 → 1625 MB**.
+- Whole-text vs joined chunks on the SAME input: outputs **differ**. The joined
+  output lost the space at the boundary (`complete.Sentence`) and drifted the
+  wording (`Sentence splitting` vs `Splitting sentences`). C-TRANS-2 forbids
+  storing a separator that was never dictated, so any shipped chunking must
+  define joins explicitly and be A/B'd for quality.
+- `cache_prompt` ON vs OFF, two runs each: outputs were byte-identical between
+  runs in both modes and between modes. Speed direction was noisy (this run ON
+  ~1.6% slower; an earlier run ON ~3.6% faster). Do not flip the production flag
+  on this evidence. In plain English: the instruction part of each request is
+  the same, so caching lets the model skip re-reading it (usually faster), but
+  a cached prefix can take a slightly different floating-point path and change
+  the output text between runs.
+- ASR-like CPU load (2 math worker threads, SIMULATION only): chunk median rose
+  from **268 ms → 440 ms**, a **1.64x** slowdown; outputs stayed byte-identical.
+  GPU-load simulation is UNVERIFIED (torch is CPU-only). English and short
+  samples were not run — UNVERIFIED.
