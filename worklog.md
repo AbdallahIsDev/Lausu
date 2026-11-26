@@ -2157,3 +2157,9 @@ Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or s
 
 - Added CRITICAL-NOTICE RULE: hidden browser closing during dictation must notify regardless of notify preference, via one named mechanism.
 
+## 2026-11-26 - Relaunch budget, critical notices, partial-recovery research
+
+- Root cause of one-relaunch: ensure_browser's death branch only ran when budget was passed; _start created no RelaunchBudget, and the phase after browser=up (tab.ready) had no death check. Added RelaunchBudget (3 relaunches, 24 s overall, 0.5/1/1.5 s backoff) threaded through browser_fn and tab stage. Tests cover 1/2/3/4 consecutive deaths.
+- Critical notices: single _critical_notify emits one OS + one in-app notice regardless of notify=False, deduped per cycle; covers browser/tab close during/at stop, page unresponsive at stop, start exhausted relaunches. Routine notices still obey preference. Worker test covers notify=False both channels.
+- Partial dictation recovery: research only, docs/plugin-partial-dictation-recovery-research.md. No production change. Live DOM text capture not reproducible here (no controlled speech input); Gemini looks NOT FEASIBLE with current permissions, ChatGPT/Claude UNVERIFIED pending real capture.
+- Live AFTER double-close verification UNVERIFIED: UI automation toggle did not reach handler after restart in repeated attempts; owner BEFORE log 21:20 retained. No extension reload needed for this round (Python/docs only).
