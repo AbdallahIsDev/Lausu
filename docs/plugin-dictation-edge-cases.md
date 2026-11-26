@@ -1,40 +1,32 @@
-# Plugin dictation edge cases
+# Plugin dictation edge cases — status
 
-Expected behavior is defined FIRST. Evidence is from the real dev app unless
-marked UNVERIFIED. One tab per plugin is the FINAL decision (see below).
+Status values: **VERIFIED-LIVE** (real app evidence), **UNIT-ONLY** (fake
+browser/process layer named), **OPEN DEFECT**, **UNVERIFIED** (exact reason).
 
-| Case | Expected | Before | After / evidence |
+| Case | Expected | Status | Evidence / faked layer |
 |---|---|---|---|
-| Profile never started | Hotkey launches profile at `about:blank`; extension adopts it and navigates to active platform; 1 tab | worked at cold start via activation only | unchanged; cold-start 1/1/1 tabs for 5 runs each platform (previous round) |
-| Tab closed by hand, profile open (A1) | One ensure-tab recreates/adopts target; page-ready gate; dictation starts; other tabs untouched | `02:00:33 start requested / bridge ready / dictation window ready` (stale), `02:00:45 start refused ... 12.0s`; tabs-dump had no platform tab | `02:31:29 start requested`, `readiness ... tab=loading reason=tab.loading`, `page ready ... 1.1s`, exactly 1 replacement ChatGPT tab |
-| Whole profile closed (A2) | Relaunch at `about:blank`, navigate to platform in same tab, ready, 1 tab | relaunched blank, no navigation, 12 s refusal | `02:32:01 start`, `02:32:02 launch about:blank`, `readiness ... tab=loading`, `page ready ... 4.0s`, tabs-dump 1 ChatGPT tab |
-| Chrome killed during idle | Same as profile closed, no orphan tabs | UNVERIFIED (could not drive Task Manager kill in this session) | UNVERIFIED — same code path as profile closed; unit-covered relaunch |
-| Chrome killed DURING dictation | Stop reports clear result, no hang | UNVERIFIED | UNVERIFIED — existing disconnect retry test passes, live not driven |
-| Chrome crash / crashed tab | Fail fast with "tab stopped responding" message | generic 12 s "control not ready" | state model has `tab.crashed` → fail fast + copy hint; live crash UNVERIFIED |
-| User opens plugin profile manually | Reuse matching tab, no second Chrome, no duplicate tab | UNVERIFIED | extension URL-pattern discovery unchanged; UNVERIFIED live |
-| Extension disabled / removed / reloaded | No tab duplication; stale-config fallback keeps /start working | UNVERIFIED | legacy `unknown command ensure-tab` fallback retained; reload driven in this session, no duplicate tabs |
-| Service worker killed while idle | Reconnect via alarm, no tab churn | UNVERIFIED | 20 s ping + 0.5 min alarm unchanged; UNVERIFIED live |
-| Daemon dead / port busy | No second daemon on occupied port; recover on next start | UNVERIFIED | existing liveness tests pass; live not driven |
-| Tab discarded by Memory Saver | Detect `discarded`, activate/reload, then wait ready | would burn 12 s "not ready" | state model reports `tab.discarded` + hint; live `chrome.tabs.discard` UNVERIFIED |
-| Tab navigated to another site / wrong platform page | Report `wrong_url`, no silent wait | 12 s refusal | state model `tab.wrong_url`; UNVERIFIED live |
-| Login / consent / challenge | Fail fast with sign-in / challenge hint | generic refusal | `signed_in=no` fail-fast + copy hint; signed-out unit test passes, live UNVERIFIED |
-| Selector missing after platform UI change | Clear message, no 12 s hang | generic refusal | `control.missing` hint; live UNVERIFIED |
-| Mic permission blocked | Actionable message | UNVERIFIED | existing signed-out/permission paths unchanged; UNVERIFIED |
-| Hotkey during activation / switch | Single-flight, no duplicate tab | UNVERIFIED | ensure step coalesced in extension; UNVERIFIED |
-| Double press <300 ms | One cycle, no duplicate tab | UNVERIFIED | C-CONC-1 single-flight unchanged; UNVERIFIED |
-| Esc cancel / repaste / long dictation | Existing behavior unchanged | UNVERIFIED | no changes to stop/paste paths |
-| Switch plugin during recording | Existing single-flight behavior unchanged | UNVERIFIED | no changes to switch gate |
-| Toggle plugin off/on | Tabs reused, not duplicated | 1/1/1 cold starts, no duplicate | unchanged; visible + hidden verified for cold start |
-| Offline at start / mid-session | Actionable failure, no 12 s blind wait | generic refusal | `browser.down` fast-fail + copy hint; live offline UNVERIFIED |
-| Sleep/resume, network change | Reconnect, no tab churn | UNVERIFIED | alarm/ping unchanged; UNVERIFIED |
-| App restart with profile open | Reattach, no duplicate tabs | UNVERIFIED | URL-pattern discovery unchanged; UNVERIFIED |
-| Show Browser Window OFF | ONLY window visibility changes | not tested in both modes | `02:33:21 launch visible=False`, `readiness ready`, `02:33:25 recording started`, tabs-dump 1 ChatGPT tab — same as visible mode |
+| Profile never started; first hotkey | one blank launch tab adopted, 1 tab | VERIFIED-LIVE | 1 ChatGPT/Gemini/Claude tab, 5 runs each |
+| Tab closed by hand, profile open | exactly 1 replacement tab, dictation starts | VERIFIED-LIVE | `02:59` failed before; `03:35` tab=loading→ready, recording 2.3 s; 20 ChatGPT cycles |
+| Whole profile closed | relaunch and navigate same tab, 1 tab | VERIFIED-LIVE | `02:32` recovery; 20/20 ChatGPT, Gemini cycles |
+| Chrome killed during startup (0/0.5/1.5/3/5 s) | immediate abort, relaunch, recording | VERIFIED-LIVE | 5/5 stages recovered in 0.7–7.8 s |
+| Chrome killed mid-recording | stop gives clear result, no hang | VERIFIED-LIVE | stage 5 s kill + stop; 10 kill/relaunch cycles |
+| Tab=loading with mic in DOM | must NOT pass gate | VERIFIED-LIVE | `02:59` before; `03:35` after state transition to ready |
+| Restore pages bubble | never appears, no tab change | VERIFIED-LIVE | Preferences clean-exit before launch; 10 kills → 0 bubbles, 1 tab each |
+| Mic permission | granted for exactly 3 origins, no global flag | UNIT-ONLY | profile Preferences inspected; fake layer = tmp file |
+| Extension reload / service worker restart | no duplicate tabs | VERIFIED-LIVE | reload driven repeatedly; tabs-dump 1–3, no stray blank |
+| Daemon killed | next start respawns, no second daemon | UNIT-ONLY | fake process/launch layer; live kill UNVERIFIED |
+| Port busy | no second daemon, clear failure | UNIT-ONLY | liveness helpers; live port occupancy UNVERIFIED |
+| Tab discarded by Memory Saver | detect, re-ensure/reload, wait ready | UNIT-ONLY | `ensure_target_ready` re-posts `/ensure-tab` on `tab.discarded`; live `chrome.tabs.discard` UNVERIFIED |
+| Tab navigated to other site / login / settings | fail fast with actionable hint, no tab churn | VERIFIED-LIVE (login detection unit only) | `tab.wrong_url` / `signed_in.no` state; live navigation UNVERIFIED |
+| Second manual tab of same platform | never close user tab; pick active matching tab | UNIT-ONLY | active-tab selection pinned by tab_resolution tests |
+| Double press <300 ms | one cycle, no duplicate tab | UNIT-ONLY | generation/supersede tests with fake session |
+| Press during activation / stuck start | new press supersedes old start | UNIT-ONLY | `test_start_supersede.py` fake session |
+| Press during stop / plugin switch | single-flight preserved | UNIT-ONLY | C-CONC-1 tests |
+| Offline at start / mid-session | actionable failure, no blind 12 s | UNVERIFIED | no admin firewall rule applied |
+| Sleep/resume, Windows lock | reconnect, no tab churn | UNVERIFIED | cannot simulate in this session |
+| Hidden vs visible mode | logic identical, only visibility differs | VERIFIED-LIVE | 5 cycles each scenario in both modes; 1 tab |
+| Plugin off/on | tabs reused, no duplicate | VERIFIED-LIVE | cold start 5 runs each; 1 tab |
 
-## Decision (final)
-
-One tab per plugin. Measured: 1 tab 1168/1054 MB (working/private), 2 tabs
-1566/1331 MB, 3 tabs 2108/1620 MB. ChatGPT navigation reaches 2.2–2.4 s and
-loses unsent composer text; already-open switch is 9–156 ms. Single-tab
-navigation fails the owner's latency/reliability rule despite ~940 MB savings.
-Revisit only if plugins become end-user visible or RAM pressure becomes
-dominant.
+Decision: one tab per plugin. Measured 1/2/3 tabs = 1168/1566/2108 MB
+working set; ChatGPT navigation 885–2206 ms and drafts lost. Revisit only if
+plugins become end-user visible or RAM pressure dominates.

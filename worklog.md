@@ -2123,3 +2123,11 @@ Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or s
 - A4: plugin_visible=false launch logged visible=False but produced identical readiness/recording and one tab. No source change needed; tests pin visibility out of daemon/generated config.
 - A5: code + daemon log prove the 01:38 empty result was no-speech with the correct commit control; lausu.log now logs verdict=no-speech, control, committed, state_after and the two phase timings. Live empty cycle not captured (UNVERIFIED).
 - Part C: `tabs` removed from production manifest; dev overlay is written only to the installed manifest when the marker/env is set (frozen refuses). Marker gitignored and excluded from staged bundle; tests pin exact permissions and no marker.
+## 2026-11-26 - Item 1-4 follow-up: ready gate, startup liveness, crash bubble
+
+- Item 1 root cause: DaemonClient.page_ready checked only page/mic/selectors and ignored readiness.tab (tab=loading). Fixed all-of gate (tab complete + quiet + document.readyState + stable control + no login/challenge) and a two-probe streak; content.js doStart now uses bounded verified clicks with a fresh recording-state probe before each click (never blind toggle) and reports per-attempt details.
+- BEFORE 02:59:44 "readiness ... tab=loading ... page ready", then platform-not-recording. AFTER 03:35:53 tab=loading -> tab=ready, page ready 1.8s, recording 2.3s.
+- Cycles: ChatGPT tab-close 20/20 recording started (2.0 s avg) and chrome-kill 20/20 (4.6 s); Gemini tab-close 20/20 per lausu.log cycle lines (driver counter undercounted), chrome-kill 20/20 (4.4 s); hidden-mode Gemini 5/5 each scenario (8.1/7.4 s, 1 tab). 20/20 Claude UNVERIFIED (not driven).
+- Item 2: blind 30 s wait now checks debounced profile liveness (3 empty WMI samples, WMI error = UNKNOWN) and a new press supersedes a stuck start. Real app: Chrome killed at 0/0.5/1.5/3/5 s during startup -> 5/5 recovered, 0.7-7.8 s.
+- Item 3: profile_state.prepare_profile marks exit_type Normal and grants mic for the 3 exact origins before launch, only while no Chrome owns the profile; no new launch flag. 10 unclean kills -> 0 "Restore pages?" windows, tab count 1 each.
+- Tests: readiness fixtures strengthened; liveness, supersede, profile-state tests added; fake browser layer in tests/plugins/conftest.py. Docs table re-classified with status counts.
