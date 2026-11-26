@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from tools.internal_plugins._common import daemon as _daemon_common
-from tools.internal_plugins._common.bridge import daemon_client, session
+from tools.internal_plugins._common.bridge import chrome_profile as _chrome_profile, daemon_client, session
 from tools.internal_plugins._common.bridge.chrome_profile import (
     launch as _launch_chrome,
     resolve_browser_pids as _browser_pids,
@@ -216,6 +216,7 @@ def _ensure_browser(timeout: float | None = None) -> bool:
         launch_fn=_launch_profile_if_due,
         ready_fn=_bridge_ready,
         transport_fn=_browser_connected,
+        alive_fn=lambda: _chrome_profile.browser_liveness(_daemon_config().get("profileDir") or str(_profile_dir())),
         clock=time,
         timeout=timeout,
     )

@@ -34,6 +34,8 @@ _START_RETRY_PAUSE_S = 0.4
 _PAGE_READY_TIMEOUT_S = 12.0
 _PAGE_READY_POLL_S = 0.1
 _START_RETRY_KINDS = frozenset({"browser-not-open", "browser-closed", "wrong-platform"})
+_START_CLICK_ATTEMPTS = 3
+_START_CLICK_RETRY_KINDS = frozenset({"platform-not-recording", "no-recording-indicator"})
 # Platform states the user can fix in the browser. They are expected outcomes,
 # not crashes: one actionable line, no traceback (C-UXERR-1, C-LOG-3).
 _EXPECTED_START_KINDS = frozenset(
@@ -141,6 +143,7 @@ def wait_for_page_ready(
     started = clock.monotonic()
     deadline = started + budget
     last: tuple[str, ...] | None = None
+    streak = 0
     for _ in range(1, int(budget / _PAGE_READY_POLL_S) + 2):
         snapshot = status_fn()
         state = DaemonClient.readiness_state(snapshot)
@@ -154,6 +157,7 @@ def wait_for_page_ready(
         )
         if key != last:
             last = key
+            streak = 0
             if log is not None:
                 log.info(
                     "[PLUGIN] readiness (cycle=#%d): browser=%s tab=%s content=%s control=%s signed_in=%s reason=%s%s",
@@ -162,9 +166,20 @@ def wait_for_page_ready(
                     f" {max(0.0, clock.monotonic() - started):.1f}s",
                 )
         if ready_fn(snapshot):
-            return True
+            streak += 1
+            # The same ready verdict on two consecutive probes. A mic that
+            # appeared before the platform hydrated must not be clicked.
+            if streak >= 2:
+                return True
+        else:
+            streak = 0
         # Terminal states: waiting cannot repair them from the app side.
-        if state["signed_in"] == "no" or state["reason"] in ("tab.crashed", "browser.down"):
+        if state["signed_in"] == "no" or state["reason"] in (
+            "tab.crashed",
+            "browser.down",
+            "challenge",
+            "signed_in.no",
+        ):
             if reason_out is not None:
                 reason_out["reason"] = state["reason"]
             return False
@@ -212,17 +227,34 @@ def ensure_target_ready(
     except Exception:
         return False, "tab-not-ready"
     reason_out: dict = {"reason": "page-not-ready"}
-    if not wait_for_page_ready(
-        status_fn=status_fn,
-        ready_fn=ready_fn,
-        clock=clock,
-        timeout=timeout,
-        log=log,
-        cycle=cycle,
-        reason_out=reason_out,
-    ):
-        return False, reason_out["reason"]
-    return True, "ready"
+    for recovery in range(2):
+        if not wait_for_page_ready(
+            status_fn=status_fn,
+            ready_fn=ready_fn,
+            clock=clock,
+            timeout=timeout,
+            log=log,
+            cycle=cycle,
+            reason_out=reason_out,
+        ):
+            reason = reason_out["reason"]
+            # A discarded or wrong-URL tab cannot heal by waiting: ask the
+            # extension to activate/reload it once, then re-run the gate.
+            if recovery == 0 and reason in ("tab.discarded", "tab.wrong_url"):
+                if log is not None:
+                    log.info(
+                        "[PLUGIN] target needs recovery (cycle=#%d): %s",
+                        cycle,
+                        reason,
+                    )
+                try:
+                    post_fn("/ensure-tab", timeout=20.0)
+                except Exception:
+                    return False, reason
+                continue
+            return False, reason
+        return True, "ready"
+    return False, reason_out["reason"]
 
 
 def activate_platform_async(
@@ -327,6 +359,7 @@ def ensure_browser(
     clock: Any,
     timeout: float | None = None,
     transport_fn: Any | None = None,
+    alive_fn: Any | None = None,
 ) -> bool:
     """Open the dictation profile if needed, and wait for the bridge transport.
 
@@ -344,6 +377,10 @@ def ensure_browser(
     while clock.monotonic() < deadline:
         if connected(status_fn()):
             return True
+        # A profile closed mid-wait must abort NOW, not after the full budget.
+        if alive_fn is not None and not alive_fn():
+            log.warning("[PLUGIN] the dictation profile closed while waiting for the bridge")
+            return False
         clock.sleep(0.5)
     log.error("[PLUGIN] the dictation window did not answer within %.0fs", budget)
     return False
@@ -410,6 +447,8 @@ class PluginSession:
         self._lock = threading.RLock()
         self._active = False
         self._starting = False
+        self._start_generation = 0
+        self._restart_requested = False
         self._t0 = 0.0
         self._busy = False
         # A push-to-talk release can arrive while the start is still warming
@@ -456,7 +495,14 @@ class PluginSession:
     def toggle(self) -> None:
         with self._lock:
             if self._busy:
-                self._log.debug("[PLUGIN] press ignored: a cycle transition is in flight")
+                if self._starting:
+                    # A new press supersedes a stuck start instead of waiting
+                    # out its blind deadline (Item 2).
+                    self._start_generation += 1
+                    self._restart_requested = True
+                    self._log.info("[PLUGIN] new press supersedes the in-flight start")
+                else:
+                    self._log.debug("[PLUGIN] press ignored: a cycle transition is in flight")
                 return
             self._busy = True
             active = self._active
@@ -492,19 +538,28 @@ class PluginSession:
         except Exception:
             self._log.debug("[PLUGIN] volume restore failed", exc_info=True)
 
-    def _report_start_failure(self, exc: BridgeError) -> None:
+    def _report_start_failure(self, exc: BridgeError, *, attempts: int = 0) -> None:
         # Deliberately a plain error line: a failed hotkey press is a routine,
         # recoverable event, and the old traceback-per-press buried the actual
         # reason. The traceback stays available at DEBUG.
         # Expected page states (signed out, challenge, missing mic) are routine
         # outcomes the user can act on: one warning line, never a traceback.
         # Unexpected failures keep the error plus DEBUG context.
-        if exc.kind in _EXPECTED_START_KINDS:
+        if attempts:
+            self._log.warning(
+                "[PLUGIN] start needs user action (%s, verified clicks=%d): %s",
+                exc.kind,
+                attempts,
+                exc,
+            )
+        elif exc.kind in _EXPECTED_START_KINDS:
             self._log.warning("[PLUGIN] start needs user action (%s): %s", exc.kind, exc)
         else:
             self._log.error("[PLUGIN] start failed: %s", exc)
             self._log.debug("[PLUGIN] start failure context", exc_info=True)
         hint = self._copy.START_HINTS.get(exc.kind, self._copy.START_FAILURE_FALLBACK)
+        if attempts:
+            hint = f"{hint} Retried {attempts} times."
         if exc.kind in ("browser-not-open", "browser-closed", "wrong-platform"):
             from tools.internal_plugins._common.bridge.install_paths import install_hint
 
@@ -530,12 +585,21 @@ class PluginSession:
             if stop_now:
                 # The release arrived mid-start: finish the cycle now.
                 self._stop_and_deliver(target_snapshot=pending_snapshot)
+            with self._lock:
+                restart = self._restart_requested
+                self._restart_requested = False
+            if restart:
+                # A later press superseded a stuck start; honour it now.
+                self._log.info("[PLUGIN] starting the superseding press")
+                self.start()
 
     def _start(self) -> None:
 
         with self._lock:
             self._cycle += 1
             cycle = self._cycle
+            generation = self._start_generation
+            self._restart_requested = False
         # Per-step lines, same shape as the local dictation path: every stage
         # the user waits through is attributable from lausu.log alone.
         self._log.info("[PLUGIN] start requested (cycle=#%d)", cycle)
@@ -555,6 +619,9 @@ class PluginSession:
             self._copy.duration(time.monotonic() - t_press),
         )
         for attempt in range(_START_ATTEMPTS):
+            if generation != self._start_generation:
+                self._log.info("[PLUGIN] start superseded (cycle=#%d)", cycle)
+                return
             # Press-to-dictate: a closed profile is opened here and waited for,
             # so the press ends in a recording instead of a "window closed" toast.
             t_target = time.monotonic()
@@ -567,6 +634,9 @@ class PluginSession:
                 log=self._log,
                 cycle=cycle,
             )
+            if generation != self._start_generation:
+                self._log.info("[PLUGIN] start superseded while waiting (cycle=#%d)", cycle)
+                return
             if not ready:
                 self._log.error(
                     "[PLUGIN] start refused (cycle=#%d): target=%s%s",
@@ -581,29 +651,78 @@ class PluginSession:
                 cycle,
                 self._copy.duration(time.monotonic() - t_target),
             )
-            try:
-                self._post("/start", timeout=30.0)
-                break
-            except BridgeError as exc:
-                # The user can close the profile in the middle of the handshake.
-                # The old audio never existed, so re-resolve the browser and try
-                # once more instead of treating it as a failed dictation.
-                transient = exc.kind in _START_RETRY_KINDS or "extension disconnected" in str(exc).lower()
-                if attempt + 1 < _START_ATTEMPTS and transient:
-                    self._log.warning(
-                        "[PLUGIN] the browser disconnected while starting (cycle=#%d); reopening and retrying once",
-                        cycle,
+            click_attempts = 0
+            transient_retry = False
+            for click in range(1, _START_CLICK_ATTEMPTS + 1):
+                # Re-probe before EVERY click: a toggle that did start may
+                # only be slow to report it; a second click would stop it.
+                if (self._status() or {}).get("recording"):
+                    break
+                if click > 1:
+                    retry_ready, retry_reason = ensure_target_ready(
+                        browser_fn=self._ensure_browser,
+                        post_fn=self._post,
+                        status_fn=self._status,
+                        ready_fn=DaemonClient.page_ready,
+                        clock=time,
+                        log=self._log,
+                        cycle=cycle,
                     )
-                    time.sleep(_START_RETRY_PAUSE_S)
-                    continue
-                # One actionable line instead of a 20-line urllib traceback, which
-                # surfaced as a bare "HTTP Error 500" and told nobody anything.
-                self._report_start_failure(exc)
+                    if not retry_ready:
+                        self._log.error(
+                            "[PLUGIN] start retry %d/%d abandoned (cycle=#%d): target=%s%s",
+                            click,
+                            _START_CLICK_ATTEMPTS,
+                            cycle,
+                            retry_reason,
+                            self._copy.duration(time.monotonic() - t_target),
+                        )
+                        self._notify(self._copy.START_HINTS.get(retry_reason, self._copy.START_HINTS["page-not-ready"]))
+                        return
+                click_attempts = click
+                try:
+                    self._post("/start", timeout=30.0)
+                    break
+                except BridgeError as exc:
+                    if exc.kind in _START_CLICK_RETRY_KINDS and click < _START_CLICK_ATTEMPTS:
+                        self._log.warning(
+                            "[PLUGIN] click attempt %d/%d did not start recording (cycle=#%d): %s%s",
+                            click,
+                            _START_CLICK_ATTEMPTS,
+                            cycle,
+                            exc.kind,
+                            self._copy.duration(time.monotonic() - t_target),
+                        )
+                        continue
+                    # The user can close the profile in the middle of the handshake.
+                    # The old audio never existed, so re-resolve the browser and try
+                    # once more instead of treating it as a failed dictation.
+                    transient = exc.kind in _START_RETRY_KINDS or "extension disconnected" in str(exc).lower()
+                    if attempt + 1 < _START_ATTEMPTS and transient:
+                        self._log.warning(
+                            "[PLUGIN] the browser disconnected while starting (cycle=#%d); reopening and retrying once",
+                            cycle,
+                        )
+                        time.sleep(_START_RETRY_PAUSE_S)
+                        transient_retry = True
+                        break
+                    self._report_start_failure(exc, attempts=click_attempts)
+                    return
+                except Exception:
+                    self._log.exception("[PLUGIN] start failed")
+                    self._notify(self._copy.START_FAILURE_FALLBACK)
+                    return
+            else:
+                self._report_start_failure(
+                    BridgeError("platform-not-recording", "the platform did not start capturing"),
+                    attempts=click_attempts,
+                )
                 return
-            except Exception:
-                self._log.exception("[PLUGIN] start failed")
-                self._notify(self._copy.START_FAILURE_FALLBACK)
-                return
+            if attempt + 1 < _START_ATTEMPTS and (
+                transient_retry or (self._status() or {}).get("browser") != "connected"
+            ):
+                continue
+            break
         with self._lock:
             self._active = True
             self._t0 = time.monotonic()
