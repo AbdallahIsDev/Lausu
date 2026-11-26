@@ -195,9 +195,7 @@ def _is_browser_window(info: dict[str, Any]) -> bool:
     extra window the owner saw.
     """
     left, top, right, bottom = info["rect"]
-    return info["class"] == BROWSER_CLASS and (
-        bool(info["title"].strip()) or (right - left > 0 and bottom - top > 0)
-    )
+    return info["class"] == BROWSER_CLASS and (bool(info["title"].strip()) or (right - left > 0 and bottom - top > 0))
 
 
 def _trace_window(hwnd: int, visible: bool, switch: int) -> None:
@@ -222,12 +220,12 @@ def _pid_of_hwnd(hwnd: int) -> int:
     return int(owner.value)
 
 
-def _process_rows() -> list[dict[str, str]]:
+def _process_rows(*, strict: bool = False) -> list[dict[str, str]]:
     """pid/image/cmdline for chrome.exe via WMI, without trusting Popen's pid."""
     if sys.platform != "win32":
         return []
     script = (
-        'Get-CimInstance Win32_Process -Filter "Name=\'chrome.exe\'" | '
+        "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | "
         'ForEach-Object { "$($_.ProcessId)|$($_.Name)|$($_.CommandLine)" }'
     )
     try:
@@ -239,6 +237,8 @@ def _process_rows() -> list[dict[str, str]]:
             check=False,
         ).stdout
     except (OSError, subprocess.SubprocessError):
+        if strict:
+            raise
         return []
     rows = []
     for line in out.splitlines():
@@ -260,12 +260,30 @@ def _profile_in_cmdline(cmdline: str, profile_dir: str) -> bool:
     return wanted in cmdline.replace("\\", "/").lower()
 
 
-def resolve_browser_pids(profile_dir: str) -> list[int]:
+def resolve_browser_pids(profile_dir: str, *, strict: bool = False) -> list[int]:
     return [
         int(row["pid"])
-        for row in _process_rows()
+        for row in _process_rows(strict=strict)
         if row["image"].lower() == "chrome.exe" and _profile_in_cmdline(row["cmdline"], profile_dir)
     ]
+
+
+def browser_liveness(profile_dir: str, *, samples: int = 3, interval: float = 0.2) -> bool:
+    """Debounced liveness: a single empty WMI sample is NOT a dead profile.
+
+    WMI can transiently enumerate zero chrome.exe rows right after Popen or
+    during a reload. A failed enumeration is UNKNOWN, never death, so the
+    launch cooldown is not bypassed by an enumeration glitch.
+    """
+    for index in range(max(1, samples)):
+        try:
+            if resolve_browser_pids(profile_dir, strict=True):
+                return True
+        except Exception:
+            return True
+        if index + 1 < samples:
+            time.sleep(interval)
+    return False
 
 
 def resolve_browser_pid(profile_dir: str) -> int | None:
@@ -280,9 +298,7 @@ def resolve_browser_pid(profile_dir: str) -> int | None:
     return None
 
 
-def resolve_browser_pid_after_launch(
-    profile_dir: str, *, wait_s: float = 5.0, poll_s: float = 0.15
-) -> int | None:
+def resolve_browser_pid_after_launch(profile_dir: str, *, wait_s: float = 5.0, poll_s: float = 0.15) -> int | None:
     """Resolve the browser pid once Chrome has actually painted its window.
 
     ``Popen`` returns before Chrome creates a top-level ``Chrome_WidgetWin_1``,
@@ -328,9 +344,7 @@ def set_window_visible(plugin_dir: str | None, visible: bool, *, wait_s: float =
         if handles:
             for hwnd in handles:
                 _trace_window(hwnd, visible, SW_SHOWNOACTIVATE if visible else SW_HIDE)
-                ctypes.windll.user32.ShowWindow(
-                    _HWND(hwnd), SW_SHOWNOACTIVATE if visible else SW_HIDE
-                )
+                ctypes.windll.user32.ShowWindow(_HWND(hwnd), SW_SHOWNOACTIVATE if visible else SW_HIDE)
             found = True
             break
         if time.monotonic() >= deadline:
@@ -359,6 +373,9 @@ def launch(
         return False
     args = profile_args(profile_dir, url)
     try:
+        from tools.internal_plugins._common.bridge import profile_state
+
+        profile_state.apply_before_launch(profile_dir, PROFILE_DIRECTORY, resolve_browser_pids)
         _assert_plain(args)
         proc = _popen(
             [exe, *args],
