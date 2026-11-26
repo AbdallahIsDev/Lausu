@@ -187,7 +187,7 @@ def _profile_running() -> bool:
         return False
 
 
-def _launch_profile_if_due() -> bool:
+def _launch_profile_if_due(force: bool = False) -> bool:
     global _last_launch_ts
 
     def _record(ts: float) -> None:
@@ -200,8 +200,8 @@ def _launch_profile_if_due() -> bool:
         launch_fn=launch_profile,
         clock=time,
         on_due=_record,
-        bypass_fn=_profile_missing,
-        running_fn=_profile_running,
+        bypass_fn=lambda: True if force else _profile_missing(),
+        running_fn=lambda: False if force else _profile_running(),
         caller="plugin-activation",
     )
     _last_launch_ts = new_ts

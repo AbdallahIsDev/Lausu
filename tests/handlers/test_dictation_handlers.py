@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+from voice_typer.server.ipc_server import IPCServer
+from voice_typer.server.service import LausuService
+
 
 class TestToggleDictation:
     """``_handle_toggle_dictation``, start/stop the recording loop."""
@@ -17,6 +23,33 @@ class TestToggleDictation:
         assert resp["type"] == "error"
         assert resp["data"]["code"] == "server.internal_error"
         assert resp["data"]["message"] == "internal error"
+
+
+class TestRapidInputThroughRealHandler:
+    def test_five_taps_reach_the_engine_once(self, monkeypatch):
+        from voice_typer.server.dictation_gate import DictationGate
+
+        clock = {"now": 10.0}
+        gate = DictationGate(type("Clock", (), {"monotonic": lambda self: clock["now"]})())
+        app = MagicMock()
+        app.tray._state = None
+        monkeypatch.setattr(app, "_dictation_gate", gate, raising=False)
+        from voice_typer.server.app_dictation import AppDictation
+
+        server = IPCServer(app, LausuService(app))
+        calls = []
+        real_app = type(
+            "App", (AppDictation,), {"recording": SimpleNamespace(toggle=lambda: calls.append(1))}
+        )()
+        real_app.tray = SimpleNamespace(_state=None)
+        monkeypatch.setattr(real_app, "_dictation_gate", gate, raising=False)
+        app.toggle_dictation = lambda: AppDictation.toggle_dictation(real_app)
+
+        for _ in range(5):
+            server._handle_toggle_dictation({}, {})
+            clock["now"] += 0.15
+
+        assert len(calls) == 1
 
 
 class TestUndoLast:

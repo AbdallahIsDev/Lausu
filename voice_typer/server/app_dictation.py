@@ -15,7 +15,11 @@ class AppDictation:
     """
 
     def toggle_dictation(self):
-        """Delegate to RecordingController.toggle()."""
+        """Delegate to RecordingController.toggle() after the app-wide gate."""
+        from voice_typer.server.dictation_gate import decide_toggle
+
+        if decide_toggle(self).startswith("ignore"):
+            return
         self.recording.toggle()
 
     def _start_dictation(self):

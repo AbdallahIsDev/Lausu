@@ -342,6 +342,10 @@ def install(app: Any) -> bool:
     orig_cancel = app._cancel_dictation
 
     def toggle_dictation() -> None:
+        from voice_typer.server.dictation_gate import decide_toggle
+
+        if decide_toggle(app).startswith("ignore"):
+            return
         session = _selected_session(app)
         previous = getattr(app, "_internal_plugin_active_session", None)
         plugin_id = requested_plugin_id(app) if session is not None else ""

@@ -44,10 +44,17 @@ def test_wait_aborts_immediately_when_profile_dies(monkeypatch):
         status_fn=_status,
         launch_fn=lambda: True,
         ready_fn=lambda snapshot: False,
-        clock=type("Clock", (), {"monotonic": lambda self: calls["status"] * 0.5})(),
+        clock=type(
+            "Clock",
+            (),
+            {
+                "monotonic": lambda self: calls["status"] * 0.5,
+                "sleep": lambda self, seconds: calls.__setitem__("sleep", calls["sleep"] + 1),
+            },
+        )(),
         timeout=10.0,
         alive_fn=lambda: False,
     )
     monkeypatch.setattr(session.time, "sleep", _sleep)
     assert ok is False
-    assert calls["status"] <= 2, "a dead profile must abort on the first poll after launch"
+    assert calls["status"] < 30, "a dead profile must not reach the 30 s blind wait"

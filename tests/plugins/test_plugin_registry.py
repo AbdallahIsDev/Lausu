@@ -476,6 +476,9 @@ class TestPluginModuleRouting:
             def _cancel_dictation(self) -> None:
                 calls.append("local:cancel")
 
+        from voice_typer.server import dictation_gate
+
+        monkeypatch.setattr(dictation_gate, "decide_toggle", lambda _app: "start")
         app = _App()
         assert hook.install(app) is True
         # Already wrapped: a second install must not nest the wrappers.

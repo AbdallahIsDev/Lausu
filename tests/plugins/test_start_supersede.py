@@ -1,4 +1,4 @@
-"""A new press must supersede a stuck start instead of waiting behind it."""
+"""A press during an in-flight start is ignored, never replayed (RAPID-INPUT)."""
 
 from __future__ import annotations
 
@@ -26,21 +26,21 @@ def plugin(monkeypatch):
     return module
 
 
-def test_press_during_start_bumps_generation_and_requests_restart(plugin, monkeypatch):
+def test_press_during_start_is_ignored_without_restart(plugin, monkeypatch):
     session = plugin.PluginSession(MagicMock())
     calls: list[str] = []
     monkeypatch.setattr(session, "start", lambda: calls.append("start"))
     monkeypatch.setattr(session, "stop", lambda: calls.append("stop"))
 
-    session.toggle()  # first press starts
+    session.toggle()
     assert calls == ["start"]
 
     with session._lock:
         session._starting = True
         session._busy = True
-    session.toggle()  # second press supersedes the in-flight start
+    session.toggle()
 
     with session._lock:
-        assert session._start_generation == 1
-        assert session._restart_requested is True
-    assert calls == ["start"], "the superseding start runs only after the old one exits"
+        assert session._start_generation == 0
+        assert session._restart_requested is False
+    assert calls == ["start"], "no deferred/replayed start may be queued"

@@ -100,7 +100,11 @@ class TestActivationWithAColdBrowser:
 
         errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
         assert errors == [], [r.getMessage() for r in errors]
-        assert any("the first hotkey press waits for it" in r.getMessage() for r in caplog.records)
+        assert any(
+            "first hotkey press resolves the tab" in r.getMessage()
+            or "the first hotkey press waits for it" in r.getMessage()
+            for r in caplog.records
+        )
 
     def test_bridge_already_ready_warms_without_launching_a_window(self, plugin, monkeypatch):
         launches: list[tuple[str, str]] = []

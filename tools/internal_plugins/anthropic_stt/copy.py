@@ -20,6 +20,15 @@ START_FAILURE_FALLBACK = "Claude STT could not start. See log."
 BRIDGE_UNAVAILABLE = "Claude STT bridge unavailable (daemon did not start)."
 STOP_FAILURE_FALLBACK = "Claude STT stop failed. See log."
 
+STOP_HINTS = {
+    "browser-not-open": (
+        "The Claude browser closed while dictating; nothing was captured. Press the hotkey again to record."
+    ),
+    "page-not-ready": "The Claude page did not answer. Nothing was pasted; press the hotkey again.",
+    "bridge-timeout": "The Claude page did not answer in time. Nothing was pasted; press the hotkey again.",
+    "not-recording": "The Claude page had already stopped. Nothing was pasted.",
+}
+
 # Daemon failure kinds → what the user is actually told. The daemon reports a
 # slug; without this the toast said nothing useful and the log carried a
 # 20-line urllib traceback that hid the reason entirely.

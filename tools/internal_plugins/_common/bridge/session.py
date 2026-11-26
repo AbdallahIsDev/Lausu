@@ -31,6 +31,7 @@ _COLD_BROWSER_START_TIMEOUT_S = 30.0
 _LAUNCH_COOLDOWN_S = 30.0
 _START_ATTEMPTS = 2
 _START_RETRY_PAUSE_S = 0.4
+_ACTIVATION_PREPARE_TIMEOUT_S = 5.0
 _PAGE_READY_TIMEOUT_S = 12.0
 _PAGE_READY_POLL_S = 0.1
 _START_RETRY_KINDS = frozenset({"browser-not-open", "browser-closed", "wrong-platform"})
@@ -201,6 +202,7 @@ def ensure_target_ready(
     timeout: float | None = None,
     log: Any = None,
     cycle: int = 0,
+    ensure_timeout: float = 20.0,
 ) -> tuple[bool, str]:
     """ONE idempotent, coalesced step that makes the target tab usable.
 
@@ -298,12 +300,13 @@ def activate_platform_async(
         status_s += time.perf_counter() - warm_started
         log_line = "[PLUGIN] %s activated; browser is up"
     prepare_started = time.perf_counter()
-    prepare_platform(
+    ready = prepare_platform(
         status_fn=status_fn,
         post_fn=post_fn,
         connected_fn=connected_fn,
         ready_fn=ready_fn,
         clock=clock,
+        timeout=_ACTIVATION_PREPARE_TIMEOUT_S,
     )
     prepare_s = time.perf_counter() - prepare_started
     total_s = time.perf_counter() - started
@@ -314,7 +317,15 @@ def activate_platform_async(
         prepare_s,
         total_s,
     )
-    log.info(log_line + " %.1fs", display_name, total_s)
+    if ready:
+        log.info(log_line + " %.1fs", display_name, total_s)
+    else:
+        log.warning(
+            "[PLUGIN] %s activation preparation incomplete (reason=tab-not-ready) %.1fs; "
+            "the first hotkey press resolves the tab",
+            display_name,
+            total_s,
+        )
 
 
 def prepare_platform(
@@ -378,8 +389,24 @@ def ensure_browser(
         if connected(status_fn()):
             return True
         # A profile closed mid-wait must abort NOW, not after the full budget.
+        # A start request owns a bounded relaunch; a deliberate close outside a
+        # start is never treated as success.
         if alive_fn is not None and not alive_fn():
-            log.warning("[PLUGIN] the dictation profile closed while waiting for the bridge")
+            log.warning("[PLUGIN] the dictation profile closed while waiting; relaunching")
+            for attempt in range(1, _START_ATTEMPTS + 1):
+                try:
+                    launched = launch_fn(force=True)
+                except TypeError:
+                    launched = launch_fn()
+                if not launched:
+                    time.sleep(_START_RETRY_PAUSE_S * attempt)
+                    continue
+                for _ in range(6):
+                    if connected(status_fn()):
+                        return True
+                    clock.sleep(0.25)
+                log.warning("[PLUGIN] relaunch attempt %d did not reconnect", attempt)
+                time.sleep(_START_RETRY_PAUSE_S * attempt)
             return False
         clock.sleep(0.5)
     log.error("[PLUGIN] the dictation window did not answer within %.0fs", budget)
@@ -495,14 +522,9 @@ class PluginSession:
     def toggle(self) -> None:
         with self._lock:
             if self._busy:
-                if self._starting:
-                    # A new press supersedes a stuck start instead of waiting
-                    # out its blind deadline (Item 2).
-                    self._start_generation += 1
-                    self._restart_requested = True
-                    self._log.info("[PLUGIN] new press supersedes the in-flight start")
-                else:
-                    self._log.debug("[PLUGIN] press ignored: a cycle transition is in flight")
+                # RAPID-INPUT RULE: presses during an in-flight transition are
+                # ignored, never queued/replayed as the opposite action.
+                self._log.info("[PLUGIN] press ignored: a cycle transition is in flight")
                 return
             self._busy = True
             active = self._active
@@ -566,6 +588,33 @@ class PluginSession:
             hint = f"{hint} {install_hint()}"
         self._notify(hint)
 
+    def _report_stop_failure(self, exc: Exception, cycle: int) -> None:
+        """Expected browser/bridge losses get one line and plain copy."""
+        kind = getattr(exc, "kind", "") or "bridge-error"
+        expected = kind in ("browser-not-open", "page-not-ready", "bridge-timeout", "not-recording")
+        if expected:
+            self._log.warning(
+                "[PLUGIN] stop lost the browser (cycle=#%d, kind=%s): %s",
+                cycle,
+                kind,
+                str(exc)[:120],
+            )
+            self._log.debug("[PLUGIN] stop failure context", exc_info=True)
+        else:
+            self._log.error("[PLUGIN] stop failed (cycle=#%d, kind=%s): %s", cycle, kind, exc)
+            self._log.debug("[PLUGIN] stop failure context", exc_info=True)
+        hints = getattr(self._copy, "STOP_HINTS", {})
+        hint = hints.get(kind, self._copy.STOP_FAILURE_FALLBACK)
+        if not expected:
+            hint = self._copy.STOP_FAILURE_FALLBACK
+        self._notify(hint)
+        try:
+            from voice_typer.server import event_bus
+
+            event_bus.publish({"type": "plugin_failure", "data": {"message": hint}})
+        except Exception:
+            self._log.debug("[PLUGIN] in-app failure push failed", exc_info=True)
+
     def start(self) -> None:
         with self._lock:
             if self._active or self._starting:
@@ -585,13 +634,6 @@ class PluginSession:
             if stop_now:
                 # The release arrived mid-start: finish the cycle now.
                 self._stop_and_deliver(target_snapshot=pending_snapshot)
-            with self._lock:
-                restart = self._restart_requested
-                self._restart_requested = False
-            if restart:
-                # A later press superseded a stuck start; honour it now.
-                self._log.info("[PLUGIN] starting the superseding press")
-                self.start()
 
     def _start(self) -> None:
 
@@ -781,12 +823,11 @@ class PluginSession:
             self._publish_state("transcribing")
             try:
                 res = self._post("/stop", timeout=75.0)
-            except Exception:
-                self._log.exception("[PLUGIN] stop failed (cycle=#%d)", cycle)
+            except Exception as exc:
+                self._report_stop_failure(exc, cycle)
                 with self._lock:
                     self._active = False
                 self._session_events(start=False)
-                self._notify(self._copy.STOP_FAILURE_FALLBACK)
                 return
             finally:
                 self._restore_volume()
@@ -955,6 +996,13 @@ class PluginSession:
         """ESC path: abort the session without pasting; clear the page."""
         with self._lock:
             if not self._active:
+                if self._starting:
+                    # ESC during a start aborts it by invalidating its
+                    # generation; no deferred action may replay afterwards.
+                    self._start_generation += 1
+                    self._stop_requested = False
+                    self._restart_requested = False
+                    self._log.info("[PLUGIN] start cancelled (ESC, cycle=#%d)", self._cycle)
                 return False
             self._active = False
             self._pending_stop_snapshot = None

@@ -37,3 +37,7 @@ def ready_snapshot(**changes):
 def fake_browser_layer(monkeypatch):
     monkeypatch.setattr(chrome_profile, "browser_liveness", lambda *_a, **_k: True)
     monkeypatch.setattr(profile_state, "apply_before_launch", lambda *_a, **_k: None)
+    # Never let a unit test read the live plugin daemon over HTTP.
+    from tools.internal_plugins._common.bridge.daemon_client import DaemonClient
+
+    monkeypatch.setattr(DaemonClient, "config", lambda self: {})

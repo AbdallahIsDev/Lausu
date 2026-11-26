@@ -19,6 +19,15 @@ START_FAILURE_FALLBACK = "Google STT could not start. See log."
 BRIDGE_UNAVAILABLE = "Google STT bridge unavailable (daemon did not start)."
 STOP_FAILURE_FALLBACK = "Google STT stop failed. See log."
 
+STOP_HINTS = {
+    "browser-not-open": (
+        "The Gemini browser closed while dictating; nothing was captured. Press the hotkey again to record."
+    ),
+    "page-not-ready": "The Gemini page did not answer. Nothing was pasted; press the hotkey again.",
+    "bridge-timeout": "The Gemini page did not answer in time. Nothing was pasted; press the hotkey again.",
+    "not-recording": "The Gemini page had already stopped. Nothing was pasted.",
+}
+
 START_HINTS = {
     "browser-closed": ("The Gemini dictation window closed - press the hotkey again to relaunch it."),
     "browser-not-open": (

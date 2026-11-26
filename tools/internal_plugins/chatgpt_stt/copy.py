@@ -19,6 +19,15 @@ START_FAILURE_FALLBACK = "ChatGPT STT could not start. See log."
 BRIDGE_UNAVAILABLE = "ChatGPT STT bridge unavailable (daemon did not start)."
 STOP_FAILURE_FALLBACK = "ChatGPT STT stop failed. See log."
 
+STOP_HINTS = {
+    "browser-not-open": (
+        "The ChatGPT browser closed while dictating; nothing was captured. Press the hotkey again to record."
+    ),
+    "page-not-ready": "The ChatGPT page did not answer. Nothing was pasted; press the hotkey again.",
+    "bridge-timeout": "The ChatGPT page did not answer in time. Nothing was pasted; press the hotkey again.",
+    "not-recording": "The ChatGPT page had already stopped. Nothing was pasted.",
+}
+
 START_HINTS = {
     "browser-closed": ("The ChatGPT dictation window closed - press the hotkey again to relaunch it."),
     "browser-not-open": (
