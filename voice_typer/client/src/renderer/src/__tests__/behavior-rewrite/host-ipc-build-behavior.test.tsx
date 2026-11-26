@@ -768,12 +768,10 @@ function readPyinstallerSpec(): string {
 }
 
 describe("lausu.spec declares ASR hiddenimports (rewrite of TestPyinstallerSpecHasAsrHiddenImports)", () => {
-	it("includes parakeet_engine", () => {
-		expect(readPyinstallerSpec()).toContain("parakeet_engine");
-	});
-
-	it("includes qwen_engine", () => {
-		expect(readPyinstallerSpec()).toContain("qwen_engine");
+	it("includes the worker-backed local ASR modules", () => {
+		const spec = readPyinstallerSpec();
+		expect(spec).toContain("voice_typer.server.worker_backed_asr");
+		expect(spec).toContain("voice_typer.server.worker_proxy_asr");
 	});
 
 	it("includes transformers", () => {
