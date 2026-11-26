@@ -308,6 +308,11 @@ export interface ASRBackendDisabledEvent {
  * refused before any audio was captured; the renderer shows the
  * actionable toast and the OS notification area got the same message.
  */
+export interface PluginFailureEvent {
+	type: "plugin_failure";
+	data: { message: string };
+}
+
 export interface ModelLanguageUnsupportedEvent {
 	type: "model_language_unsupported";
 	data: {
@@ -938,6 +943,7 @@ export type PythonPushEvent =
 	| ParakeetCpuFallbackEvent
 	// See the per-interface docstrings for the wire shape (all three
 	| ASRBackendDisabledEvent
+	| PluginFailureEvent
 	| ModelLanguageUnsupportedEvent
 	| ASRLastResortUnloadedEvent
 	| LLMPolishFailedEvent

@@ -42,6 +42,7 @@ import { usePackUpdateToast } from "@/hooks/usePackUpdateToast";
 import { usePasteDeferredToast } from "@/hooks/usePasteDeferredToast";
 import { usePasteFailedToast } from "@/hooks/usePasteFailedToast";
 import { usePluginsUnlocked } from "@/hooks/usePluginCatalog";
+import { usePluginFailureToast } from "@/hooks/usePluginFailureToast";
 import { usePython } from "@/hooks/usePython";
 import { useRendererHeartbeat } from "@/hooks/useRendererHeartbeat";
 import { useRouteChangeFocus } from "@/hooks/useRouteChangeFocus";
@@ -192,6 +193,7 @@ export default function App() {
 	// Spoken language outside the active model's own language list: the
 	// backend refused the start, so the fix is a different model.
 	useModelLanguageUnsupportedToast(t, () => navigate("models"));
+	usePluginFailureToast();
 	useTrayFallbackToast(t);
 	useCloudFallbackToast(t);
 	useHistoryIntegrityToast(t);

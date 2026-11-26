@@ -68,6 +68,7 @@ pub(super) const ALLOWED_EVENT_TYPES: &[&str] = &[
     // Pinned spoken language outside the active model's language list
     // (start refused + surfaced as an actionable toast).
     "model_language_unsupported",
+    "plugin_failure",
     "asr_last_resort_unloaded",
     "audio_clip",
     "dictation_lost",

@@ -248,6 +248,7 @@ EVENT_TYPES: frozenset[str] = frozenset(
         "asr_last_resort_unloaded",
         "llm_polish_failed",
         "model_language_unsupported",
+        "plugin_failure",
         "error",
         "mic_level",
         "device_lost",
