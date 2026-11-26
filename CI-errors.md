@@ -1,6 +1,6 @@
 # CI Errors
 
-> Generated: 2026-11-26T16:25:30Z
+> Generated: 2026-11-26T16:26:19Z
 > Data branch commit: `f989c88`
 
 ## Currently failing
@@ -582,122 +582,17 @@
 - Run: [45720592081](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720592081) (attempt 1)
 - Event: push · Branch: main
 - Commit: `86a656d` — docs(plugins): record live tab, timing, RAM evidence and decision
-- Job: slow-tests · Leg: ubuntu-22.04
-- Step: Run slow manual-script wrappers
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
 - Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 31. Build installer — failure
-
-- Run: [45720592081](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720592081) (attempt 1)
-- Event: push · Branch: main
-- Commit: `86a656d` — docs(plugins): record live tab, timing, RAM evidence and decision
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 32. Build installer — failure
-
-- Run: [45720592081](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720592081) (attempt 1)
-- Event: push · Branch: main
-- Commit: `86a656d` — docs(plugins): record live tab, timing, RAM evidence and decision
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
-- Step: Run tests with coverage
-- Category: infrastructure/cancelled/timeout
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 33. Build installer — failure
-
-- Run: [45720592081](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720592081) (attempt 1)
-- Event: push · Branch: main
-- Commit: `86a656d` — docs(plugins): record live tab, timing, RAM evidence and decision
-- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 34. Build installer — failure
-
-- Run: [45720592081](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720592081) (attempt 1)
-- Event: push · Branch: main
-- Commit: `86a656d` — docs(plugins): record live tab, timing, RAM evidence and decision
-- Job: Rust clippy + cargo audit · Leg: ubuntu-22.04
-- Step: Run rustsec/audit-check@v2
-- Category: cargo test/clippy/audit
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 35. Build installer — failure
-
-- Run: [45720592081](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720592081) (attempt 1)
-- Event: push · Branch: main
-- Commit: `86a656d` — docs(plugins): record live tab, timing, RAM evidence and decision
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 36. Build installer — failure
-
-- Run: [45720592081](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720592081) (attempt 1)
-- Event: push · Branch: main
-- Commit: `86a656d` — docs(plugins): record live tab, timing, RAM evidence and decision
-- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 37. Build installer — failure
-
-- Run: [45720592081](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720592081) (attempt 1)
-- Event: push · Branch: main
-- Commit: `86a656d` — docs(plugins): record live tab, timing, RAM evidence and decision
-- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 38. Build Linux — failure
+### 31. Build Linux — failure
 
 - Run: [45720177190](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720177190) (attempt 1)
 - Event: push · Branch: main
@@ -712,7 +607,7 @@
 (no job log available)
 ```
 
-### 39. Build installer — failure
+### 32. Build installer — failure
 
 - Run: [45720177056](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720177056) (attempt 1)
 - Event: push · Branch: main
@@ -727,7 +622,7 @@
 (no job log available)
 ```
 
-### 40. Build installer — failure
+### 33. Build installer — failure
 
 - Run: [45695399373](https://github.com/AbdallahIsDev/Lausu/actions/runs/45695399373) (attempt 1)
 - Event: push · Branch: main
@@ -742,7 +637,7 @@
 (no job log available)
 ```
 
-### 41. Build Linux — failure
+### 34. Build Linux — failure
 
 - Run: [45695399355](https://github.com/AbdallahIsDev/Lausu/actions/runs/45695399355) (attempt 1)
 - Event: push · Branch: main
@@ -757,7 +652,7 @@
 (no job log available)
 ```
 
-### 42. Build Linux — failure
+### 35. Build Linux — failure
 
 - Run: [45681015836](https://github.com/AbdallahIsDev/Lausu/actions/runs/45681015836) (attempt 1)
 - Event: push · Branch: main
@@ -772,7 +667,7 @@
 (no job log available)
 ```
 
-### 43. Build installer — failure
+### 36. Build installer — failure
 
 - Run: [45681015474](https://github.com/AbdallahIsDev/Lausu/actions/runs/45681015474) (attempt 1)
 - Event: push · Branch: main
@@ -787,7 +682,7 @@
 (no job log available)
 ```
 
-### 44. CI error collector — failure
+### 37. CI error collector — failure
 
 - Run: [45520898834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45520898834) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -802,7 +697,7 @@
 (no job log available)
 ```
 
-### 45. Build installer — failure
+### 38. Build installer — failure
 
 - Run: [45512898129](https://github.com/AbdallahIsDev/Lausu/actions/runs/45512898129) (attempt 1)
 - Event: push · Branch: main
@@ -817,7 +712,7 @@
 (no job log available)
 ```
 
-### 46. Build Linux — failure
+### 39. Build Linux — failure
 
 - Run: [45512898056](https://github.com/AbdallahIsDev/Lausu/actions/runs/45512898056) (attempt 1)
 - Event: push · Branch: main
@@ -832,7 +727,7 @@
 (no job log available)
 ```
 
-### 47. Build installer — failure
+### 40. Build installer — failure
 
 - Run: [45459252772](https://github.com/AbdallahIsDev/Lausu/actions/runs/45459252772) (attempt 1)
 - Event: push · Branch: main
@@ -847,7 +742,7 @@
 (no job log available)
 ```
 
-### 48. CI error collector — failure
+### 41. CI error collector — failure
 
 - Run: [45455690803](https://github.com/AbdallahIsDev/Lausu/actions/runs/45455690803) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -862,7 +757,7 @@
 (no job log available)
 ```
 
-### 49. Build installer — failure
+### 42. Build installer — failure
 
 - Run: [45454671351](https://github.com/AbdallahIsDev/Lausu/actions/runs/45454671351) (attempt 1)
 - Event: push · Branch: main
@@ -877,7 +772,7 @@
 (no job log available)
 ```
 
-### 50. Build installer — failure
+### 43. Build installer — failure
 
 - Run: [45410434581](https://github.com/AbdallahIsDev/Lausu/actions/runs/45410434581) (attempt 1)
 - Event: push · Branch: main
@@ -892,607 +787,187 @@
 (no job log available)
 ```
 
-### 51. Client CI — failure
+### 44. Client CI — failure
 
 - Run: [45410434401](https://github.com/AbdallahIsDev/Lausu/actions/runs/45410434401) (attempt 1)
 - Event: push · Branch: main
 - Commit: `2f91e2a` — fix(logs): keep expected GGUF cache misses to one DEBUG line
-- Job: Typecheck + Lint + Test · Leg: ubuntu-22.04
-- Step: Test (Vitest + coverage)
-- Category: eslint/vitest
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 52. Client CI — failure
+### 45. Client CI — failure
 
 - Run: [45409359243](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359243) (attempt 1)
 - Event: push · Branch: main
 - Commit: `ea6621b` — fix(build): generate the transcribe.cpp resource stub so Tauri resolves clean checkouts
-- Job: Typecheck + Lint + Test · Leg: ubuntu-22.04
-- Step: Test (Vitest + coverage)
-- Category: eslint/vitest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 53. Build installer — failure
-
-- Run: [45409359123](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359123) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ea6621b` — fix(build): generate the transcribe.cpp resource stub so Tauri resolves clean checkouts
-- Job: Rust clippy + cargo audit · Leg: ubuntu-22.04
-- Step: Run rustsec/audit-check@v2
-- Category: cargo test/clippy/audit
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 54. Build installer — failure
-
-- Run: [45409359123](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359123) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ea6621b` — fix(build): generate the transcribe.cpp resource stub so Tauri resolves clean checkouts
-- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 55. Build installer — failure
-
-- Run: [45409359123](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359123) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ea6621b` — fix(build): generate the transcribe.cpp resource stub so Tauri resolves clean checkouts
-- Job: slow-tests · Leg: ubuntu-22.04
-- Step: Run slow manual-script wrappers
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
 - Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 56. Build installer — failure
+### 46. Build installer — failure
 
 - Run: [45409359123](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359123) (attempt 1)
 - Event: push · Branch: main
 - Commit: `ea6621b` — fix(build): generate the transcribe.cpp resource stub so Tauri resolves clean checkouts
-- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 57. Build installer — failure
-
-- Run: [45409359123](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359123) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ea6621b` — fix(build): generate the transcribe.cpp resource stub so Tauri resolves clean checkouts
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 58. Build installer — failure
-
-- Run: [45409359123](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359123) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ea6621b` — fix(build): generate the transcribe.cpp resource stub so Tauri resolves clean checkouts
-- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 59. Build installer — failure
-
-- Run: [45409359123](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359123) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ea6621b` — fix(build): generate the transcribe.cpp resource stub so Tauri resolves clean checkouts
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 60. Build installer — failure
-
-- Run: [45409359123](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359123) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ea6621b` — fix(build): generate the transcribe.cpp resource stub so Tauri resolves clean checkouts
-- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 61. Client CI — failure
+### 47. Client CI — failure
 
 - Run: [45401202326](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202326) (attempt 1)
 - Event: push · Branch: main
 - Commit: `5de856b` — docs: drop the last in-scope legacy ASR wording in manual README
-- Job: Typecheck + Lint + Test · Leg: ubuntu-22.04
-- Step: Test (Vitest + coverage)
-- Category: eslint/vitest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 62. Build installer — failure
-
-- Run: [45401202297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202297) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5de856b` — docs: drop the last in-scope legacy ASR wording in manual README
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 63. Build installer — failure
-
-- Run: [45401202297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202297) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5de856b` — docs: drop the last in-scope legacy ASR wording in manual README
-- Job: slow-tests · Leg: ubuntu-22.04
-- Step: Run slow manual-script wrappers
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
 - Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 64. Build installer — failure
+### 48. Build installer — failure
 
 - Run: [45401202297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202297) (attempt 1)
 - Event: push · Branch: main
 - Commit: `5de856b` — docs: drop the last in-scope legacy ASR wording in manual README
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 65. Build installer — failure
-
-- Run: [45401202297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202297) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5de856b` — docs: drop the last in-scope legacy ASR wording in manual README
-- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 66. Build installer — failure
-
-- Run: [45401202297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202297) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5de856b` — docs: drop the last in-scope legacy ASR wording in manual README
-- Job: Rust clippy + cargo audit · Leg: ubuntu-22.04
-- Step: Run rustsec/audit-check@v2
-- Category: cargo test/clippy/audit
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 67. Build installer — failure
-
-- Run: [45401202297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202297) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5de856b` — docs: drop the last in-scope legacy ASR wording in manual README
-- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 68. Build installer — failure
-
-- Run: [45401202297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202297) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5de856b` — docs: drop the last in-scope legacy ASR wording in manual README
-- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 69. Build installer — failure
-
-- Run: [45401202297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202297) (attempt 1)
-- Event: push · Branch: main
-- Commit: `5de856b` — docs: drop the last in-scope legacy ASR wording in manual README
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 70. Build Linux — failure
+### 49. Build Linux — failure
 
 - Run: [45399711547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711547) (attempt 1)
 - Event: push · Branch: main
 - Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: smoke-cargo-check · Leg: ubuntu-22.04
-- Step: cargo check (Tauri Rust host)
-- Category: cargo test/clippy/audit
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 71. CodeQL — failure
+### 50. CodeQL — failure
 
 - Run: [45399711542](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711542) (attempt 1)
 - Event: push · Branch: main
 - Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: Analyze (rust) · Leg: rust
-- Step: Cargo check (CodeQL build)
-- Category: CodeQL
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 72. Client CI — failure
+### 51. Client CI — failure
 
 - Run: [45399711163](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711163) (attempt 1)
 - Event: push · Branch: main
 - Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: Typecheck + Lint + Test · Leg: ubuntu-22.04
-- Step: Test (Vitest + coverage)
-- Category: eslint/vitest
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 73. Build installer — failure
+### 52. Build installer — failure
 
 - Run: [45399711111](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711111) (attempt 1)
 - Event: push · Branch: main
 - Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 74. Build installer — failure
-
-- Run: [45399711111](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711111) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 75. Build installer — failure
-
-- Run: [45399711111](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711111) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 76. Build installer — failure
-
-- Run: [45399711111](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711111) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 77. Build installer — failure
-
-- Run: [45399711111](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711111) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 78. Build installer — failure
-
-- Run: [45399711111](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711111) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 79. Build installer — failure
-
-- Run: [45399711111](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711111) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 80. Build installer — failure
-
-- Run: [45399711111](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711111) (attempt 1)
-- Event: push · Branch: main
-- Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 81. CI error collector — failure
+### 53. CI error collector — failure
 
 - Run: [45307909855](https://github.com/AbdallahIsDev/Lausu/actions/runs/45307909855) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
-- Step: Generate report from main sources
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
 - Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 82. CodeQL — failure
+### 54. CodeQL — failure
 
 - Run: [45306954147](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954147) (attempt 1)
 - Event: push · Branch: main
 - Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: Analyze (rust) · Leg: rust
-- Step: Cargo check (CodeQL build)
-- Category: CodeQL
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 83. Build installer — failure
-
-- Run: [45306954077](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954077) (attempt 1)
-- Event: push · Branch: main
-- Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 84. Build installer — failure
-
-- Run: [45306954077](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954077) (attempt 1)
-- Event: push · Branch: main
-- Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: Rust clippy + cargo audit · Leg: ubuntu-22.04
-- Step: Run rustsec/audit-check@v2
-- Category: cargo test/clippy/audit
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 85. Build installer — failure
-
-- Run: [45306954077](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954077) (attempt 1)
-- Event: push · Branch: main
-- Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 86. Build installer — failure
-
-- Run: [45306954077](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954077) (attempt 1)
-- Event: push · Branch: main
-- Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: test (windows-2022, 3.11) · Leg: windows-2022, 3.11
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 87. Build installer — failure
-
-- Run: [45306954077](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954077) (attempt 1)
-- Event: push · Branch: main
-- Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 88. Build installer — failure
-
-- Run: [45306954077](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954077) (attempt 1)
-- Event: push · Branch: main
-- Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: slow-tests · Leg: ubuntu-22.04
-- Step: Run slow manual-script wrappers
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
 - Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 89. Build installer — failure
+### 55. Build installer — failure
 
 - Run: [45306954077](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954077) (attempt 1)
 - Event: push · Branch: main
 - Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: test (windows-2022, 3.12) · Leg: windows-2022, 3.12
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 90. Build installer — failure
-
-- Run: [45306954077](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954077) (attempt 1)
-- Event: push · Branch: main
-- Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
-- Step: Ruff (F-rules hard-fail)
-- Category: ruff
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 91. Client CI — failure
+### 56. Client CI — failure
 
 - Run: [45306954019](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954019) (attempt 1)
 - Event: push · Branch: main
@@ -1507,7 +982,7 @@
 (no job log available)
 ```
 
-### 92. Client CI — failure
+### 57. Client CI — failure
 
 - Run: [45305611455](https://github.com/AbdallahIsDev/Lausu/actions/runs/45305611455) (attempt 1)
 - Event: push · Branch: main
@@ -1522,7 +997,7 @@
 (no job log available)
 ```
 
-### 93. Build Linux — failure
+### 58. Build Linux — failure
 
 - Run: [45305611432](https://github.com/AbdallahIsDev/Lausu/actions/runs/45305611432) (attempt 1)
 - Event: push · Branch: main
@@ -1537,7 +1012,7 @@
 (no job log available)
 ```
 
-### 94. Build installer — failure
+### 59. Build installer — failure
 
 - Run: [45305611407](https://github.com/AbdallahIsDev/Lausu/actions/runs/45305611407) (attempt 1)
 - Event: push · Branch: main
@@ -1552,7 +1027,7 @@
 (no job log available)
 ```
 
-### 95. CodeQL — failure
+### 60. CodeQL — failure
 
 - Run: [45305611366](https://github.com/AbdallahIsDev/Lausu/actions/runs/45305611366) (attempt 1)
 - Event: push · Branch: main
@@ -1567,7 +1042,7 @@
 (no job log available)
 ```
 
-### 96. CodeQL — failure
+### 61. CodeQL — failure
 
 - Run: [45298879220](https://github.com/AbdallahIsDev/Lausu/actions/runs/45298879220) (attempt 1)
 - Event: push · Branch: main
@@ -1582,7 +1057,7 @@
 (no job log available)
 ```
 
-### 97. Client CI — failure
+### 62. Client CI — failure
 
 - Run: [45298879055](https://github.com/AbdallahIsDev/Lausu/actions/runs/45298879055) (attempt 1)
 - Event: push · Branch: main
@@ -1597,7 +1072,7 @@
 (no job log available)
 ```
 
-### 98. Build Linux — failure
+### 63. Build Linux — failure
 
 - Run: [45298879048](https://github.com/AbdallahIsDev/Lausu/actions/runs/45298879048) (attempt 1)
 - Event: push · Branch: main
@@ -1612,7 +1087,7 @@
 (no job log available)
 ```
 
-### 99. Build installer — failure
+### 64. Build installer — failure
 
 - Run: [45298879046](https://github.com/AbdallahIsDev/Lausu/actions/runs/45298879046) (attempt 1)
 - Event: push · Branch: main
@@ -1627,7 +1102,7 @@
 (no job log available)
 ```
 
-### 100. Build installer — failure
+### 65. Build installer — failure
 
 - Run: [45295930641](https://github.com/AbdallahIsDev/Lausu/actions/runs/45295930641) (attempt 1)
 - Event: push · Branch: main
@@ -1642,7 +1117,7 @@
 (no job log available)
 ```
 
-### 101. Client CI — failure
+### 66. Client CI — failure
 
 - Run: [45295930616](https://github.com/AbdallahIsDev/Lausu/actions/runs/45295930616) (attempt 1)
 - Event: push · Branch: main
@@ -1657,7 +1132,7 @@
 (no job log available)
 ```
 
-### 102. Build installer — failure
+### 67. Build installer — failure
 
 - Run: [45295556177](https://github.com/AbdallahIsDev/Lausu/actions/runs/45295556177) (attempt 1)
 - Event: push · Branch: main
@@ -1676,6 +1151,22 @@
 
 ### 1. CI error collector — failure
 
+- Run: [45858329686](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858329686) (attempt 1)
+- Event: workflow_run · Branch: main
+- Commit: `d70a14e` — docs(plugins): record live evidence and honest edge-case statuses
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
+- Category: other
+- Fixed by: [45858621575](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858621575) (success)
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 2. CI error collector — failure
+
 - Run: [45520898834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45520898834) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `0c7989d` — feat: shell cleanup, Models tabs, translation optimizations, GPUI prototype and onboarding UX
@@ -1690,7 +1181,7 @@
 (no job log available)
 ```
 
-### 2. CI error collector — failure
+### 3. CI error collector — failure
 
 - Run: [45455690803](https://github.com/AbdallahIsDev/Lausu/actions/runs/45455690803) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1706,66 +1197,66 @@
 (no job log available)
 ```
 
-### 3. Client CI — failure
+### 4. Client CI — failure
 
 - Run: [45410434401](https://github.com/AbdallahIsDev/Lausu/actions/runs/45410434401) (attempt 1)
 - Event: push · Branch: main
 - Commit: `2f91e2a` — fix(logs): keep expected GGUF cache misses to one DEBUG line
-- Job: Typecheck + Lint + Test · Leg: ubuntu-22.04
-- Step: Test (Vitest + coverage)
-- Category: eslint/vitest
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 - Fixed by: [45454671237](https://github.com/AbdallahIsDev/Lausu/actions/runs/45454671237) (success)
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 4. CodeQL — failure
+### 5. CodeQL — failure
 
 - Run: [45399711542](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711542) (attempt 1)
 - Event: push · Branch: main
 - Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: Analyze (rust) · Leg: rust
-- Step: Cargo check (CodeQL build)
-- Category: CodeQL
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 - Fixed by: [45410434270](https://github.com/AbdallahIsDev/Lausu/actions/runs/45410434270) (success)
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 5. Build Linux — failure
+### 6. Build Linux — failure
 
 - Run: [45399711547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711547) (attempt 1)
 - Event: push · Branch: main
 - Commit: `9117bf8` — docs: record phase 1 final verified state and owner checklist
-- Job: smoke-cargo-check · Leg: ubuntu-22.04
-- Step: cargo check (Tauri Rust host)
-- Category: cargo test/clippy/audit
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
+- Category: other
 - Fixed by: [45409359001](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359001) (success)
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
 
-### 6. CI error collector — failure
+### 7. CI error collector — failure
 
 - Run: [45307909855](https://github.com/AbdallahIsDev/Lausu/actions/runs/45307909855) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `32d433d` — style: keep timeout constant import at module top
-- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
-- Step: Generate report from main sources
+- Job: (job details unavailable) · Leg: n/a
+- Step: 
 - Category: other
 - Fixed by: [45399942909](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399942909) (success)
 
 - Error excerpt:
 
 ```text
-(job log unavailable: HTTP 403)
+(no job log available)
 ```
