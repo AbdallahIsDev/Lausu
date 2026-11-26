@@ -42,6 +42,16 @@ START_HINTS = {
         "Claude's security check is blocking the page - finish the check in the Claude "
         "browser window, then press the hotkey again."
     ),
+    "browser.down": (
+        "The Claude browser is not running. It is being reopened; press the hotkey again if it does not start."
+    ),
+    "tab.missing": "The Claude tab was closed. It is being reopened; press the hotkey again if it does not appear.",
+    "tab.discarded": "The Claude tab was asleep. It is being reloaded; press the hotkey again in a moment.",
+    "tab.wrong_url": "The dictation tab is on the wrong page. Open Claude, then press the hotkey again.",
+    "tab.crashed": "The Claude tab stopped responding. Close and reopen it, then press the hotkey again.",
+    "content_script.absent": "The Claude page has not finished loading. Wait a moment, then press the hotkey again.",
+    "control.missing": "Claude's dictation button is not available. Check the page, then press the hotkey again.",
+    "signed_in.no": "Not signed in to Claude. Open the dictation window and sign in again.",
 }
 
 

@@ -20,9 +20,7 @@ BRIDGE_UNAVAILABLE = "Google STT bridge unavailable (daemon did not start)."
 STOP_FAILURE_FALLBACK = "Google STT stop failed. See log."
 
 START_HINTS = {
-    "browser-closed": (
-        "The Gemini dictation window closed - press the hotkey again to relaunch it."
-    ),
+    "browser-closed": ("The Gemini dictation window closed - press the hotkey again to relaunch it."),
     "browser-not-open": (
         "The Gemini dictation window could not be started, or its extension is not loaded. "
         "Check the window, load the extension once if it is missing, then press the hotkey again."
@@ -33,8 +31,7 @@ START_HINTS = {
     ),
     "page-not-ready": "The Gemini tab is still loading. Wait a moment, then press the hotkey again.",
     "bridge-timeout": (
-        "The Gemini page did not answer in time. Check that its window is open on Gemini, "
-        "then press the hotkey again."
+        "The Gemini page did not answer in time. Check that its window is open on Gemini, then press the hotkey again."
     ),
     "mic-missing": "Google STT could not find the dictation button on the Gemini page.",
     "no-recording-indicator": "The Gemini page never started recording.",
@@ -49,6 +46,16 @@ START_HINTS = {
         "A Google security check is blocking the page - finish it in the dictation "
         "browser window, then press the hotkey again."
     ),
+    "browser.down": (
+        "The Gemini browser is not running. It is being reopened; press the hotkey again if it does not start."
+    ),
+    "tab.missing": "The Gemini tab was closed. It is being reopened; press the hotkey again if it does not appear.",
+    "tab.discarded": "The Gemini tab was asleep. It is being reloaded; press the hotkey again in a moment.",
+    "tab.wrong_url": "The dictation tab is on the wrong page. Open Gemini, then press the hotkey again.",
+    "tab.crashed": "The Gemini tab stopped responding. Close and reopen it, then press the hotkey again.",
+    "content_script.absent": "The Gemini page has not finished loading. Wait a moment, then press the hotkey again.",
+    "control.missing": "Gemini's dictation button is not available. Check the page, then press the hotkey again.",
+    "signed_in.no": "Not signed in to Gemini. Open the dictation window and sign in again.",
 }
 
 

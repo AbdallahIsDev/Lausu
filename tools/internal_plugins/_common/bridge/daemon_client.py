@@ -124,6 +124,33 @@ class DaemonClient:
         )
 
     @staticmethod
+    def readiness_state(snapshot: dict | None) -> dict:
+        """One truthful readiness tuple from the extension's single probe.
+
+        Only used for logging and user-facing recovery hints; the mic gate
+        itself stays ``page_ready`` (P2).
+        """
+        snapshot = snapshot or {}
+        readiness = snapshot.get("readiness")
+        if not isinstance(readiness, dict):
+            readiness = {
+                "browser": "up" if DaemonClient.browser_connected(snapshot) else "down",
+                "tab": "ready" if snapshot.get("hasTab") else "missing",
+                "content_script": "present" if DaemonClient.bridge_ready(snapshot) else "absent",
+                "control": "present" if int(snapshot.get("micCount") or 0) > 0 else "missing",
+                "signed_in": "no" if snapshot.get("page") == "signed_out" else "unknown",
+                "reason": "ready" if DaemonClient.page_ready(snapshot) else "page-not-ready",
+            }
+        return {
+            "browser": str(readiness.get("browser") or "down"),
+            "tab": str(readiness.get("tab") or "missing"),
+            "content_script": str(readiness.get("content_script") or "absent"),
+            "control": str(readiness.get("control") or "missing"),
+            "signed_in": str(readiness.get("signed_in") or "unknown"),
+            "reason": str(readiness.get("reason") or "unknown"),
+        }
+
+    @staticmethod
     def bridge_ready(snapshot: dict | None) -> bool:
         """Connected AND the tab has answered once (a page state, not unknown)."""
         if not snapshot or snapshot.get("browser") != "connected":

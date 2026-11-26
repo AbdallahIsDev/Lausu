@@ -140,10 +140,10 @@ class TestStartResolvesTheTargetTab:
 
         session.start()
 
-        assert posts == ["/start"], posts
+        assert posts == ["/ensure-tab", "/start"], posts
 
-    def test_no_extra_ensure_tab_round_trip_on_the_hotkey_path(self, plugin, monkeypatch, caplog):
-        """The extension resolves the tab inside /start; no duplicate call."""
+    def test_one_ensure_tab_round_trip_on_the_hotkey_path(self, plugin, monkeypatch, caplog):
+        """The extension resolves the tab once before the mic gate and /start."""
 
         posts: list[str] = []
         monkeypatch.setattr(plugin, "_post", lambda path, timeout=None: posts.append(path) or {})
@@ -172,5 +172,5 @@ class TestStartResolvesTheTargetTab:
 
         session.start()
 
-        assert posts == ["/start"], posts
+        assert posts == ["/ensure-tab", "/start"], posts
         assert "Traceback" not in caplog.text

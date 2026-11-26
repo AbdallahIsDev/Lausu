@@ -127,21 +127,102 @@ def wait_for_page_ready(
     ready_fn: Any,
     clock: Any,
     timeout: float | None = None,
+    log: Any = None,
+    cycle: int = 0,
+    reason_out: dict | None = None,
 ) -> bool:
     """Wait for a clickable dictation control, not just a live socket (P2).
 
-    A ready tab answers on the first poll, so this costs one status call on
-    the normal hotkey path. The budget only applies to a loading page.
+    One status call carries the whole readiness state. Log only on a real
+    state transition (no per-poll spam), fail fast on unrecoverable states,
+    and keep the overall monotonic budget. The mic gate itself is unchanged.
     """
     budget = _PAGE_READY_TIMEOUT_S if timeout is None else timeout
-    deadline = clock.monotonic() + budget
+    started = clock.monotonic()
+    deadline = started + budget
+    last: tuple[str, ...] | None = None
     for _ in range(1, int(budget / _PAGE_READY_POLL_S) + 2):
-        if ready_fn(status_fn()):
+        snapshot = status_fn()
+        state = DaemonClient.readiness_state(snapshot)
+        key = (
+            state["browser"],
+            state["tab"],
+            state["content_script"],
+            state["control"],
+            state["signed_in"],
+            state["reason"],
+        )
+        if key != last:
+            last = key
+            if log is not None:
+                log.info(
+                    "[PLUGIN] readiness (cycle=#%d): browser=%s tab=%s content=%s control=%s signed_in=%s reason=%s%s",
+                    cycle,
+                    *key,
+                    f" {max(0.0, clock.monotonic() - started):.1f}s",
+                )
+        if ready_fn(snapshot):
             return True
+        # Terminal states: waiting cannot repair them from the app side.
+        if state["signed_in"] == "no" or state["reason"] in ("tab.crashed", "browser.down"):
+            if reason_out is not None:
+                reason_out["reason"] = state["reason"]
+            return False
         if clock.monotonic() >= deadline:
             break
         clock.sleep(_PAGE_READY_POLL_S)
+    if reason_out is not None:
+        reason_out["reason"] = "page-not-ready"
     return False
+
+
+def ensure_target_ready(
+    *,
+    browser_fn: Any,
+    post_fn: Any,
+    status_fn: Any,
+    ready_fn: Any,
+    clock: Any,
+    timeout: float | None = None,
+    log: Any = None,
+    cycle: int = 0,
+) -> tuple[bool, str]:
+    """ONE idempotent, coalesced step that makes the target tab usable.
+
+    Every start path (hotkey, retry, activation) goes through here. The
+    extension is the only tab authority: /ensure-tab adopts a blank launch
+    tab or recreates a closed one, and dedupes. A live WebSocket is NOT tab
+    readiness, so the real mic-control gate still runs last (P2).
+    """
+    if not browser_fn():
+        return False, "browser-not-open"
+    try:
+        post_fn("/ensure-tab", timeout=20.0)
+    except BridgeError as exc:
+        # An older extension can reject the route; /start still resolves its
+        # own tab in that case (fdd3758fd's legacy fallback).
+        if "unknown command" not in str(exc).lower():
+            if log is not None:
+                log.warning(
+                    "[PLUGIN] target tab could not be resolved (cycle=#%d): %s",
+                    cycle,
+                    type(exc).__name__,
+                )
+            return False, "tab-not-ready"
+    except Exception:
+        return False, "tab-not-ready"
+    reason_out: dict = {"reason": "page-not-ready"}
+    if not wait_for_page_ready(
+        status_fn=status_fn,
+        ready_fn=ready_fn,
+        clock=clock,
+        timeout=timeout,
+        log=log,
+        cycle=cycle,
+        reason_out=reason_out,
+    ):
+        return False, reason_out["reason"]
+    return True, "ready"
 
 
 def activate_platform_async(
@@ -222,9 +303,15 @@ def prepare_platform(
     deadline = clock.monotonic() + timeout
     for _ in range(1, int(timeout / poll_s) + 2):
         if connected_fn(status_fn()):
-            with _suppress_exception:
-                post_fn("/ensure-tab", timeout=20.0)
-            if ready_fn(status_fn()):
+            ok, _reason = ensure_target_ready(
+                browser_fn=lambda: True,
+                post_fn=post_fn,
+                status_fn=status_fn,
+                ready_fn=ready_fn,
+                clock=clock,
+                timeout=max(1.0, deadline - clock.monotonic()),
+            )
+            if ok:
                 return True
         if clock.monotonic() >= deadline:
             break
@@ -462,45 +549,37 @@ class PluginSession:
             )
             self._notify(self._copy.BRIDGE_UNAVAILABLE)
             return
-        self._log.info("[PLUGIN] bridge ready (cycle=#%d)%s", cycle, self._copy.duration(time.monotonic() - t_press))
+        self._log.info(
+            "[PLUGIN] bridge daemon ready (cycle=#%d)%s",
+            cycle,
+            self._copy.duration(time.monotonic() - t_press),
+        )
         for attempt in range(_START_ATTEMPTS):
             # Press-to-dictate: a closed profile is opened here and waited for,
             # so the press ends in a recording instead of a "window closed" toast.
-            t_browser = time.monotonic()
-            if not self._ensure_browser():
-                self._log.error(
-                    "[PLUGIN] start failed (cycle=#%d): the dictation window is not answering%s",
-                    cycle,
-                    self._copy.duration(time.monotonic() - t_browser),
-                )
-                self._notify(self._copy.START_HINTS["browser-not-open"])
-                return
-            self._log.debug(
-                "[PLUGIN] dictation window ready (cycle=#%d)%s",
-                cycle,
-                self._copy.duration(time.monotonic() - t_browser),
-            )
-            # The extension resolves/reuses the tab inside /start; a separate
-            # /ensure-tab round trip here only adds latency on every press.
-            # Gate on a REAL mic control instead: a live socket alone means
-            # the page may still be loading or hydrating (P2).
-            t_ready = time.monotonic()
-            if not wait_for_page_ready(
+            t_target = time.monotonic()
+            ready, reason = ensure_target_ready(
+                browser_fn=self._ensure_browser,
+                post_fn=self._post,
                 status_fn=self._status,
                 ready_fn=DaemonClient.page_ready,
                 clock=time,
-            ):
+                log=self._log,
+                cycle=cycle,
+            )
+            if not ready:
                 self._log.error(
-                    "[PLUGIN] start refused (cycle=#%d): the dictation control is not ready%s",
+                    "[PLUGIN] start refused (cycle=#%d): target=%s%s",
                     cycle,
-                    self._copy.duration(time.monotonic() - t_ready),
+                    reason,
+                    self._copy.duration(time.monotonic() - t_target),
                 )
-                self._notify(self._copy.START_HINTS["page-not-ready"])
+                self._notify(self._copy.START_HINTS.get(reason, self._copy.START_HINTS["page-not-ready"]))
                 return
             self._log.debug(
                 "[PLUGIN] page ready with a live mic control (cycle=#%d)%s",
                 cycle,
-                self._copy.duration(time.monotonic() - t_ready),
+                self._copy.duration(time.monotonic() - t_target),
             )
             try:
                 self._post("/start", timeout=30.0)
@@ -595,10 +674,15 @@ class PluginSession:
             # The page-side split (click vs transcript scrape) is the part the
             # user actually waits through, so it belongs in this log too.
             self._log.info(
-                "[PLUGIN] platform returned the transcript (cycle=#%d, trigger=%s, state=%s, click=%s, scrape=%s)%s",
+                "[PLUGIN] platform returned the transcript (cycle=#%d, trigger=%s, state=%s, "
+                "state_after=%s, reason=%s, control=%s, committed=%s, click=%s, scrape=%s)%s",
                 cycle,
                 trigger,
                 res.get("state") or "unknown",
+                res.get("state_after") or "unknown",
+                res.get("reason") or "none",
+                res.get("control") or "unknown",
+                res.get("committed"),
                 self._copy.millis(res.get("click_ms")),
                 self._copy.millis(res.get("scrape_ms")),
                 self._copy.duration(time.monotonic() - t_stop),
@@ -643,11 +727,20 @@ class PluginSession:
             reason = str(res.get("empty_reason") or "")
             stopped_with_no_text = reason in ("empty_after_stop", "no_text")
             label = reason or ("auto_stopped" if res.get("auto_stopped") else "empty_transcript")
+            # The control proof lives in the daemon log; restate it here so a
+            # plain "no transcript" cannot look like a wrong stop click.
+            verdict = "no-speech" if stopped_with_no_text else "investigate"
             self._log.warning(
-                "[PLUGIN] no transcript (cycle=#%d, reason=%s, page_state=%s)%s",
+                "[PLUGIN] no transcript (cycle=#%d, verdict=%s, reason=%s, page_state=%s, "
+                "control=%s, committed=%s, click=%s, scrape=%s)%s",
                 cycle,
+                verdict,
                 label,
                 res.get("state_after") or res.get("state") or "unknown",
+                res.get("control") or "unknown",
+                res.get("committed"),
+                self._copy.millis(res.get("click_ms")),
+                self._copy.millis(res.get("scrape_ms")),
                 self._copy.duration(elapsed) if elapsed is not None else "",
             )
             if stopped_with_no_text:

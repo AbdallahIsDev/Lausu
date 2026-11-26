@@ -104,7 +104,7 @@ class TestStartAfterBrowserDisconnect:
         assert session.active is True
         assert len(browsers) == 2, "the profile must be reopened before retrying"
         assert posts.count("/start") == 2
-        assert posts == ["/start", "/start"]
+        assert posts == ["/ensure-tab", "/start", "/ensure-tab", "/start"]
 
 
 class TestExpectedStartFailures:

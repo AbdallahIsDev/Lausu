@@ -20,9 +20,7 @@ BRIDGE_UNAVAILABLE = "ChatGPT STT bridge unavailable (daemon did not start)."
 STOP_FAILURE_FALLBACK = "ChatGPT STT stop failed. See log."
 
 START_HINTS = {
-    "browser-closed": (
-        "The ChatGPT dictation window closed - press the hotkey again to relaunch it."
-    ),
+    "browser-closed": ("The ChatGPT dictation window closed - press the hotkey again to relaunch it."),
     "browser-not-open": (
         "The ChatGPT dictation window could not be started, or its extension is not loaded. "
         "Check the window, load the extension once if it is missing, then press the hotkey again."
@@ -49,6 +47,16 @@ START_HINTS = {
         "A security check is blocking the page - finish it in the dictation "
         "browser window, then press the hotkey again."
     ),
+    "browser.down": (
+        "The ChatGPT browser is not running. It is being reopened; press the hotkey again if it does not start."
+    ),
+    "tab.missing": "The ChatGPT tab was closed. It is being reopened; press the hotkey again if it does not appear.",
+    "tab.discarded": "The ChatGPT tab was asleep. It is being reloaded; press the hotkey again in a moment.",
+    "tab.wrong_url": "The dictation tab is on the wrong page. Open ChatGPT, then press the hotkey again.",
+    "tab.crashed": "The ChatGPT tab stopped responding. Close and reopen it, then press the hotkey again.",
+    "content_script.absent": "The ChatGPT page has not finished loading. Wait a moment, then press the hotkey again.",
+    "control.missing": "ChatGPT's dictation button is not available. Check the page, then press the hotkey again.",
+    "signed_in.no": "Not signed in to ChatGPT. Open the dictation window and sign in again.",
 }
 
 

@@ -93,7 +93,7 @@ class TestStartWaitsForARealMic:
         session.start()
 
         assert session.active is True
-        assert posts == ["/start"], posts
+        assert posts == ["/ensure-tab", "/start"], posts
 
     def test_start_refuses_when_the_page_never_becomes_ready(self, plugin, monkeypatch):
         session = self._session(plugin, monkeypatch)
@@ -112,5 +112,5 @@ class TestStartWaitsForARealMic:
         session.start()
 
         assert session.active is False
-        assert posts == [], posts
+        assert posts == ["/ensure-tab"], posts
         assert notes, "a clear error must be reported"
