@@ -59,7 +59,7 @@ class TestBrowserClosedMidCapture:
 
         assert posts == [], "a closed browser cannot answer /stop"
         assert restored, "volume ducked at start must be restored on abort"
-        assert any("closed" in note.lower() for note in notes)
+        assert any("closed" in str(call.args[-1]).lower() for call in session._app.tray.notify.call_args_list)
         assert session.active is False
 
 

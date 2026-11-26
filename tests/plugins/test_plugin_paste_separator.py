@@ -124,6 +124,7 @@ class TestPluginSeparator:
         session._t0 = 1.0
         session._cycle = 3
 
+        monkeypatch.setattr(session, "_status", lambda: ready_snapshot())
         monkeypatch.setattr(session, "_stop_meter", lambda: None)
         monkeypatch.setattr(session, "_publish_state", lambda _s: None)
         monkeypatch.setattr(session, "_restore_volume", lambda: None)
@@ -153,6 +154,7 @@ class TestPluginSeparator:
         """PTT release mid-start captures target at stop() time."""
         app = _make_app()
         session = plugin_module.PluginSession(app)
+        monkeypatch.setattr(session, "_status", lambda: ready_snapshot())
         monkeypatch.setattr(session, "_stop_meter", lambda: None)
         monkeypatch.setattr(session, "_publish_state", lambda _s: None)
         monkeypatch.setattr(session, "_restore_volume", lambda: None)

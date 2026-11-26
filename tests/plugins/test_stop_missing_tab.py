@@ -46,9 +46,15 @@ def test_stop_with_a_missing_tab_never_posts_and_logs_one_warning(plugin, monkey
             "page": "unknown",
             "hasTab": False,
             "readiness": {
-                "browser": "up", "tab": "missing", "content_script": "absent",
-                "control": "missing", "signed_in": "unknown", "document_ready": False,
-                "control_stable": False, "tab_quiet_ms": 0, "reason": "tab.missing",
+                "browser": "up",
+                "tab": "missing",
+                "content_script": "absent",
+                "control": "missing",
+                "signed_in": "unknown",
+                "document_ready": False,
+                "control_stable": False,
+                "tab_quiet_ms": 0,
+                "reason": "tab.missing",
             },
         },
     )
@@ -64,4 +70,4 @@ def test_stop_with_a_missing_tab_never_posts_and_logs_one_warning(plugin, monkey
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert errors == []
     assert not any("Traceback" in r.getMessage() for r in caplog.records)
-    assert notes and "nothing was captured" in notes[0]
+    assert any("nothing was captured" in str(call.args[-1]).lower() for call in session._app.tray.notify.call_args_list)

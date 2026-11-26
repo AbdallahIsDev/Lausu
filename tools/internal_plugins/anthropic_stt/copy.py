@@ -51,6 +51,7 @@ START_HINTS = {
         "Claude's security check is blocking the page - finish the check in the Claude "
         "browser window, then press the hotkey again."
     ),
+    "relaunches-exhausted": ("Chrome was closed {count} times while starting. Press the hotkey to try again."),
     "browser.down": (
         "The Claude browser is not running. It is being reopened; press the hotkey again if it does not start."
     ),

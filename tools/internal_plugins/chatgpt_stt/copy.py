@@ -29,6 +29,7 @@ STOP_HINTS = {
 }
 
 START_HINTS = {
+    "relaunches-exhausted": ("Chrome was closed {count} times while starting. Press the hotkey to try again."),
     "browser-closed": ("The ChatGPT dictation window closed - press the hotkey again to relaunch it."),
     "browser-not-open": (
         "The ChatGPT dictation window could not be started, or its extension is not loaded. "

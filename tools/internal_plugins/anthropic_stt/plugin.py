@@ -231,7 +231,7 @@ def _launch_profile_if_due(force: bool = False) -> bool:
     return launched
 
 
-def _ensure_browser(timeout: float | None = None) -> bool:
+def _ensure_browser(timeout: float | None = None, *, force: bool = False, budget=None) -> bool:
     """Open the dictation profile if needed, and wait until its page answers.
 
     The visibility setting is applied at launch only; a press never shows or
@@ -247,6 +247,8 @@ def _ensure_browser(timeout: float | None = None) -> bool:
         alive_fn=lambda: _chrome_profile.browser_liveness(_daemon_config().get("profileDir") or str(_profile_dir())),
         clock=time,
         timeout=timeout,
+        budget=budget,
+        stage="browser",
     )
 
 

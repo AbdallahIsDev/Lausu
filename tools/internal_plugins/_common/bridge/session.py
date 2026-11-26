@@ -35,6 +35,12 @@ _ACTIVATION_PREPARE_TIMEOUT_S = 5.0
 _PAGE_READY_TIMEOUT_S = 12.0
 _PAGE_READY_POLL_S = 0.1
 _START_RETRY_KINDS = frozenset({"browser-not-open", "browser-closed", "wrong-platform"})
+# Failures whose cause is invisible when the browser window is hidden: these
+# bypass the user's notify preference through one named mechanism (CRITICAL-NOTICE).
+_CRITICAL_STOP_KINDS = frozenset({"browser-not-open", "browser-closed", "page-not-ready", "bridge-timeout"})
+_START_MAX_RELAUNCHES = 3
+# Three cold launches (about 6 s each worst case) plus two short backoffs.
+_START_TOTAL_BUDGET_S = 24.0
 _START_CLICK_ATTEMPTS = 3
 _START_CLICK_RETRY_KINDS = frozenset({"platform-not-recording", "no-recording-indicator"})
 # Platform states the user can fix in the browser. They are expected outcomes,
@@ -203,6 +209,8 @@ def ensure_target_ready(
     log: Any = None,
     cycle: int = 0,
     ensure_timeout: float = 20.0,
+    budget: RelaunchBudget | None = None,
+    stage: str = "tab",
 ) -> tuple[bool, str]:
     """ONE idempotent, coalesced step that makes the target tab usable.
 
@@ -211,7 +219,11 @@ def ensure_target_ready(
     tab or recreates a closed one, and dedupes. A live WebSocket is NOT tab
     readiness, so the real mic-control gate still runs last (P2).
     """
-    if not browser_fn():
+    try:
+        browser_ok = browser_fn(budget=budget)
+    except TypeError:
+        browser_ok = browser_fn()
+    if not browser_ok:
         return False, "browser-not-open"
     try:
         post_fn("/ensure-tab", timeout=20.0)
@@ -240,6 +252,19 @@ def ensure_target_ready(
             reason_out=reason_out,
         ):
             reason = reason_out["reason"]
+            # A profile that dies AFTER transport connected used to fall
+            # through as a plain "browser.down" refusal. It is the same
+            # recoverable failure as a close during the transport wait.
+            if reason in ("browser.down", "tab.missing", "status.unavailable", "browser-not-open"):
+                if budget is None or not budget.can_relaunch():
+                    return False, "relaunches-exhausted"
+                budget.record(stage, reason)
+                budget.backoff()
+                try:
+                    browser_fn(force=True, budget=budget)
+                except TypeError:
+                    browser_fn()
+                continue
             # A discarded or wrong-URL tab cannot heal by waiting: ask the
             # extension to activate/reload it once, then re-run the gate.
             if recovery == 0 and reason in ("tab.discarded", "tab.wrong_url"):
@@ -362,6 +387,42 @@ def prepare_platform(
     return False
 
 
+class RelaunchBudget:
+    """One authoritative relaunch counter for a single start request."""
+
+    def __init__(self, clock: Any = time, log: Any = log) -> None:
+        self.clock = clock
+        self.log = log
+        self.started = clock.monotonic()
+        self.count = 0
+        self.last_reason = ""
+
+    @property
+    def expired(self) -> bool:
+        return self.clock.monotonic() - self.started >= _START_TOTAL_BUDGET_S
+
+    def can_relaunch(self) -> bool:
+        return self.count < _START_MAX_RELAUNCHES and not self.expired
+
+    def record(self, stage: str, reason: str) -> bool:
+        self.count += 1
+        self.last_reason = reason
+        self.log.info(
+            "[PLUGIN] relaunch attempt %d/%d stage=%s reason=%s%s",
+            self.count,
+            _START_MAX_RELAUNCHES,
+            stage,
+            reason,
+            f" {max(0.0, self.clock.monotonic() - self.started):.1f}s",
+        )
+        return self.can_relaunch()
+
+    def backoff(self) -> None:
+        # 0.5 s, then 1 s: short enough to feel immediate, long enough for
+        # Chrome's graceful teardown to finish before the next launch.
+        self.clock.sleep(0.5 * self.count)
+
+
 def ensure_browser(
     *,
     status_fn: Any,
@@ -371,6 +432,8 @@ def ensure_browser(
     timeout: float | None = None,
     transport_fn: Any | None = None,
     alive_fn: Any | None = None,
+    budget: RelaunchBudget | None = None,
+    stage: str = "browser",
 ) -> bool:
     """Open the dictation profile if needed, and wait for the bridge transport.
 
@@ -383,8 +446,8 @@ def ensure_browser(
         return True
     launched = launch_fn()
     default_budget = _COLD_BROWSER_START_TIMEOUT_S if launched else _BROWSER_START_TIMEOUT_S
-    budget = default_budget if timeout is None else timeout
-    deadline = clock.monotonic() + budget
+    wait_budget = default_budget if timeout is None else timeout
+    deadline = clock.monotonic() + wait_budget
     while clock.monotonic() < deadline:
         if connected(status_fn()):
             return True
@@ -392,24 +455,18 @@ def ensure_browser(
         # A start request owns a bounded relaunch; a deliberate close outside a
         # start is never treated as success.
         if alive_fn is not None and not alive_fn():
-            log.warning("[PLUGIN] the dictation profile closed while waiting; relaunching")
-            for attempt in range(1, _START_ATTEMPTS + 1):
-                try:
-                    launched = launch_fn(force=True)
-                except TypeError:
-                    launched = launch_fn()
-                if not launched:
-                    time.sleep(_START_RETRY_PAUSE_S * attempt)
-                    continue
-                for _ in range(6):
-                    if connected(status_fn()):
-                        return True
-                    clock.sleep(0.25)
-                log.warning("[PLUGIN] relaunch attempt %d did not reconnect", attempt)
-                time.sleep(_START_RETRY_PAUSE_S * attempt)
-            return False
+            if budget is None or not budget.can_relaunch():
+                log.warning("[PLUGIN] the dictation profile closed while waiting (%s)", stage)
+                return False
+            budget.record(stage, "profile-closed")
+            budget.backoff()
+            try:
+                launch_fn(force=True)
+            except TypeError:
+                launch_fn()
+            continue
         clock.sleep(0.5)
-    log.error("[PLUGIN] the dictation window did not answer within %.0fs", budget)
+    log.error("[PLUGIN] the dictation window did not answer within %.0fs", wait_budget)
     return False
 
 
@@ -483,6 +540,7 @@ class PluginSession:
         # soon as the start lands instead of leaving the platform recording.
         self._stop_requested = False
         self._pending_stop_snapshot: Any = None
+        self._critical_notices: set[str] = set()
         # The user's stop and the platform-stop watchdog can race; only one of
         # them may run the stop/deliver path.
         self._stopping = False
@@ -606,13 +664,10 @@ class PluginSession:
         hint = hints.get(kind, self._copy.STOP_FAILURE_FALLBACK)
         if not expected:
             hint = self._copy.STOP_FAILURE_FALLBACK
-        self._notify(hint)
-        try:
-            from voice_typer.server import event_bus
-
-            event_bus.publish({"type": "plugin_failure", "data": {"message": hint}})
-        except Exception:
-            self._log.debug("[PLUGIN] in-app failure push failed", exc_info=True)
+        if expected and kind in _CRITICAL_STOP_KINDS:
+            self._critical_notify(hint, "stop-lost")
+        else:
+            self._notify(hint)
 
     def start(self) -> None:
         with self._lock:
@@ -641,6 +696,7 @@ class PluginSession:
             cycle = self._cycle
             generation = self._start_generation
             self._restart_requested = False
+            self._critical_notices.clear()
         # Per-step lines, same shape as the local dictation path: every stage
         # the user waits through is attributable from lausu.log alone.
         self._log.info("[PLUGIN] start requested (cycle=#%d)", cycle)
@@ -659,6 +715,7 @@ class PluginSession:
             cycle,
             self._copy.duration(time.monotonic() - t_press),
         )
+        budget = RelaunchBudget(clock=time, log=self._log)
         for attempt in range(_START_ATTEMPTS):
             if generation != self._start_generation:
                 self._log.info("[PLUGIN] start superseded (cycle=#%d)", cycle)
@@ -674,6 +731,8 @@ class PluginSession:
                 clock=time,
                 log=self._log,
                 cycle=cycle,
+                budget=budget,
+                stage="tab",
             )
             if generation != self._start_generation:
                 self._log.info("[PLUGIN] start superseded while waiting (cycle=#%d)", cycle)
@@ -685,7 +744,13 @@ class PluginSession:
                     reason,
                     self._copy.duration(time.monotonic() - t_target),
                 )
-                self._notify(self._copy.START_HINTS.get(reason, self._copy.START_HINTS["page-not-ready"]))
+                hint = self._copy.START_HINTS.get(reason, self._copy.START_HINTS["page-not-ready"])
+                if reason == "relaunches-exhausted":
+                    hint = self._copy.START_HINTS["relaunches-exhausted"].format(count=_START_MAX_RELAUNCHES)
+                if reason == "relaunches-exhausted":
+                    self._critical_notify(hint, "start-gave-up")
+                else:
+                    self._notify(hint)
                 return
             self._log.debug(
                 "[PLUGIN] page ready with a live mic control (cycle=#%d)%s",
@@ -824,9 +889,7 @@ class PluginSession:
             # POST into a tab that does not exist: report the real cause once.
             state = DaemonClient.readiness_state(self._status())
             if state["browser"] == "down" or state["tab"] == "missing":
-                self._report_stop_failure(
-                    BridgeError("the target tab is not open", "browser-not-open"), cycle
-                )
+                self._report_stop_failure(BridgeError("the target tab is not open", "browser-not-open"), cycle)
                 with self._lock:
                     self._active = False
                 self._session_events(start=False)
@@ -983,9 +1046,9 @@ class PluginSession:
                             state,
                             captured,
                         )
-                        self._notify(
-                            "The dictation window closed before the transcription could be "
-                            "saved. Nothing was pasted. Press the hotkey again to record."
+                        self._critical_notify(
+                            "The browser closed while dictating; nothing was captured. Press the hotkey to try again.",
+                            "recording-lost",
                         )
                         return
                     # Not "the platform stopped the dictation": what we KNOW is
@@ -1091,3 +1154,24 @@ class PluginSession:
             self._app.tray.notify(f"{self._copy.DISPLAY_NAME} (internal)", msg)
         except Exception:
             self._log.debug("[PLUGIN] notify failed", exc_info=True)
+
+    def _critical_notify(self, msg: str, category: str) -> None:
+        """One OS toast + one in-app toast, regardless of notify preference.
+
+        Only failures whose cause the user cannot see (a hidden browser dying,
+        a bridge drop at stop, giving up after relaunches) may call this.
+        """
+        key = f"{self._cycle}:{category}"
+        if key in self._critical_notices:
+            return
+        self._critical_notices.add(key)
+        try:
+            self._app.tray.notify(f"{self._copy.DISPLAY_NAME} (internal)", msg)
+        except Exception:
+            self._log.debug("[PLUGIN] critical OS notification failed", exc_info=True)
+        try:
+            from voice_typer.server import event_bus
+
+            event_bus.publish({"type": "plugin_failure", "data": {"message": msg}})
+        except Exception:
+            self._log.debug("[PLUGIN] critical in-app notification failed", exc_info=True)

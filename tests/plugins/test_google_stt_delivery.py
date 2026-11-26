@@ -118,6 +118,7 @@ class TestGoogleBubbleLevels:
         session._active = True
         session._t0 = 1.0
         session._cycle = 1
+        monkeypatch.setattr(session, "_status", lambda: ready_snapshot(platform="gemini"))
         monkeypatch.setattr(session, "_stop_meter", lambda: None)
         monkeypatch.setattr(session, "_publish_state", lambda _s: None)
         monkeypatch.setattr(session, "_restore_volume", lambda: None)
