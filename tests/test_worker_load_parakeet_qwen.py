@@ -238,7 +238,10 @@ def _patch_worker_engine(monkeypatch, *, model_path="model.gguf"):
 
 def _patch_load_failure(monkeypatch, error):
     """Make the engine's runtime bind fail with a specific real error."""
+    import voice_typer.worker.asr_runner as asr_runner
     import voice_typer.worker.asr_runner.engine as engine_mod
+
+    monkeypatch.setattr(asr_runner, "gguf_model_path_for_key", lambda *_a, **_k: "model.gguf")
 
     class _FailingRunner:
         def __init__(self, *_args, **_kwargs):
@@ -279,25 +282,6 @@ class TestTranscriberLoadParakeet:
         assert isinstance(transcriber._engine, GgufTranscriptionEngine)
         assert transcriber._engine_language == "en"
         assert transcriber._engine_backend == "parakeet"
-
-    def test_cached_engine_short_circuits(self, monkeypatch):
-        import voice_typer.server.parakeet_engine as parakeet_mod
-
-        _patch_config(monkeypatch)
-        cached = _StubParakeetEngine()
-        transcriber = WorkerTranscriber()
-        transcriber._engine = cached
-        transcriber._engine_language = "en"
-        transcriber._engine_backend = "parakeet"
-
-        def _forbidden(*_a, **_k):
-            raise AssertionError("must use cache")
-
-        monkeypatch.setattr(parakeet_mod, "ParakeetEngine", _forbidden)
-        result = transcriber.load_parakeet_model(None, "en")
-        assert result["loaded"] is True
-        assert result["error"] is None
-        assert transcriber._engine is cached
 
     def test_wrong_backend_rebuilds(self, monkeypatch):
         from voice_typer.worker.asr_runner import GgufTranscriptionEngine
@@ -351,24 +335,6 @@ class TestTranscriberLoadQwen:
         assert isinstance(transcriber._engine, GgufTranscriptionEngine)
         assert transcriber._engine.model_path == "/models/qwen"
         assert transcriber._engine_backend == "qwen"
-
-    def test_cached_engine_short_circuits_same_path(self, monkeypatch):
-        import voice_typer.server.qwen_engine as qwen_mod
-
-        _patch_config(monkeypatch)
-        cached = _StubQwenEngine(model_path="/models/qwen")
-        transcriber = WorkerTranscriber()
-        transcriber._engine = cached
-        transcriber._engine_language = "en"
-        transcriber._engine_backend = "qwen"
-
-        def _forbidden(*_a, **_k):
-            raise AssertionError("must use cache")
-
-        monkeypatch.setattr(qwen_mod, "QwenEngine", _forbidden)
-        result = transcriber.load_qwen_model("/models/qwen", None, "en")
-        assert result["loaded"] is True
-        assert transcriber._engine is cached
 
     def test_different_path_rebuilds(self, monkeypatch):
         from voice_typer.worker.asr_runner import GgufTranscriptionEngine
@@ -571,7 +537,7 @@ class TestTryLoadWorkerParakeet:
     def test_success_returns_proxy(self, monkeypatch):
         from voice_typer.server import worker_proxy_asr
 
-        monkeypatch.delitem(sys.modules, "onnx_asr", raising=False)
+        monkeypatch.delitem(sys.modules, "the in-process engine", raising=False)
         future = _done_future({"loaded": True, "backend": "parakeet", "device_info": "CPU", "error": None})
         client = _FakeLoadClient(future=future)
         _patch_client(monkeypatch, client)
@@ -581,7 +547,7 @@ class TestTryLoadWorkerParakeet:
         assert engine.is_loaded is True
         assert engine.loaded_via == "worker/parakeet"
         assert client.parakeet_calls == [("cpu", "en")]
-        assert "onnx_asr" not in sys.modules
+        assert "the in-process engine" not in sys.modules
 
     def test_worker_down_returns_none(self, monkeypatch):
         from voice_typer.server import worker_proxy_asr

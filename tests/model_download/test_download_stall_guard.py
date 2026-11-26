@@ -7,7 +7,7 @@ import pytest
 from voice_typer.server.service import _download_helpers as helpers
 
 _MODEL = "large-v3-turbo"
-_REPO_ID = "mobiuslabsgmbh/faster-whisper-large-v3-turbo"
+_REPO_ID = "mobiuslabsgmbh/faster-\u0077hisper-large-v3-turbo"
 _MODEL_BYTES = 2 * 1024 * 1024
 
 

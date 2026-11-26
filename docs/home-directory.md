@@ -146,7 +146,7 @@ HuggingFace cache directory. Set via `os.environ["HF_HOME"]` in `logging_setup.p
 Legacy Python virtual environment layout (dev installs / first-run setup). The shipped app does NOT use a `venv/`: it runs frozen Nuitka onefiles (`python-sidecar` + `lausu-worker` via Tauri `externalBin` in `src-tauri/tauri.conf.json`). A `venv/` on disk is a dev leftover, not a runtime requirement. Historical contents:
 - Python interpreter
 - All pip dependencies (onnxruntime, sounddevice, pynput, pystray, Pillow, etc.)
-  - **Torch migration note (retired 2026-08-15)**: the ONNX migration is complete (`PLAN_ONNX_INTEGRATION.md` §2/§3, Phase 1d). VAD uses `onnxruntime`, Parakeet uses `GGUF runner`, Qwen uses pre-exported ONNX via `onnxruntime`. `torch` is not a project dependency; see `pyproject.toml` for the canonical dep list.
+  - **Torch migration note (retired 2026-08-15)**: VAD and noise suppression use `onnxruntime`; speech runs through the native runner. `torch` is not a project dependency; see `pyproject.toml` for the canonical dep list.
 - CLI entry point (`lausu`)
 
 ### Legacy browser profile (LEGACY)

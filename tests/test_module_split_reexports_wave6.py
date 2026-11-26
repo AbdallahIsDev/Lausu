@@ -33,7 +33,7 @@ _ORDER_FIXTURES = (
     "https://alice:secret@localhost:8080/v1/audio",
     "sha256=" + "a" * 64 + " thread=abc123 binary=worker.exe prop_set={0123456789abcdef0123456789abcdef}",
     "teardown_some_state_thing " + "x" * 20,
-    "models--Systran--faster-whisper-large-v3",
+    "models--handy-computer--whisper-tiny-gguf",
     "CUDA_VISIBLE_DEVICES=''",
     "/home/alice/.lausu/foo.log",
     "/home/alice/contact@example.com",

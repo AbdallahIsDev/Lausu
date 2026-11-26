@@ -92,11 +92,6 @@ echo "[build_sidecar_windows] SITE=$SITE"
 "$PY" -c 'import websockets' \
     || { echo "ERROR: build env is missing websockets" >&2; exit 1; }
 
-# Nuitka optimizer crashes on av's Cython .py shims
-# (assert micro_passes == 0, upstream issue 3970); each has a
-# precompiled twin Python prefers, so the helper deletes only those.
-    || { echo "ERROR: av shim strip failed" >&2; exit 1; }
-
 # ─── Prepare output dir ──────────────────────────────────────────────────────
 mkdir -p "$SIDECAR_DIR"
 
@@ -141,7 +136,7 @@ NUITKA_ARGS=(
     # importlib at runtime, which resolves bytecode modules fine
     # (Nuitka anti-bloat "bytecode" mode, same as its eventlet rules).
     --noinclude-custom-mode=yt_dlp.extractor:bytecode
-    # NU-106 retired (Phase 1c torch-free): runtime is ONNX-only, our code
+    # NU-106 retired (Phase 1c torch-free): speech runs natively, our code
     # never imports torch. Still nofollow it: onnxruntime/transformers/
     # machine_info.py has a function-level `import torch` (GPU probe,
     # try/except-guarded, never called by us) that Nuitka follows blindly;

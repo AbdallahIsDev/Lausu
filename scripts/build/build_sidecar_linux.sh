@@ -208,11 +208,6 @@ OUTPUT_BIN="$OUTPUT_DIR/python-sidecar-$TRIPLE"
 BUILD_LOG="$OUTPUT_DIR/.build-sidecar-$TRIPLE.log"
 mkdir -p "$OUTPUT_DIR"
 
-# Nuitka optimizer crashes on av's Cython .py shims
-# (assert micro_passes == 0, upstream issue 3970); each has a
-# precompiled twin Python prefers, so the helper deletes only those.
-    || { echo "[build_sidecar_linux] ERROR: av shim strip failed" >&2; exit 1; }
-
 # ─── Run Nuitka ─────────────────────────────────────────────────────────────
 echo "[build_sidecar_linux] starting Nuitka build (this takes 10-15 min)..."
 echo "[build_sidecar_linux] output: $OUTPUT_BIN"

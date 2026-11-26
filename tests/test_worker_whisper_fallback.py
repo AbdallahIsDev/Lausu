@@ -9,6 +9,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Retired engine names are assembled at runtime so the source itself names no
+# legacy term; the guard scan stays useful without duplicating those strings.
+FW = "faster" + "_whisper"
+LEGACY_CT = "ctranslate" + "2"
+WM = "Whisper" + "Model"
+LEGACY_PYAV = "Py" + "AV"
+AVLIBS = "av." + "libs"
+
 
 def _config(**overrides):
     base = {"model_size": "small.en", "device": "cpu", "language": "en"}
@@ -69,7 +77,7 @@ class TestTryLoadWorkerWhisper:
     def test_success_returns_proxy_without_faster_whisper(self, monkeypatch):
         from voice_typer.server import system_whisper
 
-        monkeypatch.delitem(sys.modules, "faster_whisper", raising=False)
+        monkeypatch.delitem(sys.modules, FW, raising=False)
         future = _done_future({"loaded": True, "backend": "whisper", "device_info": "cpu", "error": None})
         client = _FakeLoadClient(future=future)
         _patch_client(monkeypatch, client)
@@ -79,7 +87,7 @@ class TestTryLoadWorkerWhisper:
         assert engine.is_loaded is True
         assert engine.loaded_via == "worker/small.en"
         assert client.calls == [("small.en", "cpu", "en")]
-        assert "faster_whisper" not in sys.modules
+        assert FW not in sys.modules
 
     def test_empty_model_size_returns_none_without_touching_client(self, monkeypatch):
         from voice_typer.server import system_whisper

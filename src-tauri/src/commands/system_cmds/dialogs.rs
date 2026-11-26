@@ -114,8 +114,8 @@ pub async fn open_model_import_dialog(
 
 /// Audio extensions the Media page accepts.
 ///
-/// PyAV is the decoder (ffmpeg-backed), so this list is deliberately wider
-/// than "what a browser plays": a file the backend can decode must never be
+/// The backend decoder (ffmpeg) supports more formats than a browser, so this
+/// list is deliberately wider: a file the backend can decode must never be
 /// hidden by the picker.
 const MEDIA_AUDIO_EXTENSIONS: &[&str] = &[
     "mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "wma", "aiff", "aif", "amr", "ac3", "caf",

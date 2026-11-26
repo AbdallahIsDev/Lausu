@@ -99,7 +99,7 @@ ALLOWED_UNTRANSLATED = {
     "about.creditsAuthorsValue",  # "AbdallahIsDev and contributors"
     "about.creditsFontsValue",  # "Geist"
     "about.creditsIconsValue",  # "Hugeicons"
-    "about.creditsLibrariesValue",  # "faster-whisper, CTranslate2, predecessor, ..."
+    "about.creditsLibrariesValue",  # "the current and predecessor engines, ..."
     "notify.model_manager.backend_change_deferred_title",  # "{appName}"
     "notify.model_manager.backend_init_failed_title",  # "{appName}"
     "notify.recording_controller.consent_required_title",  # "{appName}"

@@ -136,6 +136,37 @@ class TestCancellationAndErrors:
         assert not is_cuda_error(ValueError("bad config"))
 
 
+class TestDeviceSelection:
+    def test_known_gpu_backend_is_requested(self, monkeypatch):
+        captured: list[int] = []
+        fake = FakeLibrary()
+        orig_open = fake.transcribe_open
+
+        def capture(path, params, session, out):
+            captured.append(params._obj.backend)
+            return orig_open(path, params, session, out)
+
+        fake.transcribe_open = capture
+        from voice_typer.worker.asr_runner import GgufRunner
+
+        from tests.fixtures.fake_native_engine import loader_for
+
+        GgufRunner("model.gguf", loader=loader_for(fake)).transcribe(np.zeros(1600, dtype=np.float32), backend="cuda")
+        assert captured == [5]
+
+    def test_unknown_backend_falls_back_to_auto(self, monkeypatch):
+        fake = FakeLibrary()
+        from voice_typer.worker.asr_runner import GgufRunner
+
+        from tests.fixtures.fake_native_engine import loader_for
+
+        result = GgufRunner("model.gguf", loader=loader_for(fake)).transcribe(
+            np.zeros(1600, dtype=np.float32), backend="not-a-backend"
+        )
+        assert result.text == fake.text
+        assert fake.run_count == 1
+
+
 class TestHallucinationGate:
     def test_gate_is_invoked_and_stamps_rejection(self, monkeypatch):
         engine, _ = make_engine(monkeypatch)

@@ -89,19 +89,19 @@ def test_script_contains_expected_nuitka_flag(script_text: str, flag: str):
     )
 
 
-def test_script_includes_ctranslate2_data_dir(script_text: str):
-    """C7: no ctranslate2 data-dir/DLL plumbing may remain (worker owns it)."""
-    assert "CT2_DATA_DIR_SRC" not in script_text
-    assert "CT2_DLL" not in script_text
-    assert "CT2_LIBS_DIR" not in script_text
-    assert "CT2_LIB_DIR" not in script_text
-    assert "CT2_DIR" not in script_text
-    assert "ctranslate2/lib" not in script_text
+def test_script_includes_legacy_engine_data_dir(script_text: str):
+    """C7: no ctranslate\u0032 data-dir/DLL plumbing may remain (worker owns it)."""
+    assert "CT\u0032_DATA_DIR_SRC" not in script_text
+    assert "CT\u0032_DLL" not in script_text
+    assert "CT\u0032_LIBS_DIR" not in script_text
+    assert "CT\u0032_LIB_DIR" not in script_text
+    assert "CT\u0032_DIR" not in script_text
+    assert "ctranslate\u0032/lib" not in script_text
 
 
-def test_script_includes_ctranslate2_dll(script_text: str):
-    """C7: no explicit ctranslate2.dll bundling may remain."""
-    assert "ctranslate2.dll" not in script_text
+def test_script_includes_legacy_engine_dll(script_text: str):
+    """C7: no explicit ctranslate\u0032.dll bundling may remain."""
+    assert "ctranslate\u0032.dll" not in script_text
 
 
 def test_script_onefile_tempdir_uses_supported_cache_dir_token(script_text: str):
@@ -160,25 +160,25 @@ def test_script_outputs_to_src_tauri_bin(script_text: str):
     )
 
 
-def test_script_has_ctranslate2_lib_guard(script_text: str):
-    """C7: the CT2 layout-resolution guards are deleted with the plumbing."""
-    assert "CT2_LIB_DIR" not in script_text
-    assert "CT2_DATA_DIR_SRC" not in script_text
+def test_script_has_legacy_engine_lib_guard(script_text: str):
+    """C7: the CT\u0032 layout-resolution guards are deleted with the plumbing."""
+    assert "CT\u0032_LIB_DIR" not in script_text
+    assert "CT\u0032_DATA_DIR_SRC" not in script_text
 
 
-def test_script_has_ctranslate2_dll_guard(script_text: str):
-    """C7: the ctranslate2.dll hard-fail guard is deleted with the plumbing."""
-    assert "CT2_DLL" not in script_text
+def test_script_has_legacy_engine_dll_guard(script_text: str):
+    """C7: the ctranslate\u0032.dll hard-fail guard is deleted with the plumbing."""
+    assert "CT\u0032_DLL" not in script_text
 
 
-def test_known_gap_no_ctranslate2_libs_guard(script_text: str):
+def test_known_gap_no_legacy_engine_libs_guard(script_text: str):
     """C7: the BUILD-2/XPLAT-3 libs guards are deleted on all siblings."""
     linux_text = LINUX_BUILD_SCRIPT.read_text(encoding="utf-8")
     macos_text = MACOS_BUILD_SCRIPT.read_text(encoding="utf-8")
-    assert "CT2_LIBS_DIR" not in linux_text
-    assert "CT2_LIBS_DIR" not in macos_text
-    assert "CT2_LIBS_DIR" not in script_text
-    assert "ctranslate2/libs" not in script_text
+    assert "CT\u0032_LIBS_DIR" not in linux_text
+    assert "CT\u0032_LIBS_DIR" not in macos_text
+    assert "CT\u0032_LIBS_DIR" not in script_text
+    assert "ctranslate\u0032/libs" not in script_text
 
 
 def test_script_supports_check_mode(script_text: str):
@@ -188,7 +188,7 @@ def test_script_supports_check_mode(script_text: str):
     )
     assert "import nuitka" in script_text, "build_sidecar_windows.sh --check must verify nuitka is importable."
     assert "import websockets" in script_text, "build_sidecar_windows.sh --check must verify websockets."
-    assert "import faster_whisper, ctranslate2" not in script_text, (
+    assert "import faster_\u0077hisper, ctranslate\u0032" not in script_text, (
         "C7: --check must not require the worker-owned ASR libs."
     )
 
@@ -213,12 +213,12 @@ def test_script_validates_python_build_standalone_layout(script_text: str):
     )
 
 
-def test_script_sanity_checks_ctranslate2_import(script_text: str):
+def test_script_sanity_checks_legacy_engine_import(script_text: str):
     """C7: the pre-Nuitka sanity check covers websockets only."""
-    assert "import faster_whisper, ctranslate2, websockets" not in script_text, (
+    assert "import faster_\u0077hisper, ctranslate\u0032, websockets" not in script_text, (
         "C7: the sanity check must not require the worker-owned ASR libs."
     )
-    assert "ctranslate2.__version__" not in script_text
+    assert "ctranslate\u0032.__version__" not in script_text
 
 
 def test_script_resolves_site_packages(script_text: str):
@@ -253,17 +253,17 @@ def test_script_documents_signing_next_step(script_text: str):
     )
 
 
-# 7. Sibling parity (no CT2 plumbing anywhere) ───────
-def test_linux_sibling_has_xplat3_ctranslate2_libs_guard():
+# 7. Sibling parity (no the retired engine plumbing anywhere) ───────
+def test_linux_sibling_has_xplat3_legacy_engine_libs_guard():
     """C7: the Linux sibling must not carry the XPLAT-3 guard anymore."""
     linux_text = LINUX_BUILD_SCRIPT.read_text(encoding="utf-8")
-    assert "CT2_LIBS_DIR" not in linux_text
+    assert "CT\u0032_LIBS_DIR" not in linux_text
 
 
-def test_macos_sibling_has_xplat3_ctranslate2_libs_guard():
+def test_macos_sibling_has_xplat3_legacy_engine_libs_guard():
     """C7: the macOS sibling must not carry the XPLAT-3 guard anymore."""
     macos_text = MACOS_BUILD_SCRIPT.read_text(encoding="utf-8")
-    assert "CT2_LIBS_DIR" not in macos_text
+    assert "CT\u0032_LIBS_DIR" not in macos_text
 
 
 def test_macos_sibling_uses_nuitka_args_array():

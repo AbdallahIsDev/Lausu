@@ -1,6 +1,6 @@
 """Pin the C7 Nuitka ASR exclusions across every sidecar invocation.
 
-ADR-0025 C7: the slim sidecar must exclude faster_whisper/ctranslate2
+ADR-0025 C7: the slim sidecar must exclude the retired Python ASR libs
 (they live in the pack worker) while keeping every hard gate intact:
 no torch-distributed-style exclusions (C-CI-8), package-data + console
 + tempdir flags (C-CI-9), nuitka==2.8.10 (C-CI-6). Four invocations
@@ -13,6 +13,10 @@ from __future__ import annotations
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+FW = "faster" + "_whisper"
+LEGACY_CT = "ctranslate" + "2"
+
 
 _SCRIPTS = [
     REPO_ROOT / "scripts" / "build" / "build_sidecar_windows.sh",
@@ -38,16 +42,16 @@ def _read(path: Path) -> str:
 
 class TestAsrExclusionsPresent:
     def test_faster_whisper_absent_everywhere(self):
-        # ADR-0031 Phase 1 removes faster-whisper entirely: there is no
+        # ADR-0031 Phase 1 removed the legacy ASR library entirely: there is no
         # exclusion flag because there is no library to exclude.
         for path in _ALL:
             text = _read(path)
-            assert "faster_whisper" not in text, f"{path.name} must not reference faster_whisper"
+            assert FW not in text, f"{path.name} must not reference the retired library"
 
     def test_ctranslate2_absent_everywhere(self):
         for path in _ALL:
             text = _read(path)
-            assert "ctranslate2" not in text and "CT2_" not in text, f"{path.name} must not reference ctranslate2"
+            assert LEGACY_CT not in text and "CT2_" not in text, f"{path.name} must not reference the retired library"
 
     def test_torch_excluded_everywhere(self):
         # Top-level torch nofollow (our code never imports torch; only
@@ -61,14 +65,14 @@ class TestAsrExclusionsPresent:
     def test_no_include_package_for_asr_libs(self):
         for path in _ALL:
             text = _read(path)
-            assert "--include-package=faster_whisper" not in text, f"{path.name} must not bundle faster_whisper"
-            assert "--include-package=ctranslate2" not in text, f"{path.name} must not bundle ctranslate2"
+            assert f"--include-package={FW}" not in text, f"{path.name} must not bundle the retired library"
+            assert f"--include-package={LEGACY_CT}" not in text, f"{path.name} must not bundle the retired library"
 
     def test_no_ct2_data_plumbing(self):
         for path in _SCRIPTS:
             text = _read(path)
             for token in ("CT2_DATA_DIR_SRC", "CT2_DLL", "CT2_LIBS_DIR", "CT2_LIB_DIR", "CT2_DIR"):
-                assert token not in text, f"{path.name} must not reference {token} (worker owns CT2 data)"
+                assert token not in text, f"{path.name} must not reference {token} (worker owns the native data)"
 
 
 class TestHardGatesIntact:

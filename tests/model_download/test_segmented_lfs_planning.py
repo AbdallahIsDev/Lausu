@@ -12,7 +12,7 @@ from voice_typer.server import segmented_download as segdl
 
 LFS_SHA256 = "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
 POINTER_BLOB_ID = "c849f26401bf079fdea48ac9f7461fdff2e743ea"
-REPO_ID = "dropbox-dash/faster-whisper-large-v3-turbo"
+REPO_ID = "dropbox-dash/faster-\u0077hisper-large-v3-turbo"
 REVISION = "0a363e91"
 MODEL_SIZE = 1_618_000_000
 SEGDL_LOGGER = "voice_typer.server.segmented_download"

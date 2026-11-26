@@ -368,15 +368,15 @@ class TestSetActiveBackend:
         mm._pending_model_change = None
         mm._model_load_attempted = False
 
-        # Stub _ensure_engine so it doesn't try to actually import qwen_engine.
+        # Stub _ensure_engine so it doesn't construct a real engine.
         ensure_calls = []
 
         def fake_ensure(backend_name):
             ensure_calls.append(backend_name)
             # Register a stub qwen engine.
-            qwen_engine = MagicMock()
-            qwen_engine.is_loaded = True
-            registry.register(backend_name, qwen_engine)
+            stub_engine = MagicMock()
+            stub_engine.is_loaded = True
+            registry.register(backend_name, stub_engine)
 
         mm._ensure_engine = fake_ensure
 
@@ -423,14 +423,10 @@ class TestWhisperFallbackConstructsOnColdBoot:
         failing_engine = MagicMock()
         failing_engine.is_loaded = False
         failing_engine.load.side_effect = RuntimeError("parakeet CUDA OOM")
-        failing_parakeet_cls = MagicMock(return_value=failing_engine)
-        failing_parakeet_mod = MagicMock(ParakeetEngine=failing_parakeet_cls)
 
         def fake_import(name, *a, **kw):
             if name == "voice_typer.server.worker_backed_asr":
                 return fake_whisper_mod
-            if name == "voice_typer.server.parakeet_engine":
-                return failing_parakeet_mod
             return __import__(name)
 
         monkeypatch.setattr("importlib.import_module", fake_import)

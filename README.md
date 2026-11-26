@@ -203,11 +203,10 @@ pytest
 pip install .
 ```
 
-> **Note:** the install is ONNX-only (no `torch`). The default
-> `pip install .` pulls `onnxruntime` (CPU), `GGUF runner`, and
-> the GGUF speech runner plus `tokenizers`. GPU users install
-> `onnxruntime-gpu` separately. The `pyproject.toml` `dependencies`
-> block lists the full set.
+> **Note:** the install is torch-free. `pip install .` pulls `onnxruntime`
+> (CPU, for VAD and noise suppression), the native GGUF speech runner, and
+> `tokenizers`. GPU users install `onnxruntime-gpu` separately. The
+> `pyproject.toml` `dependencies` block lists the full set.
 
 The package must be installed (not just run from source) for autostart to work.
 
@@ -229,21 +228,20 @@ against `pyproject.toml` is verified by
 sync with `pyproject.toml` `pyproject.toml` is now the single source
 of truth for Python dependencies.)
 
-### Optional: Qwen ASR backend (ONNX-only, no torch)
+### Optional: Qwen3-ASR models (GGUF)
 
-Whisper ships by default. The experimental Qwen3-ASR backend runs on
-ONNX Runtime via the pre-exported `handy-computer/Qwen3-ASR-*-gguf` models
-(see `docs/PLAN_ONNX_INTEGRATION.md` §4.3 C-2). No `torch` install is
-needed: `pip install .` already includes `onnxruntime` + `tokenizers`.
+Whisper ships by default. The experimental Qwen3-ASR models use pre-exported
+`handy-computer/Qwen3-ASR-*-gguf` weights through the app's native GGUF runner.
+No `torch` install is needed: `pip install .` installs the runtime dependencies.
 
 ```bash
 pip install .
 ```
 
 Then pick either Qwen size on the Models page (or set `asr_backend: "qwen"`
-plus `model_size: "qwen3-1.7b"` / `"qwen3-0.6b"` in the config file). Both ONNX
+plus `model_size: "qwen3-1.7b"` / `"qwen3-0.6b"` in the config file). Both GGUF
 exports download from HuggingFace on first use after you allow the download.
-A manual `qwen_model_path` (local ONNX dir) still works as an override.
+A manual `qwen_model_path` (local GGUF dir) still works as an override.
 
 ### ASR Auto-Setup
 
@@ -387,16 +385,16 @@ The cheat sheet is rendered by `voice_typer/client/src/renderer/src/components/h
 
 ### Model Selection
 
-Available models (subject to Whisper upstream naming and sizes):
+Available models (GGUF weights loaded by the native speech runner):
 
 | Model | Notes |
 |---|---|
 | `tiny` | Fastest, lower accuracy |
 | `large-v3` | Highest accuracy, slow on CPU |
 | `large-v3-turbo` | Near large-v3 accuracy at 8x speed |
-| `qwen3-1.7b` | Qwen3-ASR 1.7B via ONNX Runtime (pre-exported `handy-computer/Qwen3-ASR-1.7B-gguf`, no torch needed; ~3.9 GB download) |
-| `qwen3-0.6b` | Qwen3-ASR 0.6B via ONNX Runtime (pre-exported `handy-computer/Qwen3-ASR-0.6B-gguf`, smaller and faster; ~1.9 GB download) |
-| `parakeet` | Parakeet Ultra (NVIDIA Parakeet TDT 0.6b, post-trained by Moondream): 25 languages, ONNX int8, fast CPU/GPU. Weights are auto-downloaded from HuggingFace on first use. Set `asr_backend = "parakeet"` in config or pick "Parakeet Ultra" from the Models submenu. |
+| `qwen3-1.7b` | Qwen3-ASR 1.7B GGUF (`handy-computer/Qwen3-ASR-1.7B-gguf`, Q4_K_M; ~1.3 GB download) |
+| `qwen3-0.6b` | Qwen3-ASR 0.6B GGUF (`handy-computer/Qwen3-ASR-0.6B-gguf`, Q8_0; smaller and faster; ~850 MB download) |
+| `parakeet` | Parakeet Ultra (NVIDIA Parakeet TDT 0.6b, post-trained by Moondream): 25 languages, GGUF Q8_0 via the native runner. Weights auto-download from HuggingFace on first use. Set `asr_backend = "parakeet"` in config or pick "Parakeet Ultra" from the Models submenu. |
 
 ## Silence Detection and Auto-Stop
 
@@ -531,9 +529,9 @@ voice_typer/
 │   ├── asr_registry.py # Registry of ASR backends (whisper/qwen/parakeet)
 │   ├── config/        # Configuration package (platform-aware paths, validation, schema versioning), see config/__init__.py
 │   ├── recording/     # Session-based audio recording (package: recorder, buffer, resampling, exceptions)
-│   ├── transcription.py  # GGUF speech runner (ctypes transcribe.cpp wrapper)
-│   ├── qwen_engine.py  # Optional Qwen3-ASR-0.6B backend
-│   ├── parakeet_engine.py  # Optional Parakeet Ultra backend
+│   ├── transcription.py  # Dictation facade (worker-backed GGUF runner; no in-process decode)
+│   ├── worker_backed_asr.py  # Local ASR registry slot (whisper/qwen/parakeet via transcribe.cpp)
+│   ├── worker_proxy_asr.py   # Worker-hop proxy for the qwen/parakeet slots
 │   ├── cloud_engines.py   # Cloud ASR / LLM HTTP transports
 │   ├── streaming.py    # Streaming transcription with overlapping audio windows
 │   ├── text_cleanup.py # Post-transcription cleanup (dedup, misspellings, capitalization)

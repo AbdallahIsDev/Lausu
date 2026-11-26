@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from voice_typer.server.gguf_model_registry import LEGACY_REPO_ID_KEYS as _LEGACY_IDS
 from voice_typer.worker._transcribe import WorkerTranscriber
 from voice_typer.worker.asr_runner.families import (
     LanguageNotSupportedError,
@@ -12,6 +13,11 @@ from voice_typer.worker.asr_runner.families import (
     gguf_model_path_for_key,
     model_key_for,
 )
+
+
+def _legacy_id(key: str) -> str:
+    """Old repo ids live in the one migration map; never duplicate them here."""
+    return next(repo for repo, mapped in _LEGACY_IDS.items() if mapped == key)
 
 
 @pytest.mark.parametrize(
@@ -22,7 +28,7 @@ from voice_typer.worker.asr_runner.families import (
         ("qwen", "", "qwen3-1.7b"),
         ("cloud", "tiny", "large-v3-turbo"),
         ("whisper", "tiny", "large-v3-turbo"),
-        ("whisper", "Systran/faster-whisper-tiny", "large-v3-turbo"),
+        ("whisper", _legacy_id("tiny"), "large-v3-turbo"),
     ],
 )
 def test_model_key_for(backend: str, model_size: str, expected: str) -> None:

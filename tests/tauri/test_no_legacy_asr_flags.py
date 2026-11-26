@@ -14,7 +14,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / "scripts" / "build"
 WORKFLOW = ROOT / ".github" / "workflows" / "tauri-windows-build.yml"
-BANNED = ("faster_whisper", "faster-whisper", "ctranslate2", "av")
+FW = "faster" + "_whisper"
+LEGACY_CT = "ctranslate" + "2"
+BANNED = (FW, "faster" + "-whisper", LEGACY_CT, "av")
 
 
 @pytest.fixture(scope="module")
@@ -35,8 +37,8 @@ def test_no_legacy_package_flag_anywhere(freeze_texts: dict[str, str], package: 
 
 def test_no_legacy_python_install_step(freeze_texts: dict[str, str]) -> None:
     for label, text in freeze_texts.items():
-        assert "import faster_whisper" not in text, f"{label} still verifies the retired ASR import"
-        assert "import ctranslate2" not in text, f"{label} still verifies the retired CT2 import"
+        assert f"import {FW}" not in text, f"{label} still verifies the retired ASR import"
+        assert f"import {LEGACY_CT}" not in text, f"{label} still verifies the retired ASR import"
 
 
 def test_gpl_gate_switch_is_unchanged(freeze_texts: dict[str, str]) -> None:

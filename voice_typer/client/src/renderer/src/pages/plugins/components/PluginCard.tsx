@@ -32,7 +32,7 @@ export function PluginCard({ plugin, onActivate }: PluginCardProps) {
 	return (
 		<div
 			data-testid={`plugin-card-${plugin.id}`}
-			className="flex items-center gap-3 rounded-lg border border-border/8 bg-surface-subtle px-2 py-2"
+			className="flex items-center gap-3 rounded-lg border border-border/8 bg-surface-subtle px-2 py-2 pr-3"
 		>
 			{/* Icon tile. A plugin declares an icon IDENTIFIER, not a path: when
 			    an asset ships for that id it renders bare — the chip fill and

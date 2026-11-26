@@ -286,7 +286,7 @@ describe("useCudaInstallToast, automatic switch", () => {
 	});
 
 	it("never reports success on the loose `cuda_ready` alone", async () => {
-		// Live mixed state: CTranslate2 works (`cuda_ready` true) but the
+		// Live mixed state: another backend works (`cuda_ready` true) but the
 		// active Parakeet backend cannot serve. Reporting success here is the
 		// "silent CPU fallback" the per-backend gate exists to prevent.
 		renderHook(() => useCudaInstallToast(mockT));
@@ -327,7 +327,7 @@ describe("useCudaInstallToast, automatic switch", () => {
 	});
 
 	it("does not report success when only the ACTIVE backend is ready", async () => {
-		// Whisper (CTranslate2) sees the GPU, the ORT GPU wheel failed to load:
+		// the ASR engine sees the GPU, the ORT GPU wheel failed to load:
 		// `active_backend_gpu_ready` is true but `stack_complete` is false, and
 		// activation refuses to persist `cuda`. Announcing "GPU ready" here is
 		// the exact lie this gate exists to prevent.

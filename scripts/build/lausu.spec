@@ -200,9 +200,10 @@ _hiddenimports = [
     "pynput.mouse._win32",
     "pynput.mouse._darwin",
     "pynput.mouse._xorg",
-    # NEW-BUILD-001: ASR engine hiddenimports (lazy-imported).
-    "voice_typer.server.parakeet_engine",
-    "voice_typer.server.qwen_engine",
+    # NEW-BUILD-001: ASR engine hiddenimports (lazy-imported). Local ASR is
+    # worker-backed; the sidecar holds no in-process speech engine.
+    "voice_typer.server.worker_backed_asr",
+    "voice_typer.server.worker_proxy_asr",
     "voice_typer.server.cloud_engines",
     "voice_typer.server.asr_registry",
     # NATIVE-001: native hotkey backend (lazy-imported by hotkeys.py).

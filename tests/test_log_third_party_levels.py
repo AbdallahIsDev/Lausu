@@ -23,8 +23,6 @@ KNOWN_CHATTY = [
     "numpy",
     "torch",
     "onnxruntime",
-    "faster_whisper",
-    "ctranslate2",
     "huggingface_hub",
     "transformers",
     "pystray",

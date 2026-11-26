@@ -6,6 +6,10 @@
 latency from launching `lausu` / `python -m voice_typer.server` to the
 tray icon being ready to paint).
 
+**Current stack (2026-11-26):** speech runs through the native GGUF runner;
+ONNX Runtime stays only for VAD and noise suppression. The numbers below pin
+the lazy-import path and remain valid for that path.
+
 ---
 
 ## 1. Executive summary
@@ -84,10 +88,9 @@ test mock pattern.
 - Python 3.12.13 (`/home/z/.venv`)
 - Installed: `numpy`, `scipy`, `Pillow`, `psutil`, `pyperclip`, `pystray`,
   `pynput`, `librosa`
-- **Not installed:** `sounddevice`, `GGUF Whisper`, `onnxruntime`,
-  the GGUF runner (already lazy-loaded inside `transcription.py`, `vad.py`,
-  `parakeet_engine.py` etc., so their absence does not affect the import
-  chain)
+- **Not installed:** `sounddevice`; the native speech runner, VAD and noise
+  models are lazy-loaded inside their own modules, so their absence does not
+  affect the import chain
 - Linux + Xvfb (`:99`) for `pystray`'s import-time X11 connection
 
 ---
@@ -123,10 +126,10 @@ rank    self_ms     cum_ms  module
    see §5 recommendations.
 
 Modules already lazy-loading their heavy deps correctly (good prior work):
-`tray_icon.py` (PIL via `_get_pil_image()`), `transcription.py`
-(`GGUF Whisper`/the GGUF runner), `vad.py` (`onnxruntime`), `parakeet_engine.py`
-(`onnxruntime`), `level_monitor.py` / `server_platform.py` /
-`app.py` (`sounddevice` inside functions).
+`tray_icon.py` (PIL via `_get_pil_image()`), `transcription.py` (native speech
+runner), `vad.py` and the noise-filter backends (local model weights loaded on
+demand), `level_monitor.py` / `server_platform.py` / `app.py` (`sounddevice`
+inside functions).
 
 ---
 

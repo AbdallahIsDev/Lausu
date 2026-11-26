@@ -1,7 +1,7 @@
 """Auto-detect language: ``config.language == ""`` must reach the model as ``None``.
 
 Settings → Post-Processing → Transcription Language → Auto-detect is stored as
-an empty string. faster-whisper only runs language detection when it receives
+an empty string. The native runner only runs language detection when it receives
 ``None``; ``""`` skips that branch and ``Tokenizer`` rejects it, so the empty
 sentinel has to be normalized at every engine boundary.
 """
@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import threading
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -72,102 +71,3 @@ def _decode(engine: TranscriptionEngine, *, seconds: float):
     engine._abort_event = threading.Event()
     audio = np.full(int(seconds * 16000), 0.5, dtype=np.float32)
     return _decode_segments(engine, audio, True, seconds)
-
-
-class TestParakeetEngineNormalizesLanguage:
-    """Parakeet never decodes with the language, but it arms an English-only
-    junk filter from it. Auto must therefore NOT look like pinned English."""
-
-    def test_auto_sentinel_becomes_none(self):
-        from voice_typer.server.parakeet_engine.engine import ParakeetEngine
-
-        assert ParakeetEngine(language="").language is None
-
-    @pytest.mark.parametrize("language", ["", None])
-    def test_auto_never_arms_the_english_only_filter(self, language):
-        from voice_typer.server.parakeet_engine._helpers import _is_likely_english
-        from voice_typer.server.parakeet_engine.engine import ParakeetEngine
-
-        engine = ParakeetEngine(language=language)
-        # The junk-filter branch in ``_transcribe_segment`` is
-        # ``self.language == "en"``; Arabic text proves the difference.
-        assert engine.language != "en"
-        assert _is_likely_english("مرحبا بالعالم") is False, "fixture sanity: Arabic is not English"
-
-    def test_pinned_english_still_arms_the_filter(self):
-        from voice_typer.server.parakeet_engine.engine import ParakeetEngine
-
-        assert ParakeetEngine(language="en").language == "en"
-
-    def test_pinned_arabic_is_preserved(self):
-        from voice_typer.server.parakeet_engine.engine import ParakeetEngine
-
-        assert ParakeetEngine(language="ar").language == "ar"
-
-
-class TestWorkerProxyEnginesNormalizeLanguage:
-    """The pack-worker proxies used to coerce Auto to ``"en"``."""
-
-    @pytest.mark.parametrize("language", ["", None])
-    def test_parakeet_proxy_auto_is_none(self, language):
-        from voice_typer.server.worker_proxy_asr import WorkerParakeetProxyEngine
-
-        assert WorkerParakeetProxyEngine(language=language, client=MagicMock())._language is None
-
-    @pytest.mark.parametrize("language", ["", None])
-    def test_qwen_proxy_auto_is_none(self, language):
-        from voice_typer.server.worker_proxy_asr import WorkerQwenProxyEngine
-
-        assert WorkerQwenProxyEngine(language=language, client=MagicMock())._language is None
-
-    @pytest.mark.parametrize("code", ["en", "ar"])
-    def test_pinned_code_is_preserved(self, code):
-        from voice_typer.server.worker_proxy_asr import WorkerParakeetProxyEngine
-
-        assert WorkerParakeetProxyEngine(language=code, client=MagicMock())._language == code
-
-
-class TestWorkerLoadersSendAutoAsNone:
-    """The model-load requests must not pin English for an Auto config."""
-
-    @staticmethod
-    def _client(monkeypatch):
-        from voice_typer.server import worker_client
-
-        client = MagicMock()
-        client.port = 5555
-        future = MagicMock()
-        future.result.return_value = {"loaded": False, "error": "test", "device_info": ""}
-        client.request_load_whisper_model.return_value = future
-        client.request_load_parakeet_model.return_value = future
-        client.request_load_qwen_model.return_value = future
-        monkeypatch.setattr(worker_client, "get_shared_client", lambda: client)
-        return client
-
-    def test_whisper_loader_sends_none_for_auto(self, monkeypatch):
-        from voice_typer.server.system_whisper import try_load_worker_whisper
-
-        client = self._client(monkeypatch)
-        try_load_worker_whisper(SimpleNamespace(language="", model_size="tiny", device="cpu"))
-        assert client.request_load_whisper_model.call_args.args[2] is None
-
-    def test_parakeet_loader_sends_none_for_auto(self, monkeypatch):
-        from voice_typer.server.worker_proxy_asr import try_load_worker_parakeet
-
-        client = self._client(monkeypatch)
-        try_load_worker_parakeet(SimpleNamespace(language="", device="cpu"))
-        assert client.request_load_parakeet_model.call_args.args[1] is None
-
-    def test_qwen_loader_sends_none_for_auto(self, monkeypatch):
-        from voice_typer.server.worker_proxy_asr import try_load_worker_qwen
-
-        client = self._client(monkeypatch)
-        try_load_worker_qwen(SimpleNamespace(language="", device="cpu", qwen_model_path="/tmp/q"))
-        assert client.request_load_qwen_model.call_args.args[2] is None
-
-    def test_pinned_code_reaches_the_loader(self, monkeypatch):
-        from voice_typer.server.system_whisper import try_load_worker_whisper
-
-        client = self._client(monkeypatch)
-        try_load_worker_whisper(SimpleNamespace(language="ar", model_size="tiny", device="cpu"))
-        assert client.request_load_whisper_model.call_args.args[2] == "ar"

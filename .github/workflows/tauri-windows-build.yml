@@ -243,10 +243,6 @@ jobs:
           # per-product and per-build so two exes or two versions never share
           # (or inherit stale files from) the same extraction directory.
           $BUILD_STAMP = (Get-Date).ToUniversalTime().ToString("yyyy.MM.dd.HHmm")
-          # Nuitka optimizer crashes on av's Cython .py shims
-          # (assert micro_passes == 0, upstream issue 3970); each has a
-          # .pyd twin Python prefers, so the helper deletes only those.
-          if ($LASTEXITCODE -ne 0) { Write-Error "av shim strip failed"; exit 1 }
           # Internal plugin source (developer-mode surface): staged as data,
           # never imported from the binary. The packaged app seeds a writable
           # per-user workspace from this copy on the first unlock, and runtime
@@ -274,10 +270,10 @@ jobs:
           # TX-40: output filename carries matrix.target so aarch64 does not overwrite
           # x86_64 (python-sidecar-aarch64-pc-windows-msvc.exe).
           # ADR-0023 packaging: media ingest lazily imports yt_dlp /
-          # yt_dlp_ejs / av (decoder.py, downloader.py, subtitles.py,
+          # yt_dlp_ejs (decoder.py, downloader.py, subtitles.py,
           # mini_update.py); static follow-imports alone misses nothing
           # but the package-data flag guarantees yt-dlp's non-code
-          # assets ride along. av wheels bundle FFmpeg DLLs.
+          # assets ride along.
           # NOTE: keep this comment ABOVE the invocation, never between the
           # backtick-continued flag lines below: pwsh cannot continue a
           # statement through `#` comment lines (ParserError "Missing

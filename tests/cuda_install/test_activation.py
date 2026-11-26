@@ -39,7 +39,7 @@ class _FakeApp:
         self._config_mutation_lock = None
 
 
-# The exact live shape on the owner's machine: CTranslate2 sees the GPU, the
+# The exact live shape on the owner's machine: the ASR engine sees the GPU, the
 # installed onnxruntime is the CPU-only wheel. `state` is still `gpu_ready`
 # and `cuda_ready` is still True, which is precisely why neither may be used
 # as a decision signal.
@@ -325,7 +325,7 @@ def test_guard_allows_cuda_when_the_stack_is_ready(
 def test_activation_refuses_the_mixed_state(
     cuda_home: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A CUDA set that fixes CTranslate2 but not ORT must not flip the device.
+    """A CUDA set that fixes the ASR engine but not ORT must not flip the device.
 
     ``cuda_ready`` is True here, so the old gate would have persisted
     ``cuda`` on Whisper alone and left a Parakeet user on a silent CPU

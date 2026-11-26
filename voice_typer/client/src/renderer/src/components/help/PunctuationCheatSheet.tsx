@@ -10,7 +10,7 @@
  * Source of truth: `voice_typer/server/text_cleanup.py:374`
  * (`_RE_SPACING_PUNCT_BEFORE = re.compile(r"\s+([,.;:!?])")`)
  *, these are the punctuation characters Lausu's cleanup
- * pipeline recognizes and preserves. Whisper / faster-whisper itself
+ * pipeline recognizes and preserves. The ASR engine itself
  * turns the spoken forms ("comma", "period", "question mark", etc.)
  * into the literal characters; text_cleanup.py then normalizes
  * spacing around them without dropping them.

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import inspect
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -61,13 +60,6 @@ class TestAsrSetupHasNoConfigDirCache:
 
         assert not hasattr(asr_setup, "_CONFIG_DIR")
         assert not hasattr(asr_setup, "_config_dir")
-
-    def test_parakeet_uses_config_directly(self):
-        from voice_typer.server.parakeet_engine import ParakeetEngine
-
-        source = inspect.getsource(ParakeetEngine._is_cached)
-        assert "from voice_typer.server.config import _config_dir" in source
-        assert "from voice_typer.server.asr_setup import _config_dir" not in source
 
 
 class TestResampleUnavailable:

@@ -130,9 +130,9 @@ def _seed_model_artifacts(tmp_path: Path) -> dict[str, Path]:
     artifacts: dict[str, Path] = {}
     models_dir = tmp_path / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
-    model_file = models_dir / "faster-whisper-small.en.bin"
+    model_file = models_dir / "whisper-small.Q8_0.gguf"
     model_file.write_bytes(b"\x00" * 1024)
-    artifacts["models/faster-whisper-small.en.bin"] = model_file
+    artifacts["models/whisper-small.Q8_0.gguf"] = model_file
 
     hf_dir = tmp_path / "huggingface" / "hub" / "models--test--subdir"
     hf_dir.mkdir(parents=True, exist_ok=True)

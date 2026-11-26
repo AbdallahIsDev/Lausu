@@ -8,10 +8,16 @@ import pytest
 from voice_typer.server.gguf_model_registry import (
     DEFAULT_MODEL_KEY,
     DEFAULT_MODEL_SIZE,
+    LEGACY_REPO_ID_KEYS as _LEGACY_IDS,
     available_models,
     normalize_model_key,
     production_models,
 )
+
+
+def _legacy_id(key: str) -> str:
+    """Old repo ids live in the one migration map; never duplicate them here."""
+    return next(repo for repo, mapped in _LEGACY_IDS.items() if mapped == key)
 
 
 class TestAllowedUserModels:
@@ -69,19 +75,19 @@ class TestAllowedUserModels:
 
     @pytest.mark.parametrize(
         "stored",
-        ["tiny", "", "Systran/faster-whisper-tiny", "nonsense", None],
+        ["tiny", "", _legacy_id("tiny"), "nonsense", None],
     )
     def test_frozen_normalizes_dev_legacy_empty_and_unknown_ids(self, stored) -> None:
         assert normalize_model_key(stored, frozen=True) == DEFAULT_MODEL_KEY
 
     def test_frozen_preserves_legacy_ids_for_production_models(self) -> None:
-        assert normalize_model_key("Systran/faster-whisper-large-v3", frozen=True) == "large-v3"
+        assert normalize_model_key(_legacy_id("large-v3"), frozen=True) == "large-v3"
 
     def test_source_keeps_no_model_sentinel_and_resolves_legacy_ids(self) -> None:
         assert normalize_model_key("", frozen=False) == ""
         assert normalize_model_key("tiny", frozen=False) == "tiny"
         assert normalize_model_key("qwen", frozen=False) == "qwen3-1.7b"
-        assert normalize_model_key("Systran/faster-whisper-large-v3", frozen=False) == "large-v3"
+        assert normalize_model_key(_legacy_id("large-v3"), frozen=False) == "large-v3"
 
     @pytest.mark.parametrize(
         "model_size", ["tiny", "large-v3", "large-v3-turbo", "parakeet", "qwen3-1.7b", "qwen3-0.6b"]

@@ -8,10 +8,16 @@ import pytest
 from voice_typer.server import gguf_model_registry as registry
 from voice_typer.server.gguf_model_registry import (
     DEFAULT_MODEL_KEY,
+    LEGACY_REPO_ID_KEYS as _LEGACY_IDS,
     PRODUCTION_MODEL_KEYS,
     get_all_models,
     get_model_metadata,
 )
+
+
+def _legacy_id(key: str) -> str:
+    """Old repo ids live in the one migration map; never duplicate them here."""
+    return next(repo for repo, mapped in _LEGACY_IDS.items() if mapped == key)
 
 
 @pytest.fixture
@@ -37,7 +43,7 @@ def test_frozen_default_is_a_production_model(frozen: None) -> None:
 def test_frozen_config_migrates_dev_legacy_empty_and_unknown(tmp_config_dir, frozen: None) -> None:
     from voice_typer.server.config import Config
 
-    for stored in ("tiny", "Systran/faster-whisper-tiny", "", "unregistered-id"):
+    for stored in ("tiny", _legacy_id("tiny"), "", "unregistered-id"):
         config_file = tmp_config_dir / "config.json"
         config_file.write_text(
             json.dumps({"schema_version": 8, "model_size": stored}),

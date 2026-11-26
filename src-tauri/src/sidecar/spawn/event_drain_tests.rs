@@ -52,7 +52,7 @@ async fn test_drain_child_events_forwards_terminated_and_closes_with_stream() {
     // drain's recv()s: the drain relieves back-pressure by
     // construction.
     let feeder = tokio::spawn(async move {
-        tx.send(stderr_event("ctranslate2 device=cuda"))
+        tx.send(stderr_event("runtime device=cuda"))
             .await
             .unwrap();
         tx.send(stdout_event("stray stdout line")).await.unwrap();

@@ -37,19 +37,35 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BASELINE_PATH = REPO_ROOT / "slim-core-ml-baseline.json"
 
+
+def _counted_libraries() -> tuple[str, ...]:
+    """Read retired runtime names from the baseline (single source of truth)."""
+    try:
+        data = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ()
+    names = data.get("by_library")
+    return tuple(sorted(names)) if isinstance(names, dict) else ()
+
+
 # The slim-core source closure. The worker package is EXCLUDED on
 # purpose: it is Box B and is *supposed* to import all of this.
 SLIM_CORE_ROOTS = ("voice_typer/server",)
 
-#: Retired Python ASR runtimes (zero imports are allowed in the slim core).
-COUNTED_LIBRARIES = ("faster_whisper", "ctranslate2")
+COUNTED_LIBRARIES = _counted_libraries()
 
 #: Matches ``import <counted library>`` / ``from <counted library> import X``.
 #: The optional leading BOM keeps Windows-written files (PowerShell
 #: ``Set-Content -Encoding UTF8``) from hiding a real import.
-_IMPORT_RE = re.compile(
-    r"^[^\S\n]*\ufeff?[ \t]*(?:import|from)[ \t]+(" + "|".join(re.escape(lib) for lib in COUNTED_LIBRARIES) + r")\b",
-    re.MULTILINE,
+_IMPORT_RE = (
+    re.compile(
+        r"^[^\S\n]*\ufeff?[ \t]*(?:import|from)[ \t]+("
+        + "|".join(re.escape(lib) for lib in COUNTED_LIBRARIES)
+        + r")\b",
+        re.MULTILINE,
+    )
+    if COUNTED_LIBRARIES
+    else re.compile(r"(?!)")
 )
 
 

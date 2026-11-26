@@ -137,7 +137,7 @@ sections outside these markers are preserved verbatim by regeneration.
 
 - Shipping is established from the Windows bundle config and the extracted
   onefile/installed folders, NEVER from a lockfile alone.
-- `requirements-lock.txt`: 79 pinned distributions (read-only).
+- `requirements-lock.txt`: 78 pinned distributions (read-only).
 - `package-lock.json`: production closure of 138 packages (licenses: 0BSD × 1, Apache-2.0 × 2, ISC × 14, MIT × 119, MIT and ISC × 1, Unlicense × 1).
 - `Cargo.lock`: 524 package entries across all targets (Windows graph audited as 310 crates).
 - Installed dist-info metadata is a local cross-check only; its count depends on the machine and is deliberately omitted so this artifact is byte-identical on every OS.
@@ -687,7 +687,7 @@ No full license-text file was found in the installed Windows output for this ide
 
 #### BSD-3-Clause
 
-Full text source: av 17.1.0 LICENSE.txt (canonical BSD-3-Clause body). Component-specific copyrights are listed above.
+Full text source: MarkupSafe 3.0.3 LICENSE.txt (canonical BSD-3-Clause body). Component-specific copyrights are listed above.
 
 ```text
 Copyright retained by original committers. All rights reserved.

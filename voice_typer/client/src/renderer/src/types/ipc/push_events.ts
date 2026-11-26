@@ -269,8 +269,8 @@ export interface ConsentRequiredEvent {
 }
 
 /**
- * Pushed by `voice_typer/server/parakeet_engine.py:910-915` when GPU
- * transcription fails and the engine falls back to CPU. `device` is
+ * Pushed when the local engine fails on GPU
+ * and falls back to CPU. `device` is
  * always `"cpu"` today; `reason` is the truncated exception message
  */
 export interface ParakeetCpuFallbackEvent {

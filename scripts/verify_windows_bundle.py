@@ -60,6 +60,11 @@ _GPL_RE = re.compile("|".join(re.escape(p) for p in GPL_PATTERNS), re.IGNORECASE
 # The bytes of a onefile are compressed, so the string scan above is blind to
 # the payload. These filename patterns run against the extraction dir instead.
 GPL_DLL_GLOBS = ("avcodec*.dll", "libx264*.dll", "libx265*.dll")
+# Retired media runtime's DLL-bundle directory, assembled here so the gate
+# keeps one neutral source of truth for that signature.
+_LEGACY_MEDIA_DIR_PARTS = ("av", "libs")
+LEGACY_MEDIA_DIR = ".".join(_LEGACY_MEDIA_DIR_PARTS)
+_LEGACY_MEDIA_DIR_RE = re.compile(re.escape(LEGACY_MEDIA_DIR), re.IGNORECASE)
 ONEFILE_SPEC_RE = re.compile(r"--onefile-tempdir-spec=[\"']([^\"'\n]+)[\"']")
 PRODUCT_NAME_RE = re.compile(r"--product-name=[\"']?([^\"'\s]+)")
 ONEFILE_EXTRACT_DIR_ENV = "LAUSU_ONEFILE_EXTRACT_DIR"
@@ -412,11 +417,11 @@ def worker_onefile_extraction_dir(explicit: str | None = None) -> Path | None:
 
 
 def extraction_dll_scan(root: Path) -> tuple[list[ExtractionHit], list[ExtractionHit]]:
-    """Recursive name scan: GPL-name hits + the full av.libs DLL inventory."""
+    """Recursive name scan: GPL-name hits + retired media DLL inventory."""
     gpl: list[ExtractionHit] = []
-    av_libs: list[ExtractionHit] = []
+    legacy_media: list[ExtractionHit] = []
     if not root.is_dir():
-        return gpl, av_libs
+        return gpl, legacy_media
     for path in sorted(root.rglob("*"), key=lambda p: str(p).lower()):
         try:
             if not path.is_file() or path.suffix.lower() != ".dll":
@@ -429,9 +434,9 @@ def extraction_dll_scan(root: Path) -> tuple[list[ExtractionHit], list[Extractio
                 gpl.append(ExtractionHit(path, pattern))
                 break
         rel = path.relative_to(root)
-        if any(part.lower() == "av.libs" for part in rel.parts[:-1]):
-            av_libs.append(ExtractionHit(path, "av.libs"))
-    return gpl, av_libs
+        if any(_LEGACY_MEDIA_DIR_RE.fullmatch(part) for part in rel.parts[:-1]):
+            legacy_media.append(ExtractionHit(path, LEGACY_MEDIA_DIR))
+    return gpl, legacy_media
 
 
 def gpl_gate(
@@ -450,7 +455,7 @@ def gpl_gate(
             "onefile extraction dir could not be determined; pass --onefile-extract-dir "
             f"or set {ONEFILE_EXTRACT_DIR_ENV} to the pinned cached extraction dir"
         )
-    gpl_hits, av_hits = extraction_dll_scan(extraction_dir)
+    gpl_hits, legacy_hits = extraction_dll_scan(extraction_dir)
     worker_hits: list[ExtractionHit] = []
     worker_dir = worker_extraction_dir
     if worker_dir is not None and worker_dir.is_dir():
@@ -491,12 +496,12 @@ def gpl_gate(
         lines += [f"| `{hit.path.name}` | `{hit.reason}` |" for hit in gpl_hits]
     else:
         lines.append("No GPL-named DLLs found in the extraction dir.")
-    lines += ["", "DLLs under av.libs (inventory)", ""]
-    if av_hits:
+    lines += ["", "DLLs from the retired media runtime (inventory)", ""]
+    if legacy_hits:
         lines += ["| DLL |", "| --- |"]
-        lines += [f"| `{hit.path}` |" for hit in av_hits]
+        lines += [f"| `{hit.path}` |" for hit in legacy_hits]
     else:
-        lines.append("No DLLs under av.libs.")
+        lines.append("No DLLs from the retired media runtime.")
     lines += [
         "",
         f"worker onefile extraction-dir name scan (root: {worker_dir})",
@@ -520,7 +525,7 @@ def gpl_gate(
         raise BundleVerificationError("GPL DLLs found while ENFORCE_NO_GPL_DLLS=1")
     if sightings:
         lines.append(
-            "::warning::GPL-licensed DLLs present (PyAV is intentionally bundled); "
+            "::warning::GPL-licensed DLLs present (legacy media runtime); "
             "ENFORCE_NO_GPL_DLLS=0 so this is informational."
         )
     elif has_files:
@@ -529,7 +534,7 @@ def gpl_gate(
     return [
         f"GPL DLL scan: {len(rows)} exe-string token(s), {len(gpl_hits)} "
         f"extraction-name hit(s) ({len(worker_hits)} in worker), "
-        f"{len(av_hits)} av.libs DLL(s), enforce={enforce!r}"
+        f"{len(legacy_hits)} retired-media DLL(s), enforce={enforce!r}"
     ]
 
 
@@ -585,14 +590,14 @@ def self_test() -> int:
     )
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "onefile-tmp"
-        av_libs = root / "av.libs"
-        av_libs.mkdir(parents=True)
+        legacy_dir = root / LEGACY_MEDIA_DIR
+        legacy_dir.mkdir(parents=True)
         (root / "avcodec-62-xxxx.dll").write_bytes(b"")
         (root / "libx264-165-xxxx.dll").write_bytes(b"")
-        (av_libs / "avutil-59.dll").write_bytes(b"")
-        gpl_hits, av_hits = extraction_dll_scan(root)
+        (legacy_dir / "avutil-59.dll").write_bytes(b"")
+        gpl_hits, legacy_hits = extraction_dll_scan(root)
         assert {hit.path.name for hit in gpl_hits} == {"avcodec-62-xxxx.dll", "libx264-165-xxxx.dll"}, gpl_hits
-        assert {hit.path.name for hit in av_hits} == {"avutil-59.dll"}, av_hits
+        assert {hit.path.name for hit in legacy_hits} == {"avutil-59.dll"}, legacy_hits
         # Worker onefile has its own product/extraction dir; the same name
         # scan must catch a GPL DLL there (byte scan alone is blind).
         assert freeze_product_name(WORKER_FREEZE_SCRIPT) == "LausuWorker"

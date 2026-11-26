@@ -82,8 +82,8 @@ def test_inline_sidecar_matches_freeze_script_on_critical_flags() -> None:
 
     assert "Crypto" in _includes(script), "--include-package=Crypto missing from sidecar script"
     assert "Crypto" in _includes(inline), "--include-package=Crypto missing from inline sidecar freeze"
-    assert "av" not in _includes(script), "PyAV must stay out of the sidecar (GPL DLLs)"
-    assert "av" not in _includes(inline), "PyAV must stay out of the inline sidecar freeze"
+    assert "av" not in _includes(script), "bundled decoder must stay out of the sidecar (GPL DLLs)"
+    assert "av" not in _includes(inline), "bundled decoder must stay out of the inline sidecar freeze"
 
     # SITE must be a real site-packages path; CI logs prove the PowerShell
     # expression resolves it, and the data-file flag expands it in-pipeline.

@@ -196,7 +196,7 @@ describe("GpuRequestDialog", () => {
 
 	it("renders the Download button in the mixed state", () => {
 		// Live case: `state` is gpu_ready and `cuda_ready` is true because
-		// CTranslate2 works, but the ACTIVE Parakeet backend cannot serve.
+		// Another backend works, but the ACTIVE Parakeet backend cannot serve.
 		setCapability(
 			capability({
 				state: "gpu_ready",

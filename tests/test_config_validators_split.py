@@ -14,6 +14,13 @@ from voice_typer.server.config_validators import (
     validate_config,
     validate_config_update,
 )
+from voice_typer.server.gguf_model_registry import LEGACY_REPO_ID_KEYS as _LEGACY_IDS
+
+
+def _legacy_id(key: str) -> str:
+    """Old repo ids live in the one migration map; never duplicate them here."""
+    return next(repo for repo, mapped in _LEGACY_IDS.items() if mapped == key)
+
 
 # see AGENTS.md §6.3 / CONTRIBUTING.md §6.3 (SEC-002).
 _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
@@ -247,7 +254,7 @@ class TestDevModelConfigRejection:
         monkeypatch = pytest.MonkeyPatch()
         try:
             monkeypatch.setattr(_al, "_is_frozen", lambda: True)
-            for value in ("tiny", "", "Systran/faster-whisper-tiny", "not-a-model"):
+            for value in ("tiny", "", _legacy_id("tiny"), "not-a-model"):
                 validated, errors = validate_config_update({"model_size": value})
                 assert validated == {}, value
                 assert any("not available in this build" in error for error in errors), value

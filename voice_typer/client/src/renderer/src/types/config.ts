@@ -63,12 +63,12 @@ export interface GpuCapability {
 	/**
 	 * Historical "ANY gpu-capable local backend is ready". Kept for the
 	 * coarse four-state verdict only — NEVER gate on it: on a machine where
-	 * CTranslate2 sees the GPU but the installed `onnxruntime` is the
+	 * the native ASR runner sees the GPU but the installed `onnxruntime` is the
 	 * CPU-only wheel it is true while Parakeet/Qwen cannot serve at all.
 	 */
 	cuda_ready: boolean;
 	/**
-	 * EVERY gpu-capable LOCAL backend is ready (both the CTranslate2 path
+	 * EVERY gpu-capable LOCAL backend is ready (both the native-runner path
 	 * and the ORT path). The signal an install must satisfy before the app
 	 * may persist `device: "cuda"`.
 	 */

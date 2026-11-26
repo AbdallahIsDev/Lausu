@@ -154,34 +154,18 @@ dependencies = [
     # The `>=1.7` floor matches the first release with the `mouse.Listener`
     # `suppress=True` flag we use for the bubble-drag capture path.
     "pynput>=1.7,<2.0",
-    # torch + transformers + qwen-asr REMOVED 2026-08-15: qwen_engine.py
-    # migrated to the ONNX-only backend (qwen_onnx_model.py,
-    # pre-exported andrewleech/qwen3-asr-*-onnx via onnxruntime).
-    # Parakeet + VAD were already ONNX. Nothing imports the removed
-    # framework deps anymore; the shipped runtime is ONNX-only.
-    # Phase 1b (§3.3 Option B-1): onnx-asr provides the
-    # `load_model(name, path=..., quantization=..., providers=...)`
-    # function + `recognize(audio, *, sample_rate=...)` adapter used by
-    # the rewritten parakeet_engine.py (onnx-asr 0.12.0 exports ONLY
-    # `load_model` / `load_vad`: there is no `Model` class). The
-    # `>=0.12.0` floor matches the first release with the `quantization`
-    # kwarg + the `recognize(audio, *, sample_rate=...)` signature
-    # (older 0.11.x had a positional-only `recognize(audio, sr)` and no
-    # quantization support, breaks parakeet_engine.py:_load_impl). No
-    # upper cap yet (the API is stable; a future 1.0 redesign would
-    # need re-validation of the `_select_providers` mapping).
-    "onnx-asr>=0.12.0",
+    # Speech decoding runs in the native GGUF runner; the retired Python
+    # ASR framework is no longer declared or imported.
     # Phase 1a + §5.3 (companion plan): onnxruntime is declared
     # explicitly because after the slim-core / runtime-pack split
     # (plan-runtime-pack-split.md §3.3 + §5.3), the speech runtime moves to
     # the runtime-pack and the slim core loses the transitive
     # onnxruntime dep. The slim core's VAD (silero_vad.onnx via ORT
-    # InferenceSession) and Parakeet (via onnx-asr which wraps ORT) both
-    # need ORT directly, so the slim core MUST declare it explicitly.
-    # The `>=1.20` floor matches the first release with the
-    # `RunOptions.set_terminate()` API used by parakeet_engine.py's
-    # `request_abort()` path (added in 1.20, verified against ORT
-    # changelog). The lockfile currently resolves to 1.28.0 (pulled
+    # InferenceSession) needs ORT directly, so the slim core MUST
+    # declare it explicitly. The `>=1.20` floor matches the first
+    # release with the `RunOptions.set_terminate()` API used by the
+    # noise backends (added in 1.20, verified against ORT changelog).
+    # The lockfile currently resolves to 1.28.0 (pulled
     # by the runtime pack);
     # declaring it explicitly here keeps the slim core working after
     # the speech runtime is moved to the pack. NOTE: this is the CPU wheel
@@ -194,20 +178,16 @@ dependencies = [
     # envelope now starts at 3.11, so a single unbounded-floor entry is
     # correct and still resolves a 1.24+ release for every supported Python.
     "onnxruntime>=1.20",
-    # tokenizers is imported directly by the Qwen3-ASR ONNX backend
-    # (qwen_onnx_model.py, ``Tokenizer.from_file`` for the ASR prompt
-    # decode). It is pulled transitively by the declared
-    # ``transformers>=5.14.1`` dep, but the ONNX path (PLAN_ONNX_INTEGRATION
-    # §4.3 C-2) is the framework-free Qwen option, so the direct
-    # import gets a direct declaration (E13, declare what you import;
-    # survives the eventual transformers removal at Phase 1d).
+    # tokenizers is imported directly by the local ONNX text provider
+    # (model_providers/local_onnx/client.py, ``Tokenizer.from_file``).
+    # It gets a direct declaration (E13: declare what you import).
     "tokenizers>=0.21,<1",
     # psutil is used by _another_voice_typer_alive
     # (ARCH-012) and is required for process scanning on all platforms.
     "psutil>=5.9,<8.0",
-    # huggingface_hub is used by asr_setup.py,
-    # parakeet_engine.py, service.py, and transcription.py for
-    # snapshot_download. Previously imported with # type: ignore
+    # huggingface_hub is used by the verified GGUF downloader,
+    # the model service and transcription for cache resolution.
+    # Previously imported with # type: ignore
     # but not declared, cold pip install succeeded but first model
     # load crashed with ModuleNotFoundError.
     # >=1.28.0 carries the upstream fix for the closed-shared-httpx-client retry.
@@ -917,9 +897,9 @@ module = [
     # exist for onnxruntime (types-onnxruntime / onnxruntime-stubs /
     # onnxruntime-types all 404), and neither distribution ships a
     # py.typed marker, the import-untyped errors are genuine.
-    # onnx-asr and tokenizers are deliberately NOT
-    # listed: both installed distributions ship py.typed markers, so
-    # they resolve as typed modules and need no override.
+    # tokenizers is deliberately NOT listed: the installed distribution
+    # ships a py.typed marker, so it resolves as a typed module and
+    # needs no override.
     "onnxruntime",
 ]
 ignore_missing_imports = true

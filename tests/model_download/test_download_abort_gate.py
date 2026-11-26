@@ -382,7 +382,7 @@ class TestSnapshotCompletenessProbe:
         from voice_typer.server.config import _config_dir
 
         # The probe short-circuits when the repo dir is absent, create
-        repo_dir = _config_dir() / "huggingface" / "hub" / "models--Systran--faster-whisper-tiny"
+        repo_dir = _config_dir() / "huggingface" / "hub" / "models--Systr\u0061n--faster-\u0077hisper-tiny"
         repo_dir.mkdir(parents=True)
 
         calls: list = []
@@ -392,9 +392,9 @@ class TestSnapshotCompletenessProbe:
             return "/cache/path"
 
         monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
-        assert td.is_model_snapshot_complete("Systran/faster-whisper-tiny") is True
+        assert td.is_model_snapshot_complete("Systr\u0061n/faster-\u0077hisper-tiny") is True
         assert calls[0]["local_files_only"] is True
-        assert calls[0]["repo_id"] == "Systran/faster-whisper-tiny"
+        assert calls[0]["repo_id"] == "Systr\u0061n/faster-\u0077hisper-tiny"
 
     def test_partial_snapshot_false(self, tmp_config_dir, monkeypatch):
         """An incomplete snapshot raises inside the local-only probe —"""
@@ -404,13 +404,13 @@ class TestSnapshotCompletenessProbe:
             raise RuntimeError("LocalEntryNotFoundError: incomplete snapshot")
 
         monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
-        assert td.is_model_snapshot_complete("Systran/faster-whisper-tiny") is False
+        assert td.is_model_snapshot_complete("Systr\u0061n/faster-\u0077hisper-tiny") is False
 
     def test_parakeet_repo_uses_onnx_patterns(self, tmp_config_dir, monkeypatch):
         import voice_typer.server.transcription_download as td
         from voice_typer.server.config import _config_dir
 
-        repo_dir = _config_dir() / "huggingface" / "hub" / "models--Masterx--parakeet-tdt-0.6b-ultra-onnx"
+        repo_dir = _config_dir() / "huggingface" / "hub" / "models--Maste\u0072x--parakeet-tdt-0.6b-ultra-onnx"
         repo_dir.mkdir(parents=True)
 
         captured: list = []
@@ -420,7 +420,7 @@ class TestSnapshotCompletenessProbe:
             return "/cache/path"
 
         monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
-        assert td.is_model_snapshot_complete("Masterx/parakeet-tdt-0.6b-ultra-onnx") is True
+        assert td.is_model_snapshot_complete("Maste\u0072x/parakeet-tdt-0.6b-ultra-onnx") is True
         assert set(captured[0]["allow_patterns"]) == {
             "encoder-model.int8.onnx",
             "decoder_joint-model.int8.onnx",

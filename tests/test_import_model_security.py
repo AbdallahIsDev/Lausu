@@ -287,7 +287,7 @@ class TestImportModelSymlinkRejection:
 
         src_dir = tmp_path / "source"
         src_dir.mkdir()
-        model_dir = _make_model_cache_dir(src_dir, "Systran/faster-whisper-tiny")
+        model_dir = _make_model_cache_dir(src_dir, "example-org/example-model-tiny")
 
         # Plant a symlink inside the model cache pointing to a "secret"
         secret = tmp_path / "secret_target"
@@ -323,7 +323,7 @@ class TestImportModelSymlinkRejection:
 
         src_dir = tmp_path / "source"
         src_dir.mkdir()
-        model_dir = _make_model_cache_dir(src_dir, "Systran/faster-whisper-tiny")
+        model_dir = _make_model_cache_dir(src_dir, "example-org/example-model-tiny")
 
         # Plant a symlinked subdirectory
         real_dir = tmp_path / "real_dir"
@@ -352,7 +352,7 @@ class TestImportModelSymlinkRejection:
 
         src_dir = tmp_path / "source"
         src_dir.mkdir()
-        model_dir = _make_model_cache_dir(src_dir, "Systran/faster-whisper-tiny")
+        model_dir = _make_model_cache_dir(src_dir, "example-org/example-model-tiny")
 
         link = model_dir / "hostname_link"
         try:
@@ -392,7 +392,7 @@ class TestImportModelSymlinkRejection:
 
         src_dir = tmp_path / "source"
         src_dir.mkdir()
-        model_dir = _make_model_cache_dir(src_dir, "Systran/faster-whisper-tiny")
+        model_dir = _make_model_cache_dir(src_dir, "example-org/example-model-tiny")
         # Add a regular (non-symlink) file to make the copy non-trivial.
         (model_dir / "config.json").write_text('{"model_type": "test"}')
 
@@ -425,11 +425,11 @@ class TestImportModelSymlinkRejection:
         src_dir.mkdir()
 
         # Clean model, should import
-        clean_dir = _make_model_cache_dir(src_dir, "Systran/faster-whisper-tiny")
+        clean_dir = _make_model_cache_dir(src_dir, "example-org/example-model-tiny")
         (clean_dir / "config.json").write_text('{"model_type": "tiny"}')
 
         # Poisoned model, should be rejected
-        poison_dir = _make_model_cache_dir(src_dir, "dropbox-dash/faster-whisper-large-v3-turbo")
+        poison_dir = _make_model_cache_dir(src_dir, "example-org/example-model-large")
         secret = tmp_path / "secret"
         secret.write_text("secret")
         link = poison_dir / "leaked"

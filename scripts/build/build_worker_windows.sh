@@ -4,8 +4,9 @@
 #
 # Plan-runtime-pack-split §4.4 / §11.5, builds the runtime-pack worker exe
 # (lausu-worker-<triple>.exe), the heavy-ML process that owns
-# onnxruntime (VAD + Parakeet) + the GGUF speech runner (Whisper
-# fallback) + numpy/scipy/av/pyrnnoise + the bundled silero_vad.onnx.
+# onnxruntime (VAD + noise suppression) + the native GGUF speech runner
+# (Whisper, Parakeet, Qwen3 ASR) + numpy/scipy/pyrnnoise + the bundled
+# silero_vad.onnx.
 # The slim-core sidecar connects to this worker via a localhost WebSocket
 # (master plan §7) and offloads all heavy inference to it.
 #
@@ -33,7 +34,7 @@
 # CI gate contract (binding, C-CI-6/9/13):
 #   - nuitka==2.8.10 (C-CI-6, NU-105). Nuitka <2.8.0 crashes on numpy 2.5
 #     PEP 695 type-generic aliases. We verify the installed version below.
-#   - C-CI-8 / NU-106 retired (Phase 1c torch-free): runtime is ONNX-only.
+#   - C-CI-8 / NU-106 retired (Phase 1c torch-free): speech runs natively.
 #   - --nofollow-import-to ONLY for the lazily-imported safe modules
 #     (transformers, scipy.*, psutil._ps*, sympy, mpmath, pytest,
 #     PIL.* non-UI) PLUS top-level torch: zero `import torch` sites in our
@@ -177,14 +178,9 @@ fi
 echo "[build_worker_windows] nuitka=$NUITKA_VER"
 
 # Sanity-check: the worker module imports cleanly + onnxruntime is present
-# (the worker's VAD/Parakeet engines use onnxruntime, NOT torch).
+# (VAD/noise use onnxruntime, NOT torch; speech uses the native runner).
 "$PY" -c 'import voice_typer.worker; import onnxruntime, numpy, scipy, websockets; print("worker imports ok")' \
     || { echo "ERROR: build env missing voice_typer.worker / onnxruntime / numpy / scipy / websockets" >&2; exit 1; }
-
-# Nuitka optimizer crashes on av's Cython .py shims
-# (assert micro_passes == 0, upstream issue 3970); voice_typer follows
-# av lazily, so the worker needs the same strip as the sidecar.
-    || { echo "ERROR: av shim strip failed" >&2; exit 1; }
 
 # ─── Prepare output dir ──────────────────────────────────────────────────────
 mkdir -p "$WORKER_DIR"
@@ -196,7 +192,7 @@ BUILD_STAMP="$(date -u +%Y.%m.%d.%H%M)"
 # so its self-extraction doesn't collide with the sidecar's or the prewarm's.
 # Different temp dir, different binary, different process.
 #
-# NU-106 retired (Phase 1c torch-free): runtime is ONNX-only.
+# NU-106 retired (Phase 1c torch-free): speech runs natively.
 #
 # --nofollow-import-to ONLY for the lazily-imported safe modules, PLUS
 # top-level torch (zero `import torch` sites; onnxruntime's guarded probe

@@ -72,7 +72,7 @@ export function DeviceToggle({ collapsed = false }: { collapsed?: boolean }) {
 		: gpuAvailable === true || hardwarePresent === true;
 
 	// Readiness is per BACKEND, never the global `state`: `state` is
-	// `gpu_ready` when ANY backend works, so on a machine where CTranslate2
+	// `gpu_ready` when ANY backend works, so on a machine where the native runner
 	// sees the GPU and the installed onnxruntime is the CPU-only wheel, a
 	// Parakeet user would get a silent CPU fallback with no modal. The
 	// matching `backends` entry is the authority; `active_backend_gpu_ready`

@@ -186,7 +186,7 @@ class TestTranscribeWithFallbackWrapper:
 
         registry = _make_registry()
         backend = registry.get("parakeet")
-        backend.transcribe_with_fallback.side_effect = _TranscribeError("simulated ctranslate2 crash")
+        backend.transcribe_with_fallback.side_effect = _TranscribeError("simulated native runner crash")
 
         with pytest.raises(_TranscribeError):
             registry.transcribe_with_fallback(b"audio", name="parakeet")

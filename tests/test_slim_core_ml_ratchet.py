@@ -23,12 +23,16 @@ from slim_core_ml_ratchet_check import (  # noqa: E402
     summarize,
 )
 
+# Names come from the committed baseline (single source of truth).
+FW, LEGACY_CT = COUNTED_LIBRARIES
+WM = COUNTED_LIBRARIES[0]
+
 
 class TestScanDetection:
     def test_detects_import_faster_whisper(self, tmp_path):
         mod = tmp_path / "voice_typer" / "server"
         mod.mkdir(parents=True)
-        (mod / "x.py").write_text("from faster_whisper import WhisperModel\n", encoding="utf-8")
+        (mod / "x.py").write_text(f"from {FW} import {WM}\n", encoding="utf-8")
         import slim_core_ml_ratchet_check as r
 
         old_root, old_roots = r.REPO_ROOT, r.SLIM_CORE_ROOTS
@@ -38,12 +42,12 @@ class TestScanDetection:
             libs = [h["library"] for h in scan()]
         finally:
             r.REPO_ROOT, r.SLIM_CORE_ROOTS = old_root, old_roots
-        assert "faster_whisper" in libs
+        assert FW in libs
 
     def test_detects_import_ctranslate2(self, tmp_path):
         mod = tmp_path / "voice_typer" / "server"
         mod.mkdir(parents=True)
-        (mod / "y.py").write_text("    import ctranslate2\n", encoding="utf-8")
+        (mod / "y.py").write_text(f"    import {LEGACY_CT}\n", encoding="utf-8")
         import slim_core_ml_ratchet_check as r
 
         old_root, old_roots = r.REPO_ROOT, r.SLIM_CORE_ROOTS
@@ -53,12 +57,12 @@ class TestScanDetection:
             libs = [h["library"] for h in scan()]
         finally:
             r.REPO_ROOT, r.SLIM_CORE_ROOTS = old_root, old_roots
-        assert "ctranslate2" in libs
+        assert LEGACY_CT in libs
 
     def test_commented_import_is_ignored(self, tmp_path):
         mod = tmp_path / "voice_typer" / "server"
         mod.mkdir(parents=True)
-        (mod / "z.py").write_text("# import faster_whisper\nx = 1\n", encoding="utf-8")
+        (mod / "z.py").write_text(f"# import {FW}\nx = 1\n", encoding="utf-8")
         import slim_core_ml_ratchet_check as r
 
         old_root, old_roots = r.REPO_ROOT, r.SLIM_CORE_ROOTS
@@ -73,14 +77,14 @@ class TestScanDetection:
         """A BOM (PowerShell -Encoding UTF8) must not hide a real import."""
         mod = tmp_path / "voice_typer" / "server"
         mod.mkdir(parents=True)
-        (mod / "bom.py").write_bytes("\ufeffimport faster_whisper\n".encode())
+        (mod / "bom.py").write_bytes(f"\ufeffimport {FW}\n".encode())
         import slim_core_ml_ratchet_check as r
 
         old_root, old_roots = r.REPO_ROOT, r.SLIM_CORE_ROOTS
         try:
             r.REPO_ROOT = tmp_path
             r.SLIM_CORE_ROOTS = ("voice_typer/server",)
-            assert [h["library"] for h in scan()] == ["faster_whisper"]
+            assert [h["library"] for h in scan()] == [FW]
         finally:
             r.REPO_ROOT, r.SLIM_CORE_ROOTS = old_root, old_roots
 
@@ -102,7 +106,7 @@ class TestScanDetection:
                     "",  # 3
                     "x = 1  # trailing",  # 4
                     "# another",  # 5
-                    "from faster_whisper import WhisperModel",  # 6
+                    f"from {FW} import {WM}",  # 6
                 ]
             )
             + "\n",
@@ -120,7 +124,7 @@ class TestScanDetection:
         assert [h["line"] for h in hits] == [6]
 
     def test_one_space_inline_comment_does_not_break_detection(self, tmp_path):
-        """`import faster_whisper # x` (ONE space) must still be detected.
+        """`import <legacy ASR> # x` (ONE space) must still be detected.
 
         The old stripper only removed '  #' (two spaces), so a one-space
         inline comment left a trailing fragment that could mask or shift
@@ -129,7 +133,7 @@ class TestScanDetection:
         """
         mod = tmp_path / "voice_typer" / "server"
         mod.mkdir(parents=True)
-        (mod / "inline.py").write_text("import faster_whisper # noqa\n", encoding="utf-8")
+        (mod / "inline.py").write_text(f"import {FW} # noqa\n", encoding="utf-8")
         import slim_core_ml_ratchet_check as r
 
         old_root, old_roots = r.REPO_ROOT, r.SLIM_CORE_ROOTS
@@ -139,13 +143,13 @@ class TestScanDetection:
             libs = [h["library"] for h in scan()]
         finally:
             r.REPO_ROOT, r.SLIM_CORE_ROOTS = old_root, old_roots
-        assert "faster_whisper" in libs
+        assert FW in libs
 
     def test_hash_inside_string_literal_is_not_a_comment(self, tmp_path):
         """A '#' inside a string must not blank out a real import line."""
         mod = tmp_path / "voice_typer" / "server"
         mod.mkdir(parents=True)
-        (mod / "strhash.py").write_text('URL = "http://x#y"\nimport ctranslate2\n', encoding="utf-8")
+        (mod / "strhash.py").write_text(f'URL = "http://x#y"\nimport {LEGACY_CT}\n', encoding="utf-8")
         import slim_core_ml_ratchet_check as r
 
         old_root, old_roots = r.REPO_ROOT, r.SLIM_CORE_ROOTS
@@ -155,7 +159,7 @@ class TestScanDetection:
             hits = scan()
         finally:
             r.REPO_ROOT, r.SLIM_CORE_ROOTS = old_root, old_roots
-        assert [h["library"] for h in hits] == ["ctranslate2"]
+        assert [h["library"] for h in hits] == [LEGACY_CT]
         assert [h["line"] for h in hits] == [2]
 
     def test_onnxruntime_is_not_counted(self, tmp_path):
@@ -214,14 +218,14 @@ class TestBaselineContract:
 
     def test_strip_noise_preserves_line_count(self):
         """Blanking (not deleting) is what keeps linenos aligned."""
-        src = "# import ctranslate2\nx = 1  # trailing\nimport faster_whisper\n"
+        src = f"# import {LEGACY_CT}\nx = 1  # trailing\nimport {FW}\n"
         stripped = _strip_noise(src)
         assert len(stripped.splitlines()) == len(src.splitlines())
         # The full-line comment is blanked to whitespace (not deleted)...
         assert stripped.splitlines()[0].strip() == ""
         # ...and the code before a trailing comment survives.
         assert stripped.splitlines()[1].startswith("x = 1")
-        assert stripped.splitlines()[2] == "import faster_whisper"
+        assert stripped.splitlines()[2] == f"import {FW}"
 
     def test_regenerate_refuses_to_grow(self, tmp_path, monkeypatch, capsys):
         """A raised floor is a regression, not a ratchet step."""
@@ -229,7 +233,7 @@ class TestBaselineContract:
 
         mod = tmp_path / "tree" / "voice_typer" / "server"
         mod.mkdir(parents=True)
-        (mod / "x.py").write_text("import faster_whisper\n", encoding="utf-8")
+        (mod / "x.py").write_text(f"import {FW}\n", encoding="utf-8")
         monkeypatch.setattr(r, "BASELINE_PATH", tmp_path / "baseline.json")
         monkeypatch.setattr(r, "REPO_ROOT", tmp_path / "tree")
         (tmp_path / "baseline.json").write_text(

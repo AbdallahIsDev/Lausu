@@ -97,12 +97,20 @@ def detect_qwen_variant(model_dir: str | Path) -> str | None:
     return None
 
 
-def is_complete_qwen_dir(model_dir: str | Path) -> bool:
-    """True when ``model_dir`` holds every file the ONNX loader requires."""
-    from voice_typer.server.qwen_onnx_model import is_onnx_model_dir
+def _has_preexported_layout(path: Path) -> bool:
+    """True when ``path`` holds the pre-exported decoder layout."""
+    if not path.is_dir():
+        return False
+    encoder = path / "encoder.onnx"
+    if not encoder.is_file():
+        encoder = path / "encoder.int4.onnx"
+    return encoder.is_file() and (path / "embed_tokens.bin").is_file() and (path / "tokenizer.json").is_file()
 
+
+def is_complete_qwen_dir(model_dir: str | Path) -> bool:
+    """True when ``model_dir`` holds every file the pre-exported layout requires."""
     path = Path(model_dir)
-    if not is_onnx_model_dir(path):
+    if not _has_preexported_layout(path):
         return False
     return all(
         any((path / f"{stem}{suffix}").is_file() for suffix in _SESSION_SUFFIXES)

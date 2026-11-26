@@ -461,7 +461,6 @@ export default function ModelsPage() {
 			 *     multi-GB file the user just deleted, hitting
 			 *     their network quota without consent.
 			 *
-			 * Full writeup: docs/ux/model-delete-rationale.md
 			 * Backend assumption: `LausuService.delete_model`
 			 * is a hard `shutil.rmtree` (see
 			 * `voice_typer/server/service.py`), which is what makes

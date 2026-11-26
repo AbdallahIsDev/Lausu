@@ -293,7 +293,7 @@ class _EnhancementStepsMixin:
                 automation = VocabularyAutomation(vm, self._app.config)
                 self._app._vocabulary_automation = automation
 
-            # Faster-whisper exposes segment-level avg_logprob, not
+            # No segment confidence is available on this path.
             segments: tuple = _EMPTY_SEGMENTS
             confidence: float = _NO_TRANSCRIPT_CONFIDENCE
             suggestions = automation.analyze_transcription(

@@ -55,7 +55,7 @@ export function GpuRequestDialog({
 	const state = capability?.state;
 	const driverUrl = capability?.driver_url;
 	// Readiness is per BACKEND. `state === "gpu_ready"` only means SOME
-	// backend works (e.g. CTranslate2), so gating on it left a Parakeet user
+	// backend works (e.g. the native runner), so gating on it left a Parakeet user
 	// with no route to the CUDA download.
 	const activeEntry = capability?.backends?.find(
 		(entry) => entry.name === capability?.active_backend,

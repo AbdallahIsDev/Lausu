@@ -237,7 +237,7 @@ def test_dash_joined_model_dir_names_survive_verbatim():
     dash-joined names split into short runs that never match."""
     line = (
         r"[MODEL] system whisper model ready "
-        r"(~\.cache\huggingface\hub\models--Systran--faster-whisper-large-v3"
+        r"(~\.cache\huggingface\hub\models--handy-computer--whisper-tiny-gguf"
         r"\snapshots\edaa852ec7e145841d8ffdb056a99866b5f0a478)"
     )
     assert redact_secret(line) == line
@@ -248,7 +248,7 @@ def test_cuda_env_var_names_survive_verbatim():
     generic catch-all, rendering ``Set ***=''`` in CUDA-DLL log lines."""
     line = (
         "[CUDA-DLL] Set CUDA_VISIBLE_DEVICES='': downstream imports "
-        "(ctranslate2) skip CUDA enumeration (~20s) and load on CPU"
+        "(the native runner) skip CUDA enumeration (~20s) and load on CPU"
     )
     assert redact_secret(line) == line
 

@@ -211,8 +211,6 @@ _THIRD_PARTY_LOGGER_LEVELS: dict[str, int] = {
     "numpy": logging.WARNING,
     "torch": logging.WARNING,
     "onnxruntime": logging.WARNING,
-    "faster_whisper": logging.WARNING,
-    "ctranslate2": logging.WARNING,
     "huggingface_hub": logging.WARNING,
     "transformers": logging.WARNING,
     "pystray": logging.WARNING,

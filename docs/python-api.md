@@ -66,7 +66,7 @@ transcription pipeline.
 
 **Module:** `voice_typer.server.transcription`
 
-Wraps the live ASR engines (GGUF transcribe.cpp runner, Parakeet ONNX, Qwen ONNX) for speech-to-text transcription.
+Wraps the live ASR engines (native GGUF speech runner for Whisper, Parakeet and Qwen3 ASR) for speech-to-text transcription.
 
 ### Key Methods
 

@@ -67,7 +67,7 @@ def _seed_model_artifacts(tmp_path: Path) -> None:
     """Create model artifacts that MUST NOT be included in the export."""
     models_dir = tmp_path / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
-    (models_dir / "faster-whisper-small.en.bin").write_bytes(b"\x00" * 1024)
+    (models_dir / "whisper-small.Q8_0.gguf").write_bytes(b"\x00" * 1024)
     hf_dir = tmp_path / "huggingface" / "hub" / "models--test--subdir"
     hf_dir.mkdir(parents=True, exist_ok=True)
     (hf_dir / "model.safetensors").write_bytes(b"\x00" * 1024)

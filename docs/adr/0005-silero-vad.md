@@ -6,7 +6,7 @@ Accepted (revised 2026-08-13: ONNX migration; 2026-09-23: streaming context)
 
 ## Date
 
-2024-02-10 (initial adoption); 2026-08-13 (ONNX backend migration per `PLAN_ONNX_INTEGRATION.md` §2); 2026-09-23 (streaming-context addendum)
+2024-02-10 (initial adoption); 2026-08-13 (ONNX backend migration); 2026-09-23 (streaming-context addendum)
 
 ## Context
 
@@ -59,8 +59,7 @@ into every `InferenceSession.run` call as an input, and stores the returned
 `stateN` back into `_state` for the next call. `reset_states()` re-zeros the
 buffer; `unload()` clears both the session and the state; `preload()` runs a
 zero-tensor warmup then calls `reset_states()` so the first real audio chunk
-starts from a clean LSTM state. See `PLAN_ONNX_INTEGRATION.md` §2.2 for the
-threading rationale.
+starts from a clean LSTM state.
 
 ## Streaming audio context (2026-09-23 addendum)
 

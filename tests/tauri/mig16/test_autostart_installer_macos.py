@@ -353,7 +353,7 @@ def test_entitlements_plist_has_three_required_entitlements():
         data = plistlib.load(fh)
 
     assert data.get("com.apple.security.cs.allow-jit") is True, (
-        "com.apple.security.cs.allow-jit must be true (CTranslate2 JIT)"
+        "com.apple.security.cs.allow-jit must be true (CTranslate\u0032CTranslate2 JIT)"
     )
     assert data.get("com.apple.security.cs.disable-library-validation") is True, (
         "com.apple.security.cs.disable-library-validation must be true (Nuitka onefile unsigned dylib extraction)"

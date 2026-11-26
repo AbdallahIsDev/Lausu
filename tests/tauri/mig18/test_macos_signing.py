@@ -52,7 +52,7 @@ def test_entitlements_has_allow_jit(entitlements_text: str):
     """entitlements.plist must declare com.apple.security.cs.allow-jit."""
     assert "com.apple.security.cs.allow-jit" in entitlements_text, (
         "entitlements.plist is missing the 'com.apple.security.cs.allow-jit' "
-        "key. ADR-0020 §13.2 + signing-guide.md mandate this for CTranslate2 "
+        "key. ADR-0020 §13.2 + signing-guide.md mandate this for CTranslate\u0032CTranslate2 "
         "JIT under hardened runtime."
     )
     assert re.search(

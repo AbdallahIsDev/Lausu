@@ -4,11 +4,11 @@
 #
 # Hard-fails the CI build if the freshly-built Nuitka onefile binary contains
 # any torch import sites or the silero_vad.jit JIT model. This is the
-# Phase-1c gate: torch must be removed from vad.py + parakeet_engine.py
-# (Qwen stays, per Phase 1d deferral) before the sidecar/worker bundle is
-# allowed to ship. Without this gate, a regression that re-introduces
-# `import torch` into vad.py would silently bloat the bundle by ~150 MB
-# and re-expose the NU-106 VAD-degradation failure mode.
+# Phase-1c gate: torch must stay out of the frozen bundle. VAD/noise use
+# ONNX Runtime and local ASR runs in the worker through the native GGUF
+# runner. Without this gate, a regression that re-introduces `import torch`
+# would silently bloat the bundle by ~150 MB and re-expose the NU-106
+# VAD-degradation failure mode.
 #
 # Implementation (per plan §11.3): the Nuitka onefile is a single ~100 MB
 # PE/ELF/Mach-O binary with the payload compressed inline. `strings(1)`
@@ -146,7 +146,7 @@ if [[ "$SCAN_RC" -ne 0 ]]; then
     echo "$SCAN_OUTPUT" >&2
     echo "" >&2
     echo "Phase 1c gate (plan §11.3): torch must be removed from the bundle before" >&2
-    echo "this gate passes. Check vad.py / parakeet_engine.py for stale torch imports" >&2
+    echo "this gate passes. Check vad.py / noise backends / worker bridge for stale torch imports" >&2
     echo "in any form (torch., torch/, or torch\\), or rebuild from a clean env without torch." >&2
     exit 1
 fi

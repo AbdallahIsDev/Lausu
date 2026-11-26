@@ -10,10 +10,9 @@ Linux systemd user timer), and the PID-file + sentinel + completion-event
 machinery have been deleted. The cache-probe logic (`_warm_imports`,
 `_warm_package_files`) was retained as a **startup phase of the worker
 exe** (`voice_typer/worker/__main__.py`) and the warm-import list was
-updated to `onnxruntime + the GGUF runner + numpy/scipy` (torch +
-transformers are no longer warmed: they are not imported by the
-runtime pack after the ONNX migration, see `PLAN_ONNX_INTEGRATION.md`
-§2 and §3).
+updated to `onnxruntime + the native speech runner + numpy/scipy` (ONNX
+Runtime stays for VAD and noise suppression; the retired speech runtimes are
+no longer warmed).
 
 The historical architecture analysis below is preserved for traceability
 against the original implementation; readers should consult the master
@@ -131,7 +130,7 @@ The `--delay 30` flag makes the launcher sleep 30 seconds before spawning predec
 
 ### Model Loading (GPU Path)
 
-When the app starts, `parakeet_engine.py::load()` calls:
+Historically, the now-removed `parakeet_engine.py::load()` called:
 
 ```python
 self._model = self._AutoModelForTDT.from_pretrained(

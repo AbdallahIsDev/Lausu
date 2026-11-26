@@ -1,24 +1,5 @@
 {
-    "_comment": "SEC-audit-005 manifest. See security.py::_load_model_hashes docstring for full schema. revision = HF commit SHA (immutable); files = {relative_path: sha256_hex}. verify_model_integrity() hard-fails on any pinned-file hash mismatch. Qwen3-ASR int4 ONNX entries (2026-10-23) pin the andrewleech exports by LFS oid so the app downloads them from HuggingFace; the legacy local-only qwen repo key is gone (override dirs are never hashed). SHAs fetched 2026-07-10. Parakeet ONNX entry re-pinned 2026-11-06 to Masterx/parakeet-tdt-0.6b-ultra-onnx (revision 99b09f03; int8 encoder+decoder_joint, hashes = HF LFS oids, vocab/config byte-identical to the v3 pins). Ultra replaces the grikdotnet fp16 build. Whisper live entries (2026-09-13): Systran/faster-whisper-tiny (multilingual tiny, revision d90ca5fe, hashes verified against local HF cache) + dropbox-dash/faster-whisper-large-v3-turbo (canonical HF org, renamed from mobiuslabsgmbh; revision 0a363e91). Legacy tiny.en/small.en/medium.en pins kept for backward compat with pre-2026-08-15 caches.",
-    "Systran/faster-whisper-tiny": {
-        "revision": "d90ca5fe260221311c53c58e660288d3deb8d356",
-        "files": {
-            "config.json": "a73a28cdfe1c43ccc7202fa333d1f89c202477271407ae9a7f19afa52039cac8",
-            "model.bin": "dcb76c6586fc06cbdac6dd21f14cfd129cc4cdd9dce19bf4ffa62e59cbe6e6d1",
-            "tokenizer.json": "fb7b63191e9bb045082c79fd742a3106a12c99513ab30df4a0d47fa6cb6fd0ab",
-            "vocabulary.txt": "34ce3fe1c5041027b3f8d42912270993f986dbc4bb34cf27f951e34a1e453913"
-        }
-    },
-    "dropbox-dash/faster-whisper-large-v3-turbo": {
-        "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
-        "files": {
-            "config.json": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e",
-            "model.bin": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da",
-            "preprocessor_config.json": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711",
-            "tokenizer.json": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd",
-            "vocabulary.json": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1"
-        }
-    },
+    "_comment": "SEC-audit-005 manifest: pinned HF revisions + file hashes. Keys are model catalogue keys; old repo ids are expanded by security/model_integrity.py from the one migration map in gguf_model_registry.py. Entries are legacy-format snapshots retained only for cache integrity checks.",
     "nvidia/parakeet-tdt-0.6b-v3": {
         "revision": "7c35754d166cca382ad1e53e68b01e7c575f3a1d",
         "files": {
@@ -29,7 +10,26 @@
             "tokenizer_config.json": "0b2fe0037599ee335f0b972fa682bf0ece74e4ccfec755cb7daa3405d3d3e874"
         }
     },
-    "Masterx/parakeet-tdt-0.6b-ultra-onnx": {
+    "tiny": {
+        "revision": "d90ca5fe260221311c53c58e660288d3deb8d356",
+        "files": {
+            "config.json": "a73a28cdfe1c43ccc7202fa333d1f89c202477271407ae9a7f19afa52039cac8",
+            "model.bin": "dcb76c6586fc06cbdac6dd21f14cfd129cc4cdd9dce19bf4ffa62e59cbe6e6d1",
+            "tokenizer.json": "fb7b63191e9bb045082c79fd742a3106a12c99513ab30df4a0d47fa6cb6fd0ab",
+            "vocabulary.txt": "34ce3fe1c5041027b3f8d42912270993f986dbc4bb34cf27f951e34a1e453913"
+        }
+    },
+    "large-v3-turbo": {
+        "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+        "files": {
+            "config.json": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e",
+            "model.bin": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da",
+            "preprocessor_config.json": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711",
+            "tokenizer.json": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd",
+            "vocabulary.json": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1"
+        }
+    },
+    "parakeet": {
         "revision": "99b09f030a5a6efeaa13cf2cf54592100ce2c3f1",
         "files": {
             "config.json": "666903c76b9798caf2c210afd4f6cd60b08a8dbf9800ec8d7a3bc0d2148ac466",
@@ -38,31 +38,7 @@
             "vocab.txt": "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d"
         }
     },
-    "Systran/faster-whisper-tiny.en": {
-        "revision": "0d3d19a32d3338f10357c0889762bd8d64bbdeba",
-        "files": {
-            "config.json": "14b1b421a90349bc551b881461426b561a874049cb9e4c4864f2ca384f6a7cc5",
-            "model.bin": "1a5afae06a4db91c975c9a9d78be5cc110ee4ea022ad57d55492e4550e936b2a",
-            "tokenizer.json": "929c5252409436dce1b38a75d1abbcb5e132d170d8e324e4e04ed915fa2d22df"
-        }
-    },
-    "Systran/faster-whisper-small.en": {
-        "revision": "d1d751a5f8271d482d14ca55d9e2deeebbae577f",
-        "files": {
-            "config.json": "666a9605530ac1f61fa8177f3702b4dacec9966749e42610839fcc32661d5fae",
-            "model.bin": "62b2a45b05ee59acb4a5341b33ee35e041395d378d418a18acfe4c9e768ee37a",
-            "tokenizer.json": "929c5252409436dce1b38a75d1abbcb5e132d170d8e324e4e04ed915fa2d22df"
-        }
-    },
-    "Systran/faster-whisper-medium.en": {
-        "revision": "a29b04bd15381511a9af671baec01072039215e3",
-        "files": {
-            "config.json": "4a1848ebabe7938d9797c15a2e8e4ce1d36e6fd4a43d096ae5955257c67c7962",
-            "model.bin": "11b220779aea4c6f3ce9d2549c8a95ea869ed84066864b999531ef53e594fe5b",
-            "tokenizer.json": "929c5252409436dce1b38a75d1abbcb5e132d170d8e324e4e04ed915fa2d22df"
-        }
-    },
-    "Systran/faster-whisper-large-v3": {
+    "large-v3": {
         "revision": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
         "files": {
             "config.json": "a9306624f5ec14270a014b647e5c316b6e03a662c369758d1b90697a7b0655b9",
@@ -71,7 +47,7 @@
             "tokenizer.json": "6d8cbd7cd0d8d5815e478dac67b85a26bbe77c1f5e0c6d76d1ce2abc0e5f21ca"
         }
     },
-    "andrewleech/qwen3-asr-1.7b-onnx": {
+    "qwen3-1.7b": {
         "revision": "df916193ac67e59347769891a21e10d81d12acdd",
         "files": {
             "added_tokens.json": "de40784677cbd1843cabe5fbee078c7e042cd0b62155f0810af5a13842e5722a",
@@ -87,7 +63,7 @@
             "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
         }
     },
-    "andrewleech/qwen3-asr-0.6b-onnx": {
+    "qwen3-0.6b": {
         "revision": "4fc24a1402e74db89c4d2ef256875e71680128c4",
         "files": {
             "added_tokens.json": "de40784677cbd1843cabe5fbee078c7e042cd0b62155f0810af5a13842e5722a",

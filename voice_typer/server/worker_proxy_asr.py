@@ -176,10 +176,10 @@ def try_load_worker_parakeet(config: Any, timeout: float = 300.0) -> Any | None:
     """Ask the pack worker to load parakeet; return a proxy engine or ``None``.
 
     Worker-first path for pack-present runs: when the worker is
-    connected its already-cached model serves transcription with zero
-    ``onnx_asr``/``onnxruntime`` import in this process. Returns ``None``
+    connected its already-cached model serves transcription with no
+    ASR runtime import in this process. Returns ``None``
     when the worker is down, refuses, or times out so the caller falls
-    through to the in-process ONNX engine. Never raises.
+    through to the in-process backend. Never raises.
     """
     try:
         device = getattr(config, "device", "auto") or "auto"

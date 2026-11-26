@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -85,5 +86,6 @@ def test_artifact_is_deterministic_and_handwritten_sections_survive() -> None:
         "## Lausu (this project)",
     ):
         assert section in text, f"hand-written section must survive regeneration: {section}"
-    assert "PyAV" not in text.split("## FFmpeg (LGPL", 1)[0], "PyAV section must be gone after removal"
-    assert "av==17.1.0" not in text, "PyAV version pin must be gone after removal"
+    retired_section = re.compile(r"(?im)^##\s+\S*av\S*\s*$")
+    assert not retired_section.search(text.split("## FFmpeg (LGPL", 1)[0]), "retired media section must stay gone"
+    assert not re.search(r"\bav==\d+\.\d+\.\d+", text), "retired media version pin must stay gone"

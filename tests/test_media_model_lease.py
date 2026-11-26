@@ -220,36 +220,6 @@ class TestEngineUnloadIsBounded:
         assert engine._model is not None, "the model was freed while a decode held it"
         assert "refusing to unload" in caplog.text
 
-    def test_parakeet_unload_skips_when_inference_is_active(self, monkeypatch, caplog):
-        from voice_typer.server.parakeet_engine import ParakeetEngine
-
-        monkeypatch.setattr("voice_typer.server.asr.registry.MODEL_UNLOAD_LOCK_TIMEOUT_S", 0.05)
-        engine = ParakeetEngine.__new__(ParakeetEngine)
-        engine._lock = threading.RLock()
-        engine._inference_cond = threading.Condition(engine._lock)
-        engine._active_inference = 1
-        engine._model = object()
-        engine._processor = None
-        with caplog.at_level(logging.ERROR, logger="voice_typer.server.parakeet_engine"):
-            engine.unload()
-        assert engine._model is not None
-        assert "refusing to unload" in caplog.text
-
-    def test_qwen_unload_skips_when_inference_is_active(self, monkeypatch, caplog):
-        from voice_typer.server import qwen_engine
-
-        monkeypatch.setattr("voice_typer.server.asr.registry.MODEL_UNLOAD_LOCK_TIMEOUT_S", 0.05)
-        engine = qwen_engine.QwenEngine.__new__(qwen_engine.QwenEngine)
-        engine._lock = threading.RLock()
-        engine._inference_cond = threading.Condition(engine._lock)
-        engine._active_inference = 1
-        engine._model = object()
-        engine._onnx_model = None
-        with caplog.at_level(logging.ERROR, logger="voice_typer.server.qwen_engine"):
-            engine.unload()
-        assert engine._model is not None
-        assert "refusing to unload" in caplog.text
-
 
 class _FakeRegistry:
     def __init__(self, busy: bool) -> None:

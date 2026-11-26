@@ -304,176 +304,156 @@ export default function VocabularyPage({
 			>
 				{(loaded) => (
 					<>
-						{/* The page column is centered (max-w-4xl mx-auto) in the main
-                            content area, so anything sticky/centered inside it (the
-                            floating bulk bar) stays centered relative to the CONTENT
-                            in both sidebar states, the column recenters when the
-                            sidebar expands/collapses. */}
-						<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
-							{/* Heading, then the toolbar on its OWN full-width row BELOW
-                                    it (not inside PageHeading's children slot).
-                                    PageHeading wraps children in a content-sized,
-                                    shrink-0 flex wrapper, inside it, the toolbar's
-                                    `justify-between` had zero free space to distribute
-                                    (the wrapper hugs the buttons), so Add Word never
-                                    reached the far right across three prior attempts.
-                                    As a direct child of the page column (max-w-4xl
-                                    w-full) the toolbar spans the full header width and
-                                    the left group / right Add Word separation is real. */}
-							{!embedded && (
-								<PageHeading
-									title={t("vocabulary.title")}
-									description={t("vocabulary.description")}
-								/>
-							)}
-							<div className="flex flex-col gap-4">
-								{/* Shared collection toolbar shell, the page injects
+						{!embedded && (
+							<PageHeading
+								title={t("vocabulary.title")}
+								description={t("vocabulary.description")}
+							/>
+						)}
+						<div className="flex flex-col gap-4">
+							{/* Shared collection toolbar shell, the page injects
                                                 every label key + the two drift-decision values
                                                 (Add disabled while saving; JSON+CSV import
                                                 accept because the Vocabulary parser reads CSV).
                                                 The hidden file input for Import renders inside
                                                 the shell and re-uses the page hook's ref. */}
-								<CollectionToolbar
-									importInputRef={importInputRef}
-									importAccept="application/json,.json,.csv,text/csv"
-									onImportClick={handleImportClick}
-									onImportFile={handleImportFile}
-									importAriaLabelKey="common.importAria"
-									importLabelKey="common.import"
-									importTitleKey="vocabulary.importFormatHint"
-									onExport={doExport}
-									exportDisabled={loaded.entries.length === 0}
-									onClearAll={() => setShowClearConfirm(true)}
-									clearAllDisabled={loaded.entries.length === 0}
-									clearAllAriaLabelKey="vocabulary.clearAllAria"
-									clearAllLabelKey="vocabulary.clearAll"
-									addAriaLabelKey="vocabulary.addNewAria"
-									addLabelKey="vocabulary.addWord"
-									addDisabled={saving}
-									onAdd={() => quickAdd.openQuickAdd()}
-									sortOrder={sortOrder}
-									onSortOrderChange={setSortOrder}
-									hasEntries={loaded.entries.length > 0}
+							<CollectionToolbar
+								importInputRef={importInputRef}
+								importAccept="application/json,.json,.csv,text/csv"
+								onImportClick={handleImportClick}
+								onImportFile={handleImportFile}
+								importAriaLabelKey="common.importAria"
+								importLabelKey="common.import"
+								importTitleKey="vocabulary.importFormatHint"
+								onExport={doExport}
+								exportDisabled={loaded.entries.length === 0}
+								onClearAll={() => setShowClearConfirm(true)}
+								clearAllDisabled={loaded.entries.length === 0}
+								clearAllAriaLabelKey="vocabulary.clearAllAria"
+								clearAllLabelKey="vocabulary.clearAll"
+								addAriaLabelKey="vocabulary.addNewAria"
+								addLabelKey="vocabulary.addWord"
+								addDisabled={saving}
+								onAdd={() => quickAdd.openQuickAdd()}
+								sortOrder={sortOrder}
+								onSortOrderChange={setSortOrder}
+								hasEntries={loaded.entries.length > 0}
+							/>
+
+							{/* Pre-existing duplicates review banner. */}
+							{showDuplicateBanner && (
+								<VocabDuplicateBanner
+									count={duplicateCount}
+									onRemoveDuplicates={handleRemoveDuplicates}
+									onDismiss={() => setDuplicateBannerDismissed(true)}
 								/>
+							)}
 
-								{/* Pre-existing duplicates review banner. */}
-								{showDuplicateBanner && (
-									<VocabDuplicateBanner
-										count={duplicateCount}
-										onRemoveDuplicates={handleRemoveDuplicates}
-										onDismiss={() => setDuplicateBannerDismissed(true)}
-									/>
-								)}
-
-								{/* Inline quick-add row. NOT gated on entries.length —
+							{/* Inline quick-add row. NOT gated on entries.length —
                                                 "Add Word" must work from the empty state too. */}
-								{quickAdd.open && (
-									<VocabInlineForm
-										trigger={quickAdd.trigger}
-										replacement={quickAdd.replacement}
-										error={quickAdd.error}
-										onTriggerChange={quickAdd.setTrigger}
-										onReplacementChange={quickAdd.setReplacement}
-										onSave={quickAdd.saveQuickAdd}
-										onCancel={quickAdd.closeQuickAdd}
+							{quickAdd.open && (
+								<VocabInlineForm
+									trigger={quickAdd.trigger}
+									replacement={quickAdd.replacement}
+									error={quickAdd.error}
+									onTriggerChange={quickAdd.setTrigger}
+									onReplacementChange={quickAdd.setReplacement}
+									onSave={quickAdd.saveQuickAdd}
+									onCancel={quickAdd.closeQuickAdd}
+								/>
+							)}
+
+							<div className="flex flex-col gap-3">
+								{loaded.entries.length === 0 ? (
+									<EmptyState
+										icon={BookOpen02Icon}
+										title={t("vocabulary.emptyTitle")}
+										description={t("vocabulary.emptyDescription")}
+										actionLabel={t("vocabulary.addFirstWord")}
+										onAction={() => quickAdd.openQuickAdd()}
 									/>
-								)}
-
-								<div className="flex flex-col gap-3">
-									{loaded.entries.length === 0 ? (
-										<EmptyState
-											icon={BookOpen02Icon}
-											title={t("vocabulary.emptyTitle")}
-											description={t("vocabulary.emptyDescription")}
-											actionLabel={t("vocabulary.addFirstWord")}
-											onAction={() => quickAdd.openQuickAdd()}
-										/>
-									) : loaded.filteredSorted.length === 0 ? (
-										<EmptyState
-											icon={BookOpen02Icon}
-											title={t("vocabulary.noResults")}
-											description={t("vocabulary.noResultsDescription")}
-											actionLabel={t("vocabulary.clearFilters")}
-											onAction={handleClearSearch}
-										/>
-									) : (
-										<>
-											<div className="overflow-clip rounded-lg border border-border/8 bg-surface-subtle">
-												{/* Shared column-header shell, keys + the
+								) : loaded.filteredSorted.length === 0 ? (
+									<EmptyState
+										icon={BookOpen02Icon}
+										title={t("vocabulary.noResults")}
+										description={t("vocabulary.noResultsDescription")}
+										actionLabel={t("vocabulary.clearFilters")}
+										onAction={handleClearSearch}
+									/>
+								) : (
+									<>
+										<div className="overflow-clip rounded-lg border border-border/8 bg-surface-subtle">
+											{/* Shared column-header shell, keys + the
                                                                                 page-unique testid are injected. */}
-												<CollectionListHeader
-													testId="vocab-list-header"
-													// Select-all must operate on what is actually rendered; the
-													// list below is display-capped (same contract as Templates).
-													visibleIds={loaded.filteredSorted
-														.slice(0, displayCount)
-														.map((e) => e._id)}
-													selectedIds={selection.selectedIds}
-													onSelectAll={selection.setSelectMany}
-													selectAllAriaKey="vocabulary.selectAll"
-													primaryColumnKey="vocabulary.columnOriginal"
-													secondaryColumnKey="vocabulary.columnCorrected"
-													actionsColumnKey="vocabulary.columnActions"
-												/>
-												<div className="divide-y divide-border/8">
-													{loaded.filteredSorted
-														.slice(0, displayCount)
-														.map((entry) =>
-															isEditing && editingEntry?._id === entry._id ? (
-																// In-place edit row, same inline treatment as
-																// Add (no modal). Pencil icon + no bottom
-																// border (the list's divide-y owns the
-																// separators).
-																<VocabInlineForm
-																	key={entry._id}
-																	testId="vocab-edit-row"
-																	submitIcon={PencilEdit02Icon}
-																	withBottomBorder={false}
-																	trigger={trigger}
-																	replacement={replacement}
-																	onTriggerChange={handleTriggerChange}
-																	onReplacementChange={handleReplacementChange}
-																	onSave={saveEdit}
-																	onCancel={closeEdit}
-																/>
-															) : (
-																<VocabListRow
-																	key={entry._id}
-																	entry={entry}
-																	selected={selection.selectedIds.has(
-																		entry._id,
-																	)}
-																	onToggleSelect={selection.toggleSelect}
-																	onEdit={handleEdit}
-																	onDelete={instantDeleteEntry}
-																	onTest={handleTestEntry}
-																	testResult={
-																		entryTest?.id === entry._id
-																			? entryTest.result
-																			: null
-																	}
-																	usage={usageByKey.get(
-																		usageKey(entry.category, entry.original),
-																	)}
-																/>
-															),
-														)}
-												</div>
+											<CollectionListHeader
+												testId="vocab-list-header"
+												// Select-all must operate on what is actually rendered; the
+												// list below is display-capped (same contract as Templates).
+												visibleIds={loaded.filteredSorted
+													.slice(0, displayCount)
+													.map((e) => e._id)}
+												selectedIds={selection.selectedIds}
+												onSelectAll={selection.setSelectMany}
+												selectAllAriaKey="vocabulary.selectAll"
+												primaryColumnKey="vocabulary.columnOriginal"
+												secondaryColumnKey="vocabulary.columnCorrected"
+												actionsColumnKey="vocabulary.columnActions"
+											/>
+											<div className="divide-y divide-border/8">
+												{loaded.filteredSorted
+													.slice(0, displayCount)
+													.map((entry) =>
+														isEditing && editingEntry?._id === entry._id ? (
+															// In-place edit row, same inline treatment as
+															// Add (no modal). Pencil icon + no bottom
+															// border (the list's divide-y owns the
+															// separators).
+															<VocabInlineForm
+																key={entry._id}
+																testId="vocab-edit-row"
+																submitIcon={PencilEdit02Icon}
+																withBottomBorder={false}
+																trigger={trigger}
+																replacement={replacement}
+																onTriggerChange={handleTriggerChange}
+																onReplacementChange={handleReplacementChange}
+																onSave={saveEdit}
+																onCancel={closeEdit}
+															/>
+														) : (
+															<VocabListRow
+																key={entry._id}
+																entry={entry}
+																selected={selection.selectedIds.has(entry._id)}
+																onToggleSelect={selection.toggleSelect}
+																onEdit={handleEdit}
+																onDelete={instantDeleteEntry}
+																onTest={handleTestEntry}
+																testResult={
+																	entryTest?.id === entry._id
+																		? entryTest.result
+																		: null
+																}
+																usage={usageByKey.get(
+																	usageKey(entry.category, entry.original),
+																)}
+															/>
+														),
+													)}
 											</div>
-											{loaded.filteredSorted.length > displayCount && (
-												<ShowMoreButton
-													testid="vocabulary-show-more"
-													onClick={() =>
-														setDisplayCount((c) => c + DISPLAY_CAP)
-													}
-												/>
-											)}
-										</>
-									)}
-								</div>
+										</div>
+										{loaded.filteredSorted.length > displayCount && (
+											<ShowMoreButton
+												testid="vocabulary-show-more"
+												onClick={() => setDisplayCount((c) => c + DISPLAY_CAP)}
+											/>
+										)}
+									</>
+								)}
 							</div>
+						</div>
 
-							{/* Floating bulk bar, appears when rows are selected;
+						{/* Floating bulk bar, appears when rows are selected;
                                     rendered through the shared shell (keys + the
                                     page-unique testid are injected). It is a DIRECT
                                     child of the page column with ``sticky bottom-4``
@@ -485,22 +465,21 @@ export default function VocabularyPage({
                                     the main content area, so the bar stays centered relative
                                     to the CONTENT in both sidebar states (the column
                                     recenters when the sidebar expands/collapses). */}
-							{selection.selectedCount > 0 && (
-								<CollectionBulkBar
-									testId="vocab-bulk-bar"
-									selectedCount={selection.selectedCount}
-									selectedCountKey="vocabulary.selectedCount"
-									onDeleteSelected={selection.bulkDeleteSelected}
-									deleteLabelKey="vocabulary.bulkDelete"
-									exportSelectedKey="vocabulary.exportSelected"
-									onExportSelected={(format) =>
-										doExport(format, selection.selectedRows)
-									}
-									deselectAllKey="vocabulary.deselectAll"
-									onClearSelection={selection.clearSelection}
-								/>
-							)}
-						</div>
+						{selection.selectedCount > 0 && (
+							<CollectionBulkBar
+								testId="vocab-bulk-bar"
+								selectedCount={selection.selectedCount}
+								selectedCountKey="vocabulary.selectedCount"
+								onDeleteSelected={selection.bulkDeleteSelected}
+								deleteLabelKey="vocabulary.bulkDelete"
+								exportSelectedKey="vocabulary.exportSelected"
+								onExportSelected={(format) =>
+									doExport(format, selection.selectedRows)
+								}
+								deselectAllKey="vocabulary.deselectAll"
+								onClearSelection={selection.clearSelection}
+							/>
+						)}
 					</>
 				)}
 			</Skeleton>

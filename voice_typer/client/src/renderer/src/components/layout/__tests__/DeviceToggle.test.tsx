@@ -290,7 +290,7 @@ describe("DeviceToggle, GPU switch + CUDA install flow", () => {
 	});
 
 	it("opens the dialog in the MIXED state (whisper ready, parakeet not)", async () => {
-		// The live bug: `state` is gpu_ready because CTranslate2 works, so the
+		// The live bug: `state` is gpu_ready because another backend works, so the
 		// old global gate wrote `cuda` for a Parakeet user who can only fall
 		// back to CPU — with no route to the CUDA download.
 		const user = userEvent.setup();

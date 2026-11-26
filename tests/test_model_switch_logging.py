@@ -37,61 +37,6 @@ class TestOrtProviderRedaction:
         assert redact_secret("AzureExecutionProvider") == "AzureExecutionProvider"
 
 
-class TestParakeetDeviceTruth:
-    def test_device_info_uses_effective_providers(self, tmp_path, monkeypatch):
-        import sys
-        from unittest.mock import MagicMock, patch
-
-        from voice_typer.server.parakeet_engine import ParakeetEngine
-
-        snap = tmp_path / "models--Masterx--parakeet-tdt-0.6b-ultra-onnx" / "snapshots" / "test123"
-        snap.mkdir(parents=True)
-        (snap / "model.onnx").write_bytes(b"fake-onnx")
-        monkeypatch.setattr(
-            "voice_typer.server.model_availability.snapshot_search_dirs",
-            lambda config_dir, repo_id: [snap.parent.parent],
-        )
-        monkeypatch.setattr(
-            "voice_typer.server.security.verify_model_integrity",
-            lambda snapshot, repo_id: True,
-        )
-        mock_asr = MagicMock(name="mock_onnx_asr")
-        mock_asr.__version__ = "0.12.0-test"
-        mock_asr.load_model.side_effect = lambda *a, **k: MagicMock(name="m")
-        mock_ort = MagicMock(name="mock_onnxruntime")
-        mock_ort.__version__ = "1.20.0-test"
-        mock_ort.get_available_providers.return_value = ["CPUExecutionProvider"]
-        mock_ort.SessionOptions.return_value = MagicMock(name="opts")
-        saved = (ParakeetEngine._imports_loaded, ParakeetEngine._onnx_asr, ParakeetEngine._ort)
-        ParakeetEngine._imports_loaded = False
-        ParakeetEngine._onnx_asr = None
-        ParakeetEngine._ort = None
-        try:
-            with patch.dict(sys.modules, {"onnx_asr": mock_asr, "onnxruntime": mock_ort}):
-                engine = ParakeetEngine(device="cuda", language="en")
-                ParakeetEngine._ensure_imports()
-                with patch.object(type(engine), "_is_cached", return_value=True):
-                    assert engine.load() is True
-            # Requested cuda but runtime only has CPU: truth is CPU.
-            assert engine.device_info == "CPU"
-            assert "parakeet/cpu/" in engine.loaded_via
-        finally:
-            (
-                ParakeetEngine._imports_loaded,
-                ParakeetEngine._onnx_asr,
-                ParakeetEngine._ort,
-            ) = saved
-
-    def test_device_info_gpu_when_cuda_available(self):
-        from voice_typer.server.parakeet_engine import ParakeetEngine
-
-        engine = ParakeetEngine(device="cuda", language="en")
-        engine._effective_providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        assert engine.device_info == "GPU"
-        engine._effective_providers = ["CPUExecutionProvider"]
-        assert engine.device_info == "CPU"
-
-
 class TestGetActiveProbeLogIsDebug:
     def test_probe_fallback_is_debug_not_info(self):
         import inspect

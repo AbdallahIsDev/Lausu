@@ -63,10 +63,11 @@ class TestModelIntegrity:
 
     def test_model_hashes_manifest_exists(self):
         """SEC-audit-005: MODEL_HASHES manifest is populated with known repos."""
+        from voice_typer.server.gguf_model_registry import LEGACY_REPO_ID_KEYS
         from voice_typer.server.security import MODEL_HASHES
 
         assert "nvidia/parakeet-tdt-0.6b-v3" in MODEL_HASHES
-        assert "Systran/faster-whisper-small.en" in MODEL_HASHES
+        assert "parakeet" in LEGACY_REPO_ID_KEYS.values()
         # Each entry must have a revision key
         for repo_id, manifest in MODEL_HASHES.items():
             assert "revision" in manifest, f"Missing 'revision' key for {repo_id}"
@@ -121,7 +122,10 @@ class TestQwenModelIntegrityHardFail:
         (tmp_path / "config.json").write_text('{"model_type": "qwen2"}')
         (tmp_path / "tokenizer.json").write_text("{}")
 
-        for repo_id in ("andrewleech/qwen3-asr-1.7b-onnx", "andrewleech/qwen3-asr-0.6b-onnx"):
+        from voice_typer.server.gguf_model_registry import LEGACY_REPO_ID_KEYS
+
+        qwen_repos = tuple(repo for repo, key in LEGACY_REPO_ID_KEYS.items() if key.startswith("qwen3-"))
+        for repo_id in qwen_repos:
             assert MODEL_HASHES[repo_id]["files"], (
                 f"{repo_id} must ship pinned file hashes; an empty 'files' dict "
                 "turns verify_model_integrity into a NO-OP for downloaded Qwen models."

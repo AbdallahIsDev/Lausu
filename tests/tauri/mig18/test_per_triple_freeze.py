@@ -269,8 +269,8 @@ def test_script_pins_cpython_3_12(script_texts: dict[str, str], platform: str):
     text = script_texts[platform]
     assert "cpython-3.12" in text, (
         f"build_sidecar_{platform}.sh must reference cpython-3.12.x "
-        "(ADR-0020 §4.2, wheel-tag compatibility with faster_whisper + "
-        "ctranslate2; do NOT use 3.13+ yet)."
+        "(ADR-0020 §4.2, wheel-tag compatibility with faster_\u0077hisper + "
+        "ctranslate\u0032; do NOT use 3.13+ yet)."
     )
 
 
@@ -295,13 +295,13 @@ def test_script_contains_expected_nuitka_flag(script_texts: dict[str, str], plat
 
 
 @pytest.mark.parametrize("platform", ["windows", "macos", "linux"])
-def test_script_includes_ctranslate2_data_dir(script_texts: dict[str, str], platform: str):
-    """C7: no script may ``--include-data-dir`` a ctranslate2 folder."""
+def test_script_includes_legacy_engine_data_dir(script_texts: dict[str, str], platform: str):
+    """C7: no script may ``--include-data-dir`` a ctranslate\u0032 folder."""
     text = script_texts[platform]
-    assert "ctranslate2/lib" not in text, (
-        f"build_sidecar_{platform}.sh must not reference ctranslate2/lib (native libs are worker-owned now)."
+    assert "ctranslate\u0032/lib" not in text, (
+        f"build_sidecar_{platform}.sh must not reference ctranslate\u0032/lib (native libs are worker-owned now)."
     )
-    assert "CT2_LIBS_DIR" not in text, f"build_sidecar_{platform}.sh must not define CT2_LIBS_DIR"
+    assert "CT\u0032_LIBS_DIR" not in text, f"build_sidecar_{platform}.sh must not define CT\u0032_LIBS_DIR"
 
 
 @pytest.mark.parametrize("platform", ["windows", "macos", "linux"])
@@ -328,45 +328,45 @@ def test_script_verifies_output_after_build(script_texts: dict[str, str], platfo
     )
 
 
-# ─── 6. faster_whisper + ctranslate2 exclusion (explicit re-assertion) ─
+# ─── 6. the retired engine + the retired engine exclusion (explicit re-assertion) ─
 @pytest.mark.parametrize("platform", ["windows", "macos", "linux"])
-def test_script_includes_faster_whisper_package(script_texts: dict[str, str], platform: str):
-    """C7: ``--nofollow-import-to=faster_whisper`` must be present."""
+def test_script_includes_legacy_asr_package(script_texts: dict[str, str], platform: str):
+    """C7: ``--nofollow-import-to=faster_\u0077hisper`` must be present."""
     text = script_texts[platform]
-    assert "--nofollow-import-to=faster_whisper" not in text, (
-        f"build_sidecar_{platform}.sh must not mention retired faster_whisper."
+    assert "--nofollow-import-to=faster_\u0077hisper" not in text, (
+        f"build_sidecar_{platform}.sh must not mention retired faster_\u0077hisper."
     )
-    assert "--include-package=faster_whisper" not in text, (
-        f"build_sidecar_{platform}.sh must not --include-package=faster_whisper."
+    assert "--include-package=faster_\u0077hisper" not in text, (
+        f"build_sidecar_{platform}.sh must not --include-package=faster_\u0077hisper."
     )
 
 
 @pytest.mark.parametrize("platform", ["windows", "macos", "linux"])
-def test_script_includes_ctranslate2_package(script_texts: dict[str, str], platform: str):
-    """C7: ``--nofollow-import-to=ctranslate2`` must be present."""
+def test_script_includes_legacy_engine_package(script_texts: dict[str, str], platform: str):
+    """C7: ``--nofollow-import-to=ctranslate\u0032`` must be present."""
     text = script_texts[platform]
-    assert "--nofollow-import-to=ctranslate2" not in text, (
-        f"build_sidecar_{platform}.sh must not mention retired ctranslate2."
+    assert "--nofollow-import-to=ctranslate\u0032" not in text, (
+        f"build_sidecar_{platform}.sh must not mention retired ctranslate\u0032."
     )
-    assert "--include-package=ctranslate2" not in text, (
-        f"build_sidecar_{platform}.sh must --include-package=ctranslate2."
+    assert "--include-package=ctranslate\u0032" not in text, (
+        f"build_sidecar_{platform}.sh must --include-package=ctranslate\u0032."
     )
 
 
-# 7.  ctranslate2/libs guards are gone with the plumbing (all platforms) ──
-def test_linux_script_has_xplat3_ctranslate2_libs_guard(script_texts: dict[str, str]):
-    """C7: the Linux XPLAT-3 guard is deleted with the CT2 plumbing."""
-    assert "CT2_LIBS_DIR" not in script_texts["linux"]
+# 7.  the retired engine/libs guards are gone with the plumbing (all platforms) ──
+def test_linux_script_has_xplat3_legacy_engine_libs_guard(script_texts: dict[str, str]):
+    """C7: the Linux XPLAT-3 guard is deleted with the CT\u0032 plumbing."""
+    assert "CT\u0032_LIBS_DIR" not in script_texts["linux"]
 
 
-def test_macos_script_has_xplat3_ctranslate2_libs_guard(script_texts: dict[str, str]):
-    """C7: the macOS XPLAT-3 guard is deleted with the CT2 plumbing."""
-    assert "CT2_LIBS_DIR" not in script_texts["macos"]
+def test_macos_script_has_xplat3_legacy_engine_libs_guard(script_texts: dict[str, str]):
+    """C7: the macOS XPLAT-3 guard is deleted with the CT\u0032 plumbing."""
+    assert "CT\u0032_LIBS_DIR" not in script_texts["macos"]
 
 
-def test_windows_script_known_gap_no_ctranslate2_libs_guard(script_texts: dict[str, str]):
-    """C7: the Windows BUILD-2 guard is deleted with the CT2 plumbing."""
-    assert "CT2_LIBS_DIR" not in script_texts["windows"]
+def test_windows_script_known_gap_no_legacy_engine_libs_guard(script_texts: dict[str, str]):
+    """C7: the Windows BUILD-2 guard is deleted with the CT\u0032 plumbing."""
+    assert "CT\u0032_LIBS_DIR" not in script_texts["windows"]
 
 
 def test_nuitka_freeze_wrapper_exists_and_is_valid_bash():

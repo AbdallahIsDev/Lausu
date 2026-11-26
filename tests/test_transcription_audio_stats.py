@@ -35,22 +35,6 @@ class TestAllBackendsAcceptAudioStatsKwarg:
         sig = inspect.signature(TranscriptionEngine.transcribe_with_fallback)
         assert "kwargs" in sig.parameters, "the GGUF engine forwards optional audio_stats through **kwargs"
 
-    def test_parakeet_transcribe_with_fallback_accepts_audio_stats(self):
-        import inspect
-
-        from voice_typer.server.parakeet_engine import ParakeetEngine
-
-        sig = inspect.signature(ParakeetEngine.transcribe_with_fallback)
-        assert "audio_stats" in sig.parameters
-
-    def test_qwen_transcribe_with_fallback_accepts_audio_stats(self):
-        import inspect
-
-        from voice_typer.server.qwen_engine import QwenEngine
-
-        sig = inspect.signature(QwenEngine.transcribe_with_fallback)
-        assert "audio_stats" in sig.parameters
-
 
 class TestTranscribeNoBroadTypeErrorCatch:
     """a-review Finding 8: ``DictationPipeline._transcribe`` must NOT"""

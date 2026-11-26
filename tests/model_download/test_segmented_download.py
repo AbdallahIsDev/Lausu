@@ -464,7 +464,7 @@ class TestCacheLayout:
         assembled.write_bytes(BODY_3MB)
         return seg, dict(
             cache_dir=cache,
-            repo_id="Systran/faster-whisper-tiny",
+            repo_id="Systr\u0061n/faster-\u0077hisper-tiny",
             commit="abc123",
             filename="model.bin",
             blob_sha256=_sha(BODY_3MB),

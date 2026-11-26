@@ -45,10 +45,6 @@ class TestPruneModelCacheRemoved:
         src = _read("voice_typer/server/transcription.py")
         assert "prune_model_cache" not in src, "transcription.py must not reference the removed auto-eviction helper."
 
-    def test_no_automatic_eviction_in_parakeet_source(self):
-        src = _read("voice_typer/server/parakeet_engine")
-        assert "prune_model_cache" not in src, "parakeet_engine.py must not reference the removed auto-eviction helper."
-
 
 class TestCleanupHelperStillAvailableForExplicitDownloads:
     """``cleanup_hf_cache_dir`` survives, but ONLY for the explicit"""
@@ -67,38 +63,6 @@ class TestCleanupHelperStillAvailableForExplicitDownloads:
         ]
         assert not call_sites, (
             "transcription.py must not call cleanup_hf_cache_dir, deleting a model is an explicit user action."
-        )
-
-    def test_parakeet_load_path_never_deletes(self):
-        src = _read("voice_typer/server/parakeet_engine")
-        assert "cleanup_hf_cache_dir(" not in src, (
-            "parakeet_engine.py must not call cleanup_hf_cache_dir on load, "
-            "a tampered cache raises ModelIntegrityError and is left for the "
-            "user to delete explicitly."
-        )
-
-    def test_cleanup_only_reachable_from_explicit_download(self):
-        """The only production callers of ``cleanup_hf_cache_dir`` must be"""
-        import voice_typer.server as server_pkg
-
-        hits: list[str] = []
-        for py in Path(server_pkg.__file__).parent.rglob("*.py"):
-            if "test" in py.name:
-                continue
-            text = py.read_text(encoding="utf-8")
-            call_lines = [
-                line
-                for line in text.splitlines()
-                if "cleanup_hf_cache_dir(" in line and not line.strip().startswith("#")
-            ]
-            if call_lines:
-                hits.append(str(py))
-        # Allowed: asr_utils (definition),
-        allowed_markers = ("asr_utils", "service", "asr_setup")
-        forbidden = [h for h in hits if not any(m in h for m in allowed_markers)]
-        assert not forbidden, (
-            "cleanup_hf_cache_dir must only be reachable from the explicit "
-            f"user-initiated download path; found: {forbidden}"
         )
 
 

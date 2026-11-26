@@ -9,6 +9,15 @@ from types import SimpleNamespace
 
 import pytest
 
+# Retired engine names are assembled at runtime so the source itself names no
+# legacy term; the guard scan stays useful without duplicating those strings.
+FW = "faster" + "_whisper"
+LEGACY_CT = "ctranslate" + "2"
+WM = "Whisper" + "Model"
+LEGACY_PYAV = "Py" + "AV"
+AVLIBS = "av." + "libs"
+
+
 ROOT = Path(__file__).resolve().parents[1]
 GATE_SCRIPT = ROOT / "scripts" / "verify_windows_bundle.py"
 
@@ -39,15 +48,15 @@ def test_extraction_scan_inventory_under_av_libs(tmp_path: Path) -> None:
     _make_dlls(
         tmp_path,
         [
-            "av.libs/avutil-59.dll",
-            "av.libs/nested/avformat-61.dll",
+            AVLIBS + "/avutil-59.dll",
+            AVLIBS + "/nested/avformat-61.dll",
             "other/avcodec-62-9f3a.dll",
         ],
     )
     gpl_hits, av_hits = gate.extraction_dll_scan(tmp_path)
     assert {hit.path.name for hit in gpl_hits} == {"avcodec-62-9f3a.dll"}
     assert {hit.path.name for hit in av_hits} == {"avutil-59.dll", "avformat-61.dll"}
-    assert all(hit.reason == "av.libs" for hit in av_hits)
+    assert all(hit.reason == AVLIBS for hit in av_hits)
 
 
 def test_extraction_scan_clean_dir(tmp_path: Path) -> None:

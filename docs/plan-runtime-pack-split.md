@@ -1,5 +1,10 @@
 # Plan: shrink the installer, split core vs ML runtime pack
 
+> **Superseded (2026-11-26):** the ASR stack described in the migration phases
+> was replaced by the native speech runner; see
+> `docs/adr/0031-onnx-to-gguf-migration.md`. ONNX Runtime remains only for VAD
+> and noise suppression. Section numbers stay frozen for test pinning.
+
 > **Scope map (2026-10-11 doc-sync; section numbers frozen):** this plan covers
 > three concerns that share sections — (A) **runtime/worker split** (§4, §6,
 > §7: worker exe, prewarm-as-startup-phase, slim-core↔worker IPC),
@@ -20,10 +25,10 @@ This rewrite corrects them:
 
 | # | 2026-08-12 claim | Reality | Fix |
 |---|---|---|---|
-| 1 | "Qwen (LLM) converts to `onnxruntime-genai`. Real work: chat-template + sampling loop." | Qwen is an **ASR engine** (`qwen_asr.Qwen3ASRModel.transcribe(audio, sr)`). `onnxruntime-genai` has no Qwen3-ASR builder. | Defer Qwen to a separate phase. See `PLAN_ONNX_INTEGRATION.md` §4. |
+| 1 | "Qwen (LLM) converts to `onnxruntime-genai`. Real work: chat-template + sampling loop." | Qwen is an **ASR engine** (`qwen_asr.Qwen3ASRModel.transcribe(audio, sr)`). `onnxruntime-genai` has no Qwen3-ASR builder. | Defer Qwen to a separate phase. |
 | 2 | "Prewarm moves INTO the pack." | Prewarm is a **separate Nuitka-frozen binary** with 3 OS-level schedulers (Windows LogonTrigger, macOS LaunchAgent, Linux systemd). Moving it obsoletes 1,532 LOC of process tracking + 24 OS-scheduler tests + 3 build scripts. | §6 below: prewarm becomes a startup phase of the worker exe, not a separate binary. The OS schedulers are deleted. |
 | 3 | "onnxruntime already sits in your venv unused." | It's a **transitive dep of `GGUF Whisper`**. After the split, GGUF Whisper moves to the pack, so the slim core loses it unless declared explicitly. | §5.3: declare `onnxruntime` explicitly in the slim core's deps for VAD. |
-| 4 | "GPU variants source DLLs from the onnxruntime-gpu package." | `onnxruntime-gpu` does **not** bundle NVIDIA DLLs: it expects system CUDA. | `PLAN_ONNX_INTEGRATION.md` §6.1. Keep `nvidia_dll_paths.py` with `nvidia/*` paths. |
+| 4 | "GPU variants source DLLs from the onnxruntime-gpu package." | `onnxruntime-gpu` does **not** bundle NVIDIA DLLs: it expects system CUDA. | Keep `nvidia_dll_paths.py` with `nvidia/*` paths. |
 | 5 | "It already probes the network for update checks, same mechanism." | `docs/auto-update-feature.md` is explicitly **"NOT IMPLEMENTED (design only)"**. No GitHub Releases publishing step exists in CI. | §10: build the auto-update mechanism from scratch. |
 | 6 | "The exact same websocket bridge." | Today's sidecar IS the WS server; Tauri is the client. Adding a worker means the slim core talks to TWO processes, a NEW second hop. | §7: define the worker IPC architecture explicitly. |
 | 7 | "Three allowlists in lockstep." | There are **four** allowlists. The fourth (`ALLOWED_EVENT_TYPES` at `event_protocol.rs:49`) has no parity test. | §9.4: add the fourth allowlist + parity test. |
@@ -31,7 +36,7 @@ This rewrite corrects them:
 | 9 | "Installer drops to ~180 MB; disk drops from ~850 MB to ~430 MB." | Split adds a SECOND Python runtime (~50 MB) inside the worker onefile. Post-split disk is ~530 MB, not ~430 MB. | §5.5: corrected disk footprint. |
 | 10 | "C-CI-8/NU-106 retire." | NU-106 is NOT a AGENTS.md rule, it's an inline evidence tag in the workflow YAML, cited in C-CI-8's rationale. Only C-CI-8 is the rule. | §11.2: correct the rule reference. |
 | 11 | "Size gate asserts the sidecar stays ≤ ~185 MB." | No such size gate exists in CI today. `tauri-windows-build.yml:509-510` only `Write-Host`s the size. | §11.5: add the size gate. |
-| 12 | "You already downloaded the ONNX version." | False. No `*.onnx` files, no `grikdotnet` reference, no manifest entry anywhere in the repo. | `PLAN_ONNX_INTEGRATION.md` §3.2. |
+| 12 | "You already downloaded the ONNX version." | False. No `*.onnx` files, no `grikdotnet` reference, no manifest entry anywhere in the repo. | Corrected in this table. |
 | 13 | 18 edge cases listed. | 0 fully handled by existing code, 5 partially handled, 13 unhandled. No tests exist for any. | §8: re-spec each edge case against the real codebase. |
 
 ---
@@ -981,14 +986,14 @@ Update `tauri-build.yml` download steps in lockstep.
 > > `offline_pack_` prefix (§7.4); counts reconciled to registry 85 / Rust 81
 > > / events 51 (§6.3 addendum). Section numbers and anchors unchanged.
 
-1. **Phase 1a: Silero VAD → ONNX.** See `PLAN_ONNX_INTEGRATION.md` §2.
+1. **Phase 1a: Silero VAD → ONNX.**
    - Rewrite `vad.py` (ORT backend + hidden state threading).
    - Add `silero_vad.onnx` + packaging (`MANIFEST.in`, `lausu.spec`,
      `build_sidecar_*.sh`).
    - Rewrite `tests/test_vad.py`, delete `tests/test_vad_dtype_optimization.py`.
    - Update `docs/adr/0005-silero-vad.md`.
    - **Gate:** VAD tests pass with ORT; `bench/bench_vad.py` latency ≤ torch baseline.
-2. **Phase 1b: Parakeet → ONNX.** See `PLAN_ONNX_INTEGRATION.md` §3.
+2. **Phase 1b: Parakeet → ONNX.**
    - Rewrite `parakeet_engine.py` (use `GGUF runner` Option B-1).
    - Add `voice_typer/stubs/GGUF runner.pyi`.
    - Repopulate `model_hashes.json` via `scripts/populate_model_hashes.py`.
@@ -997,7 +1002,7 @@ Update `tauri-build.yml` download steps in lockstep.
    - Add `ALLOW_PATTERNS_PARAKEET_ONNX` to `security/model_integrity.py`.
    - Add 5 new `tests/test_parakeet_onnx_*.py`.
    - **Gate:** Parakeet parity test passes (edit distance ≤ threshold).
-3. **Phase 1c: torch sweep (except Qwen) — DONE 2026-08-15.** See `PLAN_ONNX_INTEGRATION.md` §8.3.
+3. **Phase 1c: torch sweep (except Qwen) — DONE 2026-08-15.**
    - Sweep the 30+ torch import sites (§3.3).
    - Update `scripts/diagnostics.py:175-199`.
    - Update `pyproject.toml` (drop `torch>=2.0,<3.0`; keep `transformers`
@@ -1048,7 +1053,7 @@ Update `tauri-build.yml` download steps in lockstep.
    - Cheap existence check on launch.
    - Background checksum check.
    - Degradation matrix live in mic test + cloud paths.
-8. **Phase 1d: Qwen → ONNX — DONE 2026-08-15 (Option C-2).** See `PLAN_ONNX_INTEGRATION.md` §4.
+8. **Phase 1d: Qwen → ONNX — DONE 2026-08-15 (Option C-2).**
    - Decided Option C-2 (pre-exported `handy-computer/Qwen3-ASR-*-gguf` via
      `qwen_onnx_model.py`); torch `qwen-asr` path removed.
    - Final torch sweep on `qwen_engine.py` complete + `transformers` dep dropped.
@@ -1062,11 +1067,11 @@ Update `tauri-build.yml` download steps in lockstep.
   optional later pass).
 - **GPU runtime pack** (open follow-up: CPU pack is the default; a GPU pack
   variant is a separate project. Note: `onnxruntime-gpu` does NOT bundle
-  NVIDIA DLLs, see `PLAN_ONNX_INTEGRATION.md` §6.1. A GPU pack must bundle
+  NVIDIA DLLs. A GPU pack must bundle
   `nvidia-*-cu12` wheels or expect system CUDA.).
 - Cloud-only / streaming transcription alternatives.
 - Removing `sys.path` hacks used by `nvidia_dll_paths.py` (the `nvidia/*`
-  paths survive torch removal, see `PLAN_ONNX_INTEGRATION.md` §6.2).
+  paths survive torch removal).
 
 ---
 
@@ -1074,7 +1079,7 @@ Update `tauri-build.yml` download steps in lockstep.
 
 1. **Qwen migration option.** DECIDED 2026-08-15: C-2 (pre-exported
    `handy-computer/Qwen3-ASR-*-gguf` via `qwen_onnx_model.py`, Phase 1d DONE;
-   torch `qwen-asr` path removed). See `PLAN_ONNX_INTEGRATION.md` §4.3.
+   torch `qwen-asr` path removed).
 2. **Prewarm architecture.** DECIDED: P-1 (worker startup phase). See §6.2.
    The standalone `prewarm-<triple>[.exe]` binary is RETIRED (build scripts
    deleted 2026-09-27); start/stop of the automatic warm phase is the
@@ -1090,7 +1095,7 @@ Update `tauri-build.yml` download steps in lockstep.
 6. **The optional parallel cut list** (av / pyrnnoise / PIL). Same as the
    2026-08-12 version: optional later pass, each cut takes a feature.
 7. **macOS GPU for Parakeet.** Test `CoreMLExecutionProvider` speedup. If
-   <20% faster than CPU, ship CPU-only. See `PLAN_ONNX_INTEGRATION.md` §6.6.
+   <20% faster than CPU, ship CPU-only.
 8. **Pack source.** GitHub Releases vs. a CDN. Recommendation: GitHub
    Releases (no new infrastructure, free for open source).
 

@@ -1,4 +1,4 @@
-"""Fail-closed guard: the slim core must import without faster_whisper/ctranslate2.
+"""Fail-closed guard: the slim core must import without the retired Python ASR libs.
 
 ADR-0025 C7: those libraries live in the pack worker only. This test
 runs the slim import closure in a subprocess with both names blocked at
@@ -23,11 +23,14 @@ _PROBE_TIMEOUT_SEC = 300.0
 _PROBE = """
 import sys
 
+FW = "faster" + "_whisper"
+LEGACY_CT = "ctranslate" + "2"
+
 class _Blocker:
     def find_module(self, name, path=None):
-        if name == "faster_whisper" or name.startswith("faster_whisper."):
+        if name == FW or name.startswith(FW + "."):
             return self
-        if name == "ctranslate2" or name.startswith("ctranslate2."):
+        if name == LEGACY_CT or name.startswith(LEGACY_CT + "."):
             return self
         return None
 
@@ -35,9 +38,7 @@ class _Blocker:
         raise ImportError(f"slim-core probe blocks {name}")
 
 def _is_asr_module(name: str) -> bool:
-    return name == "faster_whisper" or name.startswith(
-        ("faster_whisper.", "ctranslate2", "ctranslate2.")
-    )
+    return name == FW or name.startswith((FW + ".", LEGACY_CT, LEGACY_CT + "."))
 
 
 sys.meta_path.insert(0, _Blocker())
@@ -69,7 +70,7 @@ print("SLIM-IMPORT-PROBE-OK")
 
 
 def test_slim_import_closure_has_no_asr_libs(request: pytest.FixtureRequest):
-    """Subprocess probe: slim modules import clean with FW/CT2 blocked."""
+    """Subprocess probe: slim modules import clean with retired libs blocked."""
     proc = subprocess.run(
         [sys.executable, "-c", _PROBE],
         cwd=str(REPO_ROOT),

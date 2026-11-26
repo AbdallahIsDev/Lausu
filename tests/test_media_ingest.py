@@ -565,7 +565,7 @@ class TestEngineLoop:
         state = loop.transcribe_windows(iter(chunks), _Backend(), cancel_event=threading.Event())
         assert state.text, "a backend without abort_event support stopped decoding"
 
-    @pytest.mark.parametrize("engine_name", ["ParakeetEngine", "QwenEngine", "CloudEngine"])
+    @pytest.mark.parametrize("engine_name", ["CloudEngine"])
     def test_every_builtin_engine_accepts_the_scoped_event(self, engine_name):
         """Media cancel only works if the real engines take ``abort_event``.
 
@@ -575,12 +575,8 @@ class TestEngineLoop:
         """
         from voice_typer.server.cloud._engine import CloudEngine
         from voice_typer.server.media_ingest.engine_loop import _accepts_scoped_abort
-        from voice_typer.server.parakeet_engine import ParakeetEngine
-        from voice_typer.server.qwen_engine import QwenEngine
 
         engines = {
-            "ParakeetEngine": ParakeetEngine,
-            "QwenEngine": QwenEngine,
             "CloudEngine": CloudEngine,
         }
         assert _accepts_scoped_abort(engines[engine_name]) is True

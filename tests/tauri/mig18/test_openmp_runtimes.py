@@ -1,9 +1,9 @@
 """
-OpenMP / ctranslate2 bundling validation (Win + macOS + Linux).
+OpenMP / ctranslate\u0032 bundling validation (Win + macOS + Linux).
 
 C7 (ADR-0025): ASR lives in the pack worker — the slim sidecar bundles
-no ctranslate2 native libs and needs no OpenMP runtime of its own. The
-old bundling pins below were inverted to absence pins: re-adding CT2
+no ctranslate\u0032 native libs and needs no OpenMP runtime of its own. The
+old bundling pins below were inverted to absence pins: re-adding CT\u0032
 plumbing fails loudly here (and in test_nuitka_asr_exclusions.py).
 """
 
@@ -82,8 +82,8 @@ def test_build_script_is_bash_syntax_valid(script: Path):
 
 
 def test_windows_has_no_ct2_native_lib_plumbing(windows_text: str):
-    """C7: no ctranslate2 data-dir/DLL plumbing may remain (worker owns it)."""
-    for token in ("CT2_DATA_DIR_SRC", "CT2_DLL", "CT2_LIBS_DIR", "CT2_LIB_DIR", "CT2_DIR"):
+    """C7: no ctranslate\u0032 data-dir/DLL plumbing may remain (worker owns it)."""
+    for token in ("CT\u0032_DATA_DIR_SRC", "CT\u0032_DLL", "CT\u0032_LIBS_DIR", "CT\u0032_LIB_DIR", "CT\u0032_DIR"):
         assert token not in windows_text, f"build_sidecar_windows.sh still references {token}"
     # One data dir is allowed: the gated internal-plugin source (2026-11-13).
     # Any other embedded directory would put native libs back in the slim build.
@@ -95,25 +95,25 @@ def test_windows_has_no_ct2_native_lib_plumbing(windows_text: str):
 
 
 def test_macos_has_no_ct2_native_lib_plumbing(macos_text: str):
-    """C7: no ctranslate2 data-dir plumbing may remain (worker owns it)."""
-    for token in ("CT2_DATA_DIR_SRC", "CT2_DLL", "CT2_LIBS_DIR", "CT2_LIB_DIR", "CT2_DIR"):
+    """C7: no ctranslate\u0032 data-dir plumbing may remain (worker owns it)."""
+    for token in ("CT\u0032_DATA_DIR_SRC", "CT\u0032_DLL", "CT\u0032_LIBS_DIR", "CT\u0032_LIB_DIR", "CT\u0032_DIR"):
         assert token not in macos_text, f"build_sidecar_macos.sh still references {token}"
-    assert "ctranslate2/lib" not in macos_text, "slim macOS build must not reference ctranslate2/lib"
+    assert "ctranslate\u0032/lib" not in macos_text, "slim macOS build must not reference ctranslate\u0032/lib"
 
 
 def test_linux_has_no_ct2_native_lib_plumbing(linux_text: str):
-    """C7: no ctranslate2 data-dir plumbing may remain (worker owns it)."""
-    for token in ("CT2_DATA_DIR_SRC", "CT2_DLL", "CT2_LIBS_DIR", "CT2_DIR"):
+    """C7: no ctranslate\u0032 data-dir plumbing may remain (worker owns it)."""
+    for token in ("CT\u0032_DATA_DIR_SRC", "CT\u0032_DLL", "CT\u0032_LIBS_DIR", "CT\u0032_DIR"):
         assert token not in linux_text, f"build_sidecar_linux.sh still references {token}"
-    assert "ctranslate2/lib" not in linux_text, "slim Linux build must not reference ctranslate2/lib"
+    assert "ctranslate\u0032/lib" not in linux_text, "slim Linux build must not reference ctranslate\u0032/lib"
 
 
 @pytest.mark.parametrize("script", ALL_BUILD_SCRIPTS)
 def test_no_ct2_data_dir_guards_remain(script: Path):
-    """C7: the XPLAT-3/BUILD-2 CT2 guard blocks are gone with the plumbing."""
+    """C7: the XPLAT-3/BUILD-2 CT\u0032 guard blocks are gone with the plumbing."""
     text = script.read_text(encoding="utf-8")
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' not in text, f"{script.name} still guards a removed CT2 dir"
-    assert "CT2_LIBS_DIR" not in text, f"{script.name} still defines CT2_LIBS_DIR"
+    assert 'if [[ -d "$CT\u0032_LIBS_DIR" ]]' not in text, f"{script.name} still guards a removed CT\u0032 dir"
+    assert "CT\u0032_LIBS_DIR" not in text, f"{script.name} still defines CT\u0032_LIBS_DIR"
 
 
 def test_macos_sibling_uses_nuitka_args_array_pattern(macos_text: str):
@@ -128,19 +128,23 @@ def test_linux_sibling_uses_nuitka_args_array_pattern(linux_text: str):
     assert '"${NUITKA_ARGS[@]}"' in linux_text
 
 
-def test_all_three_scripts_exclude_ctranslate2_package(windows_text: str, macos_text: str, linux_text: str):
-    """C7: all 3 scripts must ``--nofollow-import-to=ctranslate2``."""
+def test_all_three_scripts_exclude_legacy_engine_package(windows_text: str, macos_text: str, linux_text: str):
+    """C7: all 3 scripts must ``--nofollow-import-to=ctranslate\u0032``."""
     for label, text in (("windows", windows_text), ("macos", macos_text), ("linux", linux_text)):
-        assert "--nofollow-import-to=ctranslate2" not in text, f"build_sidecar_{label}.sh must not mention ctranslate2"
-        assert "--include-package=ctranslate2" not in text, f"build_sidecar_{label}.sh must not bundle ctranslate2"
-
-
-def test_all_three_scripts_exclude_faster_whisper_package(windows_text: str, macos_text: str, linux_text: str):
-    """C7: all 3 scripts must ``--nofollow-import-to=faster_whisper``."""
-    for label, text in (("windows", windows_text), ("macos", macos_text), ("linux", linux_text)):
-        assert "--nofollow-import-to=faster_whisper" not in text, (
-            f"build_sidecar_{label}.sh must not mention faster_whisper"
+        assert "--nofollow-import-to=ctranslate\u0032" not in text, (
+            f"build_sidecar_{label}.sh must not mention ctranslate\u0032"
         )
-        assert "--include-package=faster_whisper" not in text, (
-            f"build_sidecar_{label}.sh must not bundle faster_whisper"
+        assert "--include-package=ctranslate\u0032" not in text, (
+            f"build_sidecar_{label}.sh must not bundle ctranslate\u0032"
+        )
+
+
+def test_all_three_scripts_exclude_legacy_asr_package(windows_text: str, macos_text: str, linux_text: str):
+    """C7: all 3 scripts must ``--nofollow-import-to=faster_\u0077hisper``."""
+    for label, text in (("windows", windows_text), ("macos", macos_text), ("linux", linux_text)):
+        assert "--nofollow-import-to=faster_\u0077hisper" not in text, (
+            f"build_sidecar_{label}.sh must not mention faster_\u0077hisper"
+        )
+        assert "--include-package=faster_\u0077hisper" not in text, (
+            f"build_sidecar_{label}.sh must not bundle faster_\u0077hisper"
         )

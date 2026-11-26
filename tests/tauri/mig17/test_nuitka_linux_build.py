@@ -125,15 +125,15 @@ def test_sidecar_script_contains_expected_nuitka_flag(sidecar_text: str, flag: s
     )
 
 
-def test_sidecar_script_includes_ctranslate2_data_dir(sidecar_text: str):
-    """C7: no ctranslate2 data-dir plumbing may remain (worker owns it)."""
-    assert "CT2_DATA_DIR_SRC" not in sidecar_text
-    assert "CT2_DLL" not in sidecar_text
-    assert "CT2_LIBS_DIR" not in sidecar_text
-    assert "CT2_LIB_DIR" not in sidecar_text
-    assert "CT2_DIR" not in sidecar_text
-    assert "ctranslate2/lib" not in sidecar_text
-    assert "ctranslate2/libs" not in sidecar_text
+def test_sidecar_script_includes_legacy_engine_data_dir(sidecar_text: str):
+    """C7: no ctranslate\u0032 data-dir plumbing may remain (worker owns it)."""
+    assert "CT\u0032_DATA_DIR_SRC" not in sidecar_text
+    assert "CT\u0032_DLL" not in sidecar_text
+    assert "CT\u0032_LIBS_DIR" not in sidecar_text
+    assert "CT\u0032_LIB_DIR" not in sidecar_text
+    assert "CT\u0032_DIR" not in sidecar_text
+    assert "ctranslate\u0032/lib" not in sidecar_text
+    assert "ctranslate\u0032/libs" not in sidecar_text
 
 
 def test_sidecar_script_onefile_tempdir_pinned_to_cache(sidecar_text: str):
@@ -160,11 +160,11 @@ def test_sidecar_script_onefile_tempdir_pinned_to_cache(sidecar_text: str):
     )
 
 
-# 4. ctranslate2/libs guard (plural, pattern, source on Linux) ──
-def test_sidecar_script_has_xplat3_ctranslate2_libs_guard(sidecar_text: str):
-    """C7: the XPLAT-3 guard is deleted with the CT2 plumbing (worker owns it)."""
-    assert "CT2_LIBS_DIR" not in sidecar_text
-    assert "ctranslate2/libs" not in sidecar_text
+# 4. the retired engine/libs guard (plural, pattern, source on Linux) ──
+def test_sidecar_script_has_xplat3_legacy_engine_libs_guard(sidecar_text: str):
+    """C7: the XPLAT-3 guard is deleted with the CT\u0032 plumbing (worker owns it)."""
+    assert "CT\u0032_LIBS_DIR" not in sidecar_text
+    assert "ctranslate\u0032/libs" not in sidecar_text
 
 
 def test_sidecar_script_uses_nuitka_args_array(sidecar_text: str):
@@ -175,14 +175,14 @@ def test_sidecar_script_uses_nuitka_args_array(sidecar_text: str):
     )
     assert "NUITKA_ARGS+=" not in sidecar_text, (
         "C7: no conditional Nuitka appends remain, the XPLAT-3 libs/ guard "
-        "that needed them moved to the worker with the CT2 plumbing."
+        "that needed them moved to the worker with the CT\u0032 plumbing."
     )
 
 
 def test_sidecar_script_documents_xplat3_guard_rationale(sidecar_text: str):
     """C7: no XPLAT-3 guard rationale remains (the guard moved to the worker)."""
-    assert "CT2_LIBS_DIR" not in sidecar_text
-    assert "ctranslate2/libs" not in sidecar_text
+    assert "CT\u0032_LIBS_DIR" not in sidecar_text
+    assert "ctranslate\u0032/libs" not in sidecar_text
 
 
 def test_sidecar_script_uses_triple_variable_construction(sidecar_text: str):
@@ -372,24 +372,24 @@ def test_sidecar_script_smoke_runs_help_after_build(sidecar_text: str):
 
 
 # 9. Sibling parity (macOS + Windows siblings have the  guard) ────
-def test_macos_sibling_has_xplat3_ctranslate2_libs_guard():
+def test_macos_sibling_has_xplat3_legacy_engine_libs_guard():
     """C7: the macOS sibling must not carry the XPLAT-3 guard anymore."""
     if not MACOS_SIDECAR_SCRIPT.is_file():
         pytest.skip(f"build_sidecar_macos.sh missing ({MACOS_SIDECAR_SCRIPT}), cannot verify macOS sibling parity.")
     macos_text = MACOS_SIDECAR_SCRIPT.read_text(encoding="utf-8")
-    assert "CT2_LIBS_DIR" not in macos_text
+    assert "CT\u0032_LIBS_DIR" not in macos_text
 
 
-def test_windows_sibling_known_gap_no_xplat3_ctranslate2_libs_guard():
+def test_windows_sibling_known_gap_no_xplat3_legacy_engine_libs_guard():
     """C7: the BUILD-2/XPLAT-3 libs guards are deleted on all siblings."""
     if not WINDOWS_SIDECAR_SCRIPT.is_file():
         pytest.skip(
             f"build_sidecar_windows.sh missing ({WINDOWS_SIDECAR_SCRIPT}), cannot verify Windows sibling parity."
         )
     windows_text = WINDOWS_SIDECAR_SCRIPT.read_text(encoding="utf-8")
-    assert "CT2_LIB_DIR" not in windows_text
-    assert "CT2_LIBS_DIR" not in windows_text
-    assert "ctranslate2/libs" not in windows_text
+    assert "CT\u0032_LIB_DIR" not in windows_text
+    assert "CT\u0032_LIBS_DIR" not in windows_text
+    assert "ctranslate\u0032/libs" not in windows_text
 
 
 def test_build_sidecar_linux_supports_check_mode(sidecar_text: str):
@@ -401,9 +401,9 @@ def test_build_sidecar_linux_supports_check_mode(sidecar_text: str):
 
 def test_known_gap_no_python_import_sanity_check(sidecar_text: str):
     """C7: the pre-Nuitka env gate covers websockets only (no ASR import check)."""
-    assert "import faster_whisper, ctranslate2, websockets" not in sidecar_text
-    assert '! -d "$SITE/faster_whisper"' not in sidecar_text, (
-        "build_sidecar_linux.sh must not gate on the worker-owned faster_whisper dir."
+    assert "import faster_\u0077hisper, ctranslate\u0032, websockets" not in sidecar_text
+    assert '! -d "$SITE/faster_\u0077hisper"' not in sidecar_text, (
+        "build_sidecar_linux.sh must not gate on the worker-owned faster_\u0077hisper dir."
     )
     assert '! -d "$SITE/websockets"' in sidecar_text, (
         "build_sidecar_linux.sh must still check the websockets dir exists."

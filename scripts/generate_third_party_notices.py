@@ -31,7 +31,7 @@ FULL_TEXT_LICENSES = frozenset(
 )
 TEXT_SOURCE = {
     "MIT": "react 19.2.7 LICENSE (canonical MIT body)",
-    "BSD-3-Clause": "av 17.1.0 LICENSE.txt (canonical BSD-3-Clause body)",
+    "BSD-3-Clause": "MarkupSafe 3.0.3 LICENSE.txt (canonical BSD-3-Clause body)",
     "Apache-2.0": "hf-xet 1.6.0 LICENSE (full Apache License 2.0)",
     "ISC": "d3-array 3.2.4 LICENSE (canonical ISC body)",
     "MPL-2.0": "cssparser 0.37.0 LICENSE (full MPL 2.0)",

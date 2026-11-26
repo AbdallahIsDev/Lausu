@@ -31,6 +31,14 @@ def _security_pkg():
 # SEC-audit-005: pinned HF revisions + file hashes.
 
 
+def _expand_repo_keys(entries: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Map catalogue keys back to their old repo ids from the one migration map."""
+    from voice_typer.server.gguf_model_registry import LEGACY_REPO_ID_KEYS
+
+    by_key = {key: repo for repo, key in LEGACY_REPO_ID_KEYS.items()}
+    return {by_key.get(name, name): value for name, value in entries.items()}
+
+
 def _load_model_hashes() -> dict[str, dict[str, Any]]:
     """Load MODEL_HASHES from companion JSON; fall back to the hardcoded mirror."""
     json_path = Path(__file__).resolve().parent.parent / "model_hashes.json"
@@ -39,122 +47,93 @@ def _load_model_hashes() -> dict[str, dict[str, Any]]:
             # SEC-audit-005: secure read rejects symlink/reparse redirect of the manifest.
             raw = json.loads(_secure_read_text(json_path))
             # Filter out the _comment metadata key
-            return {k: v for k, v in raw.items() if k != "_comment" and isinstance(v, dict)}
+            return _expand_repo_keys({k: v for k, v in raw.items() if k != "_comment" and isinstance(v, dict)})
         except Exception as exc:
             log.warning("[SECURITY] Failed to load model_hashes.json: %s", exc)
     # Fallback mirrors model_hashes.json; parity enforced by tests.
-    return {
-        "nvidia/parakeet-tdt-0.6b-v3": {
-            "revision": "7c35754d166cca382ad1e53e68b01e7c575f3a1d",
-            "files": {
-                "config.json": "e747b85e1bdfd300c8b8ac63bac8dd5221f8fe9bc275b48d06c735fcd6971b6e",
-                "generation_config.json": "b141de6ec6d7f982ece13f98f604e3fe1807ea9c0e839185d0ab7064604209d0",
-                "model.safetensors": "3a2026366188c8c68598edbbff92f8d11590a08e0ae2e6775544e7b07d6a5e11",
-                "tokenizer.json": "bd321b096832a3f270bd3b2a88823957920f1a5c5ada71114a26ea729d0cbe91",
-                "tokenizer_config.json": "0b2fe0037599ee335f0b972fa682bf0ece74e4ccfec755cb7daa3405d3d3e874",
+    return _expand_repo_keys(
+        {
+            "nvidia/parakeet-tdt-0.6b-v3": {
+                "revision": "7c35754d166cca382ad1e53e68b01e7c575f3a1d",
+                "files": {
+                    "config.json": "e747b85e1bdfd300c8b8ac63bac8dd5221f8fe9bc275b48d06c735fcd6971b6e",
+                    "generation_config.json": "b141de6ec6d7f982ece13f98f604e3fe1807ea9c0e839185d0ab7064604209d0",
+                    "model.safetensors": "3a2026366188c8c68598edbbff92f8d11590a08e0ae2e6775544e7b07d6a5e11",
+                    "tokenizer.json": "bd321b096832a3f270bd3b2a88823957920f1a5c5ada71114a26ea729d0cbe91",
+                    "tokenizer_config.json": "0b2fe0037599ee335f0b972fa682bf0ece74e4ccfec755cb7daa3405d3d3e874",
+                },
             },
-        },
-        # Ultra int8 ONNX export; hashes pin the real shipped bytes.
-        "Masterx/parakeet-tdt-0.6b-ultra-onnx": {
-            "revision": "99b09f030a5a6efeaa13cf2cf54592100ce2c3f1",
-            "files": {
-                "config.json": "666903c76b9798caf2c210afd4f6cd60b08a8dbf9800ec8d7a3bc0d2148ac466",
-                "encoder-model.int8.onnx": "46e78f85f1ae43b43bd359889c966da5c7ca401df60a42eeffc2e7699b357ba6",
-                "decoder_joint-model.int8.onnx": "2276a335d4c8dc48686e931475a634595954956427d485830e1214c0d1a18d07",
-                "vocab.txt": "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d",
+            "parakeet": {
+                "revision": "99b09f030a5a6efeaa13cf2cf54592100ce2c3f1",
+                "files": {
+                    "config.json": "666903c76b9798caf2c210afd4f6cd60b08a8dbf9800ec8d7a3bc0d2148ac466",
+                    "encoder-model.int8.onnx": "46e78f85f1ae43b43bd359889c966da5c7ca401df60a42eeffc2e7699b357ba6",
+                    "decoder_joint-model.int8.onnx": "2276a335d4c8dc48686e931475a634595954956427d485830e1214c0d1a18d07",
+                    "vocab.txt": "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d",
+                },
             },
-        },
-        "Systran/faster-whisper-tiny.en": {
-            "revision": "0d3d19a32d3338f10357c0889762bd8d64bbdeba",
-            "files": {
-                "config.json": "14b1b421a90349bc551b881461426b561a874049cb9e4c4864f2ca384f6a7cc5",
-                "model.bin": "1a5afae06a4db91c975c9a9d78be5cc110ee4ea022ad57d55492e4550e936b2a",
-                "tokenizer.json": "929c5252409436dce1b38a75d1abbcb5e132d170d8e324e4e04ed915fa2d22df",
+            "large-v3": {
+                "revision": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
+                "files": {
+                    "config.json": "a9306624f5ec14270a014b647e5c316b6e03a662c369758d1b90697a7b0655b9",
+                    "model.bin": "69f74147e3334731bc3a76048724833325d2ec74642fb52620eda87352e3d4f1",
+                    "preprocessor_config.json": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711",
+                    "tokenizer.json": "6d8cbd7cd0d8d5815e478dac67b85a26bbe77c1f5e0c6d76d1ce2abc0e5f21ca",
+                },
             },
-        },
-        "Systran/faster-whisper-small.en": {
-            "revision": "d1d751a5f8271d482d14ca55d9e2deeebbae577f",
-            "files": {
-                "config.json": "666a9605530ac1f61fa8177f3702b4dacec9966749e42610839fcc32661d5fae",
-                "model.bin": "62b2a45b05ee59acb4a5341b33ee35e041395d378d418a18acfe4c9e768ee37a",
-                "tokenizer.json": "929c5252409436dce1b38a75d1abbcb5e132d170d8e324e4e04ed915fa2d22df",
+            "tiny": {
+                "revision": "d90ca5fe260221311c53c58e660288d3deb8d356",
+                "files": {
+                    "config.json": "a73a28cdfe1c43ccc7202fa333d1f89c202477271407ae9a7f19afa52039cac8",
+                    "model.bin": "dcb76c6586fc06cbdac6dd21f14cfd129cc4cdd9dce19bf4ffa62e59cbe6e6d1",
+                    "tokenizer.json": "fb7b63191e9bb045082c79fd742a3106a12c99513ab30df4a0d47fa6cb6fd0ab",
+                    "vocabulary.txt": "34ce3fe1c5041027b3f8d42912270993f986dbc4bb34cf27f951e34a1e453913",
+                },
             },
-        },
-        "Systran/faster-whisper-medium.en": {
-            "revision": "a29b04bd15381511a9af671baec01072039215e3",
-            "files": {
-                "config.json": "4a1848ebabe7938d9797c15a2e8e4ce1d36e6fd4a43d096ae5955257c67c7962",
-                "model.bin": "11b220779aea4c6f3ce9d2549c8a95ea869ed84066864b999531ef53e594fe5b",
-                "tokenizer.json": "929c5252409436dce1b38a75d1abbcb5e132d170d8e324e4e04ed915fa2d22df",
+            "large-v3-turbo": {
+                "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+                "files": {
+                    "config.json": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e",
+                    "model.bin": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da",
+                    "preprocessor_config.json": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711",
+                    "tokenizer.json": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd",
+                    "vocabulary.json": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1",
+                },
             },
-        },
-        "Systran/faster-whisper-large-v3": {
-            "revision": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
-            "files": {
-                "config.json": "a9306624f5ec14270a014b647e5c316b6e03a662c369758d1b90697a7b0655b9",
-                "model.bin": "69f74147e3334731bc3a76048724833325d2ec74642fb52620eda87352e3d4f1",
-                "preprocessor_config.json": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711",
-                "tokenizer.json": "6d8cbd7cd0d8d5815e478dac67b85a26bbe77c1f5e0c6d76d1ce2abc0e5f21ca",
+            "qwen3-1.7b": {
+                "revision": "df916193ac67e59347769891a21e10d81d12acdd",
+                "files": {
+                    "added_tokens.json": "de40784677cbd1843cabe5fbee078c7e042cd0b62155f0810af5a13842e5722a",
+                    "config.json": "d82437248b7c4674fe4091f98819a2a6167355b0fa66c0198f70622d1b778b49",
+                    "decoder_init.int4.onnx": "c638585ada629b3cf65ce9cb068b7b980fccc9454a7f05e2333b8813730c1999",
+                    "decoder_step.int4.onnx": "fa138c025c26f6559e12be51cfbba5204a0b6993a1f3bb1177f80a0a65873bb5",
+                    "decoder_weights.int4.data": "3f8d8fb695bcffc20ce8d8e823471e011404420785adf7678aac31057ef67333",
+                    "embed_tokens.bin": "1489075dbd08fcd6b87bc69c5feca278014d29fa5693bd4aa61e47c1a3a160d4",
+                    "encoder.int4.onnx": "c19ff8d702707693877a509ba1867472b0ad964593b93751091891a143edffec",
+                    "preprocessor_config.json": "9c7c558a05f326fe4365e5e59e486383ff127dfd93ce1cd5e6e23f883cd02281",
+                    "tokenizer.json": "bd2a97b55c8f7f9c328c73ee9b9178771037e9f566dfca8e238a063d41cbac92",
+                    "tokenizer_config.json": "784c92a0a81fbbc440afb89842f8c16c8da28dfb9ff381fcea585b84f4eed7d1",
+                    "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+                },
             },
-        },
-        # MODEL_REGISTRY "tiny" (multilingual).
-        "Systran/faster-whisper-tiny": {
-            "revision": "d90ca5fe260221311c53c58e660288d3deb8d356",
-            "files": {
-                "config.json": "a73a28cdfe1c43ccc7202fa333d1f89c202477271407ae9a7f19afa52039cac8",
-                "model.bin": "dcb76c6586fc06cbdac6dd21f14cfd129cc4cdd9dce19bf4ffa62e59cbe6e6d1",
-                "tokenizer.json": "fb7b63191e9bb045082c79fd742a3106a12c99513ab30df4a0d47fa6cb6fd0ab",
-                "vocabulary.txt": "34ce3fe1c5041027b3f8d42912270993f986dbc4bb34cf27f951e34a1e453913",
+            "qwen3-0.6b": {
+                "revision": "4fc24a1402e74db89c4d2ef256875e71680128c4",
+                "files": {
+                    "added_tokens.json": "de40784677cbd1843cabe5fbee078c7e042cd0b62155f0810af5a13842e5722a",
+                    "config.json": "df31c4689abe9d782366fffd2454b546291d0205d082b3fd01b99fb76a45b11f",
+                    "decoder_init.int4.onnx": "6d54633bbb9e6b1ecf372f218d04adb3bf6f2bfc442ce55c988526d532896faa",
+                    "decoder_step.int4.onnx": "7eaa4f31d5eb6ae2937ff45222c32f692f2d5ac29b46cbae9046da332a9f317d",
+                    "decoder_weights.int4.data": "d68cd1c0695a7ba42651d06b1bc1158e2e58af5f9adbb6dba874fbbb8a4f22cf",
+                    "embed_tokens.bin": "e80150119fa5f7e56e85aed64c3a02d5c78eb7a37cfdcb973d0987316f15bee2",
+                    "encoder.int4.onnx": "3c027f880f677615de85e1f6934906e1d5d77624b724096d33accef99c753eed",
+                    "preprocessor_config.json": "9c7c558a05f326fe4365e5e59e486383ff127dfd93ce1cd5e6e23f883cd02281",
+                    "tokenizer.json": "bd2a97b55c8f7f9c328c73ee9b9178771037e9f566dfca8e238a063d41cbac92",
+                    "tokenizer_config.json": "784c92a0a81fbbc440afb89842f8c16c8da28dfb9ff381fcea585b84f4eed7d1",
+                    "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+                },
             },
-        },
-        # Turbo lives under the canonical dropbox-dash org, not Systran
-        # (renamed from mobiuslabsgmbh; older Whisper tooling still aliases it).
-        "dropbox-dash/faster-whisper-large-v3-turbo": {
-            "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
-            "files": {
-                "config.json": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e",
-                "model.bin": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da",
-                "preprocessor_config.json": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711",
-                "tokenizer.json": "297b13372ac43916285644fb9687add3cc62ee2a1adb60da3dc25cc94c1871fd",
-                "vocabulary.json": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1",
-            },
-        },
-        # Qwen3-ASR int4 ONNX exports (torch-free). LFS oids are the
-        # sha256 of the shipped bytes, so these pins also unlock the
-        # segmented fast lane for the multi-GB files.
-        "andrewleech/qwen3-asr-1.7b-onnx": {
-            "revision": "df916193ac67e59347769891a21e10d81d12acdd",
-            "files": {
-                "added_tokens.json": "de40784677cbd1843cabe5fbee078c7e042cd0b62155f0810af5a13842e5722a",
-                "config.json": "d82437248b7c4674fe4091f98819a2a6167355b0fa66c0198f70622d1b778b49",
-                "decoder_init.int4.onnx": "c638585ada629b3cf65ce9cb068b7b980fccc9454a7f05e2333b8813730c1999",
-                "decoder_step.int4.onnx": "fa138c025c26f6559e12be51cfbba5204a0b6993a1f3bb1177f80a0a65873bb5",
-                "decoder_weights.int4.data": "3f8d8fb695bcffc20ce8d8e823471e011404420785adf7678aac31057ef67333",
-                "embed_tokens.bin": "1489075dbd08fcd6b87bc69c5feca278014d29fa5693bd4aa61e47c1a3a160d4",
-                "encoder.int4.onnx": "c19ff8d702707693877a509ba1867472b0ad964593b93751091891a143edffec",
-                "preprocessor_config.json": "9c7c558a05f326fe4365e5e59e486383ff127dfd93ce1cd5e6e23f883cd02281",
-                "tokenizer.json": "bd2a97b55c8f7f9c328c73ee9b9178771037e9f566dfca8e238a063d41cbac92",
-                "tokenizer_config.json": "784c92a0a81fbbc440afb89842f8c16c8da28dfb9ff381fcea585b84f4eed7d1",
-                "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
-            },
-        },
-        "andrewleech/qwen3-asr-0.6b-onnx": {
-            "revision": "4fc24a1402e74db89c4d2ef256875e71680128c4",
-            "files": {
-                "added_tokens.json": "de40784677cbd1843cabe5fbee078c7e042cd0b62155f0810af5a13842e5722a",
-                "config.json": "df31c4689abe9d782366fffd2454b546291d0205d082b3fd01b99fb76a45b11f",
-                "decoder_init.int4.onnx": "6d54633bbb9e6b1ecf372f218d04adb3bf6f2bfc442ce55c988526d532896faa",
-                "decoder_step.int4.onnx": "7eaa4f31d5eb6ae2937ff45222c32f692f2d5ac29b46cbae9046da332a9f317d",
-                "decoder_weights.int4.data": "d68cd1c0695a7ba42651d06b1bc1158e2e58af5f9adbb6dba874fbbb8a4f22cf",
-                "embed_tokens.bin": "e80150119fa5f7e56e85aed64c3a02d5c78eb7a37cfdcb973d0987316f15bee2",
-                "encoder.int4.onnx": "3c027f880f677615de85e1f6934906e1d5d77624b724096d33accef99c753eed",
-                "preprocessor_config.json": "9c7c558a05f326fe4365e5e59e486383ff127dfd93ce1cd5e6e23f883cd02281",
-                "tokenizer.json": "bd2a97b55c8f7f9c328c73ee9b9178771037e9f566dfca8e238a063d41cbac92",
-                "tokenizer_config.json": "784c92a0a81fbbc440afb89842f8c16c8da28dfb9ff381fcea585b84f4eed7d1",
-                "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
-            },
-        },
-    }
+        }
+    )
 
 
 MODEL_HASHES: dict[str, dict[str, Any]] = _load_model_hashes()
@@ -438,10 +417,10 @@ def verify_model_integrity(local_dir: str, repo_id: str) -> bool:
 """Shared model-integrity constants. SEC-audit-005 / CRIT-5 / SEC-2.
 
 Single source of truth for the file-pattern allow-lists used by both
-``parakeet_engine.py`` (download + verify path) and ``asr_setup.py``
+the engine download/verify path and ``asr_setup.py``
 (parakeet weight downloader) and ``transcription.py`` (Whisper weight
 downloader).  Keeping the allow-lists in one module prevents the
-copies in ``parakeet_engine.py``, ``asr_setup.py`` and
+copies in ``asr_setup.py`` and
 ``transcription.py`` from drifting out of sync.
 
 CRIT-5 / SEC-2 root cause: the manifest in ``model_hashes.json`` pinned
@@ -471,7 +450,7 @@ their local cache (and that ``verify_model_integrity`` would then have
 to either pin or ignore).  The list is now split per backend:
 
 - ``ALLOW_PATTERNS_PARAKEET``: safetensors + config/tokenizer JSONs.
-  No ``*.bin``.  Used by ``parakeet_engine.py`` and the Parakeet path
+  No ``*.bin``.  Used by the Parakeet path
   of ``asr_setup.download_parakeet_weights``.
 - ``ALLOW_PATTERNS_WHISPER``: keeps ``*.bin`` because the Whisper model
   format consumes ``model.bin`` natively. These weights are only ever

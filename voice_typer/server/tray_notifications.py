@@ -103,7 +103,7 @@ def _publish_notification_event(title: str, message: str) -> None:
 
 
 def on_parakeet_cpu_fallback(tray: TrayIcon, event: dict) -> None:
-    """Handle ``parakeet_cpu_fallback`` events from parakeet_engine."""
+    """Handle ``parakeet_cpu_fallback`` events from the local engine."""
     if not isinstance(event, dict):
         return
     if event.get("type") != "parakeet_cpu_fallback":

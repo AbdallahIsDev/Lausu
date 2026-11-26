@@ -103,44 +103,6 @@ class TestSplitAudio:
         audio[0] = original_first_sample
 
 
-class TestSplitAudioDelegationFromEngines:
-    """
-    Engine ``_split_audio`` methods delegate to the shared helper.
-    These tests pin the delegation contract: the engine methods must
-    """
-
-    def test_parakeet_delegates_to_split_audio(self):
-        from voice_typer.server.parakeet_engine import ParakeetEngine
-
-        audio = np.arange(int(50 * SR), dtype=np.float32)
-        chunks_method = ParakeetEngine._split_audio(None, audio, 25.0, 3.0)
-        chunks_helper = split_audio(
-            audio,
-            chunk_duration=25.0,
-            overlap_duration=3.0,
-            sample_rate=SR,
-        )
-        assert len(chunks_method) == len(chunks_helper)
-        for a, b in zip(chunks_method, chunks_helper, strict=True):
-            np.testing.assert_array_equal(a, b)
-
-    def test_qwen_delegates_to_split_audio(self):
-        from voice_typer.server.qwen_engine import QwenEngine
-
-        audio = np.arange(int(90 * SR), dtype=np.float32)
-        # QwenEngine._split_audio is a @staticmethod.
-        chunks_method = QwenEngine._split_audio(audio, 30.0, 3.0)
-        chunks_helper = split_audio(
-            audio,
-            chunk_duration=30.0,
-            overlap_duration=3.0,
-            sample_rate=SR,
-        )
-        assert len(chunks_method) == len(chunks_helper)
-        for a, b in zip(chunks_method, chunks_helper, strict=True):
-            np.testing.assert_array_equal(a, b)
-
-
 class TestRequireHuggingFaceConsent:
     """``_require_huggingface_consent`` raises the TYPED subclass."""
 

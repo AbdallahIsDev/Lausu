@@ -928,7 +928,6 @@ numpy==2.4.6 ; python_full_version < '3.12' \
     #   lausu (pyproject.toml)
     #   contourpy
     #   matplotlib
-    #   onnx-asr
     #   onnxruntime
     #   pyrnnoise
     #   scipy
@@ -1004,15 +1003,10 @@ numpy==2.5.2 ; python_full_version >= '3.12' and python_full_version < '3.15' \
     #   lausu (pyproject.toml)
     #   contourpy
     #   matplotlib
-    #   onnx-asr
     #   onnxruntime
     #   pyrnnoise
     #   scipy
     #   soundfile
-onnx-asr==0.12.0 ; python_full_version < '3.15' \
-    --hash=sha256:5e7ceca454609819ea7833f61e2302e0c8f6ece4f8a78b66c5daba53cb51de4a \
-    --hash=sha256:c1fcacddbced392f9f769ed5c6223f4ce739a6e4549346de33b9b520d4ead713
-    # via lausu (pyproject.toml)
 onnxruntime==1.29.0 ; python_full_version < '3.15' \
     --hash=sha256:07c5907474dec4a2792fd7626b753dc66707808385a6d9eecf993db0066a9d0f \
     --hash=sha256:0d4f427afac434b0070fe992b540ddf20a7aff2265f760f314d91331935b6b98 \

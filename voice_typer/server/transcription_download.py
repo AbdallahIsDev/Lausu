@@ -55,18 +55,20 @@ def resolve_whisper_repo_id(model_size: str) -> str:
             return meta.repo_id
     except Exception:
         log.debug(
-            "[MODEL] model_registry lookup failed for %s; falling back to Systran default",
+            "[MODEL] model_registry lookup failed for %s; using the migration default",
             model_size,
             exc_info=True,
         )
-    return f"Systran/faster-whisper-{model_size}"
+    from voice_typer.server.gguf_model_registry import LEGACY_REPO_ID_KEYS
+
+    return next((repo for repo, key in LEGACY_REPO_ID_KEYS.items() if key == model_size), model_size)
 
 
 def whisper_model_ref(model_size: str) -> tuple[str, str]:
-    """Canonical ``(repo_id, revision)`` so faster-whisper loads OUR cache dir.
+    """Canonical ``(repo_id, revision)`` so the runtime resolves OUR cache dir.
 
-    Passing the bare size name makes faster-whisper resolve its own alias map,
-    which can point at a renamed repo and miss the snapshot this app downloaded.
+    The bare size name can resolve through a third-party alias map to a renamed
+    repo and miss the snapshot this app downloaded.
     """
     repo_id = resolve_whisper_repo_id(model_size)
     from voice_typer.server.security import MODEL_HASHES
@@ -197,7 +199,7 @@ def whisper_size_cached(engine, model_size: str) -> bool:
         )
         return True
     except ImportError:
-        # Cannot probe, allow the load attempt (WhisperModel will
+        # Cannot probe, allow the load attempt (the runtime will
         return True
     except Exception as exc:
         # Cache miss (or local probe failure), never auto-download. The

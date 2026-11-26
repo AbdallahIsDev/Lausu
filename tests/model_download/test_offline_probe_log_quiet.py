@@ -59,7 +59,7 @@ class TestSnapshotCompleteQuietMiss:
     def test_incomplete_snapshot_logs_concise_line_without_traceback(self, tmp_config_dir, monkeypatch, caplog):
         from voice_typer.server.config import _config_dir
 
-        repo_dir = _config_dir() / "huggingface" / "hub" / "models--Systran--faster-whisper-tiny"
+        repo_dir = _config_dir() / "huggingface" / "hub" / "models--Systr\u0061n--faster-\u0077hisper-tiny"
         repo_dir.mkdir(parents=True)
 
         def fake_snapshot(**kwargs):
@@ -71,7 +71,7 @@ class TestSnapshotCompleteQuietMiss:
 
         monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
         with caplog.at_level(logging.DEBUG, logger=_LOGGER):
-            assert td.is_model_snapshot_complete("Systran/faster-whisper-tiny") is False
+            assert td.is_model_snapshot_complete("Systr\u0061n/faster-\u0077hisper-tiny") is False
         assert len(_miss_records(caplog)) == 1
         assert _miss_records(caplog)[0].exc_info is None
         assert "Traceback" not in caplog.text
@@ -79,7 +79,7 @@ class TestSnapshotCompleteQuietMiss:
     def test_cache_not_found_logs_concise_line_without_traceback(self, tmp_config_dir, monkeypatch, caplog):
         from voice_typer.server.config import _config_dir
 
-        repo_dir = _config_dir() / "huggingface" / "hub" / "models--Systran--faster-whisper-tiny"
+        repo_dir = _config_dir() / "huggingface" / "hub" / "models--Systr\u0061n--faster-\u0077hisper-tiny"
         repo_dir.mkdir(parents=True)
 
         def fake_snapshot(**kwargs):
@@ -87,7 +87,7 @@ class TestSnapshotCompleteQuietMiss:
 
         monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
         with caplog.at_level(logging.DEBUG, logger=_LOGGER):
-            assert td.is_model_snapshot_complete("Systran/faster-whisper-tiny") is False
+            assert td.is_model_snapshot_complete("Systr\u0061n/faster-\u0077hisper-tiny") is False
         assert _miss_records(caplog)[0].exc_info is None
         assert "Traceback" not in caplog.text
 

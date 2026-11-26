@@ -1,7 +1,7 @@
 """GPU capability: the four states + per-backend readiness.
 
 The UI branches on exactly these four states, so each one is pinned here.
-"GPU works" is deliberately NOT global: CTranslate2 (Whisper) needs
+"GPU works" is deliberately NOT global: the Whisper engine needs
 cuBLAS/cuDNN while the ONNX backends need a CUDA-enabled onnxruntime, and
 Qwen is pinned to CPU by design.
 """
@@ -115,7 +115,7 @@ def test_stack_complete_requires_both_paths(
 def test_mixed_state_is_not_mistaken_for_ready(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The exact live case: CTranslate2 sees the GPU, ORT is the CPU wheel.
+    """The exact live case: the ASR engine sees the GPU, ORT is the CPU wheel.
 
     `state` is `gpu_ready` and `cuda_ready` is True, so any gate using them
     lets a Parakeet user write `device: "cuda"` with no modal and a silent

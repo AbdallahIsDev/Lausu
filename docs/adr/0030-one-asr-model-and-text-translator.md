@@ -159,7 +159,7 @@ and a larger real-dictation validation set. EN→AR remains weak.
   auto-translates code-switched audio; English-target-only translate task.
 - In-repo: `docs/adr/0021-transcription-translation-split.md`,
   `docs/research-translation-and-text-models.md`,
-  `voice_typer/server/parakeet_engine/_transcribe.py:110`,
+  `voice_typer/server/worker_backed_asr.py`,
   `voice_typer/server/config/_schema.py` (`language`).
 - Local reports (2026-11-19): `D:\polish_eval\llm\reports\hy-mt2-vs-index-translate-headtohead.md`,
   `D:\polish_eval\llm\reports\cuda-vs-vulkan-translation-ab-2026-11-19.md`.

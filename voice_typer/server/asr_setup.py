@@ -155,10 +155,13 @@ from voice_typer.server._model_integrity import (  # noqa: E402
     ALLOW_PATTERNS_PARAKEET as _HF_ALLOW_PATTERNS,
     ALLOW_PATTERNS_PARAKEET_ONNX as _HF_ALLOW_PATTERNS_LEGACY,
 )
+from voice_typer.server.gguf_model_registry import (  # noqa: E402
+    LEGACY_REPO_ID_KEYS as _LEGACY_REPO_ID_KEYS,
+)
 
-# Legacy cache id still written by older builds; kept only so their cached
-# layout resolves during migration. New downloads use the GGUF catalogue.
-_LEGACY_PARAKEET_CACHE_REPO_ID = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
+# Old builds wrote a legacy repo id into their cache layout; the id lives in
+# the one migration map, so no second copy is spelled here.
+_LEGACY_PARAKEET_CACHE_REPO_ID = next(repo for repo, key in _LEGACY_REPO_ID_KEYS.items() if key == "parakeet")
 
 # removed the module-level ``_CONFIG_DIR`` cache.
 

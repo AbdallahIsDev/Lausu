@@ -279,8 +279,7 @@ class TestWarmModelWeights:
         assert calls == ["weights"]
 
 
-def test_removed_asr_stacks_are_not_warmed() -> None:
+def test_only_current_runtime_libraries_are_warmed() -> None:
     from voice_typer.server.prewarm import cache_probe
 
-    for stale in ("ctranslate2", "faster_whisper"):
-        assert stale not in cache_probe._WORKER_WARM_PACKAGES
+    assert set(cache_probe._WORKER_WARM_PACKAGES) == {"onnxruntime", "numpy", "scipy"}
