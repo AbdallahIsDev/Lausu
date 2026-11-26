@@ -2152,3 +2152,8 @@ Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or s
 - Fix: skip /stop when readiness says browser=down or tab=missing; report once with plain copy; no traceback for expected kinds. Test tests/plugins/test_stop_missing_tab.py pins posts==[], one WARNING, no ERROR/Traceback.
 - Live re-repro after restart was not driven (UI click did not reach the handler); mark live AFTER UNVERIFIED, unit proof complete.
 
+
+## 2026-11-26 - Critical-notice rule
+
+- Added CRITICAL-NOTICE RULE: hidden browser closing during dictation must notify regardless of notify preference, via one named mechanism.
+

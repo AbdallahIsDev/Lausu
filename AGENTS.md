@@ -124,6 +124,8 @@ EDGE-CASE RULE: For every feature or flow you touch, brainstorm the edge cases y
 RAPID-INPUT RULE: Every user-triggered toggle or command (hotkeys, buttons, tray actions) must define and test what happens under repeated, rapid or out-of-order input: presses during a start or stop in flight are ignored or coalesced, never queued and replayed later as the opposite action; a burst of presses is one gesture; behavior is decided at the application level for ALL engines (local model, cloud, plugins), not per feature.
 
 USER-ACTION-FIDELITY RULE: When testing what happens if a user closes or interrupts something, reproduce it the way a real user does (closing the window with its close button / Alt+F4, quitting from the tray, closing a tab with the mouse), not only with a process kill; where the two behave differently (graceful vs forced exit), test BOTH.
+
+CRITICAL-NOTICE RULE: A failure that would otherwise be silent to a user who cannot see the cause (for example a hidden browser window closing during dictation) must always notify the user, regardless of the user's notification preferences. Such notices go through the single named critical-notice mechanism; routine notices keep obeying preferences.
 ```
 
 ## Web-search first (W0, binds before everything)
