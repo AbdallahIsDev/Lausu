@@ -599,7 +599,6 @@ class PluginSession:
                 kind,
                 str(exc)[:120],
             )
-            self._log.debug("[PLUGIN] stop failure context", exc_info=True)
         else:
             self._log.error("[PLUGIN] stop failed (cycle=#%d, kind=%s): %s", cycle, kind, exc)
             self._log.debug("[PLUGIN] stop failure context", exc_info=True)
@@ -821,6 +820,17 @@ class PluginSession:
         try:
             self._stop_meter()
             self._publish_state("transcribing")
+            # A page that already auto-stopped may have lost its tab. Do not
+            # POST into a tab that does not exist: report the real cause once.
+            state = DaemonClient.readiness_state(self._status())
+            if state["browser"] == "down" or state["tab"] == "missing":
+                self._report_stop_failure(
+                    BridgeError("the target tab is not open", "browser-not-open"), cycle
+                )
+                with self._lock:
+                    self._active = False
+                self._session_events(start=False)
+                return
             try:
                 res = self._post("/stop", timeout=75.0)
             except Exception as exc:

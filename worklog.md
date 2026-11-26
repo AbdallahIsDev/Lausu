@@ -2145,3 +2145,10 @@ Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or s
 - Activation prepare bounded 5s: 17:13:31 prepare 4.8s (previous 64.9s), truthful warning on incomplete.
 - User-tab policy: storage.session owned-id set, validate id+url+windowId, only owned tabs removed, user tabs adopted. Node tests in tab_ownership.test.js.
 - Edge-case status counts computed from table: VERIFIED-LIVE=9, UNIT-ONLY=5, OPEN DEFECT=1, UNVERIFIED=4. 30-minute soak not implemented (no internal-entry driver channel; C-HOOK-1 blocks injected keys; UI automation cannot reliably deliver 150 ms bursts) -> UNVERIFIED.
+
+## 2026-11-26 - Expected browser loss at stop
+
+- Owner evidence 19:24:10: auto-stop then /stop failed with 'target tab is not open'; one-line WARN was correct but a DEBUG traceback was still emitted and we POSTed into a missing tab.
+- Fix: skip /stop when readiness says browser=down or tab=missing; report once with plain copy; no traceback for expected kinds. Test tests/plugins/test_stop_missing_tab.py pins posts==[], one WARNING, no ERROR/Traceback.
+- Live re-repro after restart was not driven (UI click did not reach the handler); mark live AFTER UNVERIFIED, unit proof complete.
+
