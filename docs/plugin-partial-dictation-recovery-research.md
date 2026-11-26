@@ -51,3 +51,10 @@ but blocked on proving a DOM path.
 Do not implement until a real capture proves a stable, complete live-text
 node for at least one platform; ChatGPT/Claude need that capture, Gemini does
 not look feasible without broad permissions.
+
+## Follow-up evidence (real-path driver + fake audio, research only)
+
+- Dev-only command channel now calls the REAL wrapped `toggle_dictation` (no key injection, C-HOOK-1): `voice_typer/server/plugin_dev_driver.py`, gated by the existing `DEVELOPER_DIAGNOSTICS` marker/frozen check, files under `debug/dev-command` (never staged). Live `22:56:42` run proved `caller=hotkey-start` and one real start.
+- Firecrawl verified Chromium flags: `--use-fake-device-for-media-stream` + `--use-file-for-fake-audio-capture=<wav>%noloop` feed a 16-bit PCM WAV as mic input; `--use-fake-ui-for-media-stream` is a global consent bypass and must NEVER ship (our profile already pre-grants mic for the three origins). Launcher `_assert_plain` still allows only three args in production.
+- Cached speech WAVs already on disk: `~/.cache/huggingface/tts/samples/magpie-Aria-en-US-v2-d810ff70.wav` (16-bit, 22050 Hz, 4.09 s) and `audio8-default-en-US-v1-d810ff70.wav` (16-bit, 44100 Hz, 4.04 s), both from `SAMPLE_TEXT`. No download needed.
+- Live DOM capture during a real dictated sentence was NOT completed: the plugin profile window is only paintable after the dictation is already running, so user-style close at sub-second startup stages could not be reproduced reliably. ChatGPT/Claude live-text mechanism therefore stays UNVERIFIED with that reason; Gemini NOT FEASIBLE without broad permissions. Production recovery code NOT written.
