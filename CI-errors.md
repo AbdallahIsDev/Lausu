@@ -1,15 +1,15 @@
 # CI Errors
 
-> Generated: 2026-11-26T17:24:56Z
-> Data branch commit: `58e973c`
+> Generated: 2026-11-26T17:36:58Z
+> Data branch commit: `a049b33`
 
 ## Currently failing
 
 ### 1. Client CI — failure
 
-- Run: [45863293307](https://github.com/AbdallahIsDev/Lausu/actions/runs/45863293307) (attempt 1)
+- Run: [45868604297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45868604297) (attempt 1)
 - Event: push · Branch: main
-- Commit: `58e973c` — fix(imports): break the security/registry cycle with a legacy-id constants module
+- Commit: `a049b33` — fix(plugins): skip stop POST into a missing tab and drop expected traceback
 - Job: Typecheck + Lint + Test · Leg: ubuntu-22.04
 - Step: Test (Vitest + coverage)
 - Category: eslint/vitest
@@ -157,7 +157,22 @@
 
 ## Recent failures
 
-### 1. CI error collector — failure
+### 1. Client CI — failure
+
+- Run: [45868604297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45868604297) (attempt 1)
+- Event: push · Branch: main
+- Commit: `a049b33` — fix(plugins): skip stop POST into a missing tab and drop expected traceback
+- Job: Typecheck + Lint + Test · Leg: ubuntu-22.04
+- Step: Test (Vitest + coverage)
+- Category: eslint/vitest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 2. CI error collector — failure
 
 - Run: [45865840634](https://github.com/AbdallahIsDev/Lausu/actions/runs/45865840634) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -172,7 +187,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 2. Client CI — failure
+### 3. Client CI — failure
 
 - Run: [45863293307](https://github.com/AbdallahIsDev/Lausu/actions/runs/45863293307) (attempt 1)
 - Event: push · Branch: main
@@ -187,7 +202,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 3. CI error collector — failure
+### 4. CI error collector — failure
 
 - Run: [45861147074](https://github.com/AbdallahIsDev/Lausu/actions/runs/45861147074) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -202,7 +217,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 4. CI error collector — failure
+### 5. CI error collector — failure
 
 - Run: [45860910924](https://github.com/AbdallahIsDev/Lausu/actions/runs/45860910924) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -217,7 +232,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 5. CI error collector — failure
+### 6. CI error collector — failure
 
 - Run: [45859088557](https://github.com/AbdallahIsDev/Lausu/actions/runs/45859088557) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -232,7 +247,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 6. Build installer — failure
+### 7. Build installer — failure
 
 - Run: [45858394834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858394834) (attempt 1)
 - Event: push · Branch: main
@@ -247,7 +262,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 7. Build installer — failure
+### 8. Build installer — failure
 
 - Run: [45858394834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858394834) (attempt 1)
 - Event: push · Branch: main
@@ -262,7 +277,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 8. Build installer — failure
+### 9. Build installer — failure
 
 - Run: [45858394834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858394834) (attempt 1)
 - Event: push · Branch: main
@@ -277,7 +292,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 9. Build installer — failure
+### 10. Build installer — failure
 
 - Run: [45858394834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858394834) (attempt 1)
 - Event: push · Branch: main
@@ -292,27 +307,12 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 10. Build installer — failure
-
-- Run: [45858394834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858394834) (attempt 1)
-- Event: push · Branch: main
-- Commit: `f989c88` — test(client): pin worker-backed ASR hidden imports in the spec
-- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
 ### 11. Build installer — failure
 
 - Run: [45858394834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858394834) (attempt 1)
 - Event: push · Branch: main
 - Commit: `f989c88` — test(client): pin worker-backed ASR hidden imports in the spec
-- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
+- Job: test (ubuntu-22.04, 3.11) · Leg: ubuntu-22.04, 3.11
 - Step: Run tests with coverage
 - Category: pytest
 
@@ -327,7 +327,7 @@
 - Run: [45858394834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858394834) (attempt 1)
 - Event: push · Branch: main
 - Commit: `f989c88` — test(client): pin worker-backed ASR hidden imports in the spec
-- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
+- Job: test (windows-2022, 3.13) · Leg: windows-2022, 3.13
 - Step: Run tests with coverage
 - Category: pytest
 
@@ -342,6 +342,21 @@
 - Run: [45858394834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858394834) (attempt 1)
 - Event: push · Branch: main
 - Commit: `f989c88` — test(client): pin worker-backed ASR hidden imports in the spec
+- Job: test (macos-15, 3.11) · Leg: macos-15, 3.11
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 14. Build installer — failure
+
+- Run: [45858394834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858394834) (attempt 1)
+- Event: push · Branch: main
+- Commit: `f989c88` — test(client): pin worker-backed ASR hidden imports in the spec
 - Job: test (macos-15, 3.12) · Leg: macos-15, 3.12
 - Step: (job-level failure)
 - Category: infrastructure/cancelled/timeout
@@ -352,7 +367,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 14. Build Linux — failure
+### 15. Build Linux — failure
 
 - Run: [45858393735](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858393735) (attempt 1)
 - Event: push · Branch: main
@@ -367,7 +382,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 15. Client CI — failure
+### 16. Client CI — failure
 
 - Run: [45858393511](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858393511) (attempt 1)
 - Event: push · Branch: main
@@ -382,7 +397,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 16. Client CI — failure
+### 17. Client CI — failure
 
 - Run: [45858393511](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858393511) (attempt 1)
 - Event: push · Branch: main
@@ -397,7 +412,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 17. CI error collector — failure
+### 18. CI error collector — failure
 
 - Run: [45858329686](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858329686) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -412,7 +427,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 18. Build Linux — failure
+### 19. Build Linux — failure
 
 - Run: [45848520453](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520453) (attempt 1)
 - Event: push · Branch: main
@@ -427,7 +442,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 19. Build Linux — failure
+### 20. Build Linux — failure
 
 - Run: [45848520453](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520453) (attempt 1)
 - Event: push · Branch: main
@@ -442,7 +457,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 20. Build installer — failure
+### 21. Build installer — failure
 
 - Run: [45848520451](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520451) (attempt 1)
 - Event: push · Branch: main
@@ -457,7 +472,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 21. Build installer — failure
+### 22. Build installer — failure
 
 - Run: [45848520451](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520451) (attempt 1)
 - Event: push · Branch: main
@@ -472,7 +487,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 22. Build installer — failure
+### 23. Build installer — failure
 
 - Run: [45848520451](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520451) (attempt 1)
 - Event: push · Branch: main
@@ -487,7 +502,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 23. Build installer — failure
+### 24. Build installer — failure
 
 - Run: [45848520451](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520451) (attempt 1)
 - Event: push · Branch: main
@@ -502,7 +517,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 24. Build installer — failure
+### 25. Build installer — failure
 
 - Run: [45848520451](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520451) (attempt 1)
 - Event: push · Branch: main
@@ -517,27 +532,12 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 25. Build installer — failure
-
-- Run: [45848520451](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520451) (attempt 1)
-- Event: push · Branch: main
-- Commit: `d70a14e` — docs(plugins): record live evidence and honest edge-case statuses
-- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
 ### 26. Build installer — failure
 
 - Run: [45848520451](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520451) (attempt 1)
 - Event: push · Branch: main
 - Commit: `d70a14e` — docs(plugins): record live evidence and honest edge-case statuses
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
+- Job: test (ubuntu-22.04, 3.12) · Leg: ubuntu-22.04, 3.12
 - Step: Run tests with coverage
 - Category: pytest
 
@@ -552,7 +552,7 @@
 - Run: [45848520451](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520451) (attempt 1)
 - Event: push · Branch: main
 - Commit: `d70a14e` — docs(plugins): record live evidence and honest edge-case statuses
-- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
+- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
 - Step: Run tests with coverage
 - Category: pytest
 
@@ -563,6 +563,21 @@
 ```
 
 ### 28. Build installer — failure
+
+- Run: [45848520451](https://github.com/AbdallahIsDev/Lausu/actions/runs/45848520451) (attempt 1)
+- Event: push · Branch: main
+- Commit: `d70a14e` — docs(plugins): record live evidence and honest edge-case statuses
+- Job: test (ubuntu-22.04, 3.13) · Leg: ubuntu-22.04, 3.13
+- Step: Run tests with coverage
+- Category: pytest
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 29. Build installer — failure
 
 - Run: [45741472226](https://github.com/AbdallahIsDev/Lausu/actions/runs/45741472226) (attempt 1)
 - Event: push · Branch: main
@@ -577,7 +592,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 29. Build installer — failure
+### 30. Build installer — failure
 
 - Run: [45741472226](https://github.com/AbdallahIsDev/Lausu/actions/runs/45741472226) (attempt 1)
 - Event: push · Branch: main
@@ -592,7 +607,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 30. Build installer — failure
+### 31. Build installer — failure
 
 - Run: [45741472226](https://github.com/AbdallahIsDev/Lausu/actions/runs/45741472226) (attempt 1)
 - Event: push · Branch: main
@@ -607,7 +622,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 31. Build installer — failure
+### 32. Build installer — failure
 
 - Run: [45741472226](https://github.com/AbdallahIsDev/Lausu/actions/runs/45741472226) (attempt 1)
 - Event: push · Branch: main
@@ -622,7 +637,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 32. Build installer — failure
+### 33. Build installer — failure
 
 - Run: [45741472226](https://github.com/AbdallahIsDev/Lausu/actions/runs/45741472226) (attempt 1)
 - Event: push · Branch: main
@@ -637,7 +652,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 33. Build installer — failure
+### 34. Build installer — failure
 
 - Run: [45741472226](https://github.com/AbdallahIsDev/Lausu/actions/runs/45741472226) (attempt 1)
 - Event: push · Branch: main
@@ -652,7 +667,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 34. Build installer — failure
+### 35. Build installer — failure
 
 - Run: [45741472226](https://github.com/AbdallahIsDev/Lausu/actions/runs/45741472226) (attempt 1)
 - Event: push · Branch: main
@@ -667,7 +682,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 35. Build installer — failure
+### 36. Build installer — failure
 
 - Run: [45741472226](https://github.com/AbdallahIsDev/Lausu/actions/runs/45741472226) (attempt 1)
 - Event: push · Branch: main
@@ -682,7 +697,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 36. Build Linux — failure
+### 37. Build Linux — failure
 
 - Run: [45730000324](https://github.com/AbdallahIsDev/Lausu/actions/runs/45730000324) (attempt 1)
 - Event: push · Branch: main
@@ -697,7 +712,7 @@
 (no job log available)
 ```
 
-### 37. Build installer — failure
+### 38. Build installer — failure
 
 - Run: [45730000314](https://github.com/AbdallahIsDev/Lausu/actions/runs/45730000314) (attempt 1)
 - Event: push · Branch: main
@@ -712,7 +727,7 @@
 (no job log available)
 ```
 
-### 38. Build installer — failure
+### 39. Build installer — failure
 
 - Run: [45720592081](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720592081) (attempt 1)
 - Event: push · Branch: main
@@ -727,7 +742,7 @@
 (no job log available)
 ```
 
-### 39. Build Linux — failure
+### 40. Build Linux — failure
 
 - Run: [45720177190](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720177190) (attempt 1)
 - Event: push · Branch: main
@@ -742,7 +757,7 @@
 (no job log available)
 ```
 
-### 40. Build installer — failure
+### 41. Build installer — failure
 
 - Run: [45720177056](https://github.com/AbdallahIsDev/Lausu/actions/runs/45720177056) (attempt 1)
 - Event: push · Branch: main
@@ -757,7 +772,7 @@
 (no job log available)
 ```
 
-### 41. Build installer — failure
+### 42. Build installer — failure
 
 - Run: [45695399373](https://github.com/AbdallahIsDev/Lausu/actions/runs/45695399373) (attempt 1)
 - Event: push · Branch: main
@@ -772,7 +787,7 @@
 (no job log available)
 ```
 
-### 42. Build Linux — failure
+### 43. Build Linux — failure
 
 - Run: [45695399355](https://github.com/AbdallahIsDev/Lausu/actions/runs/45695399355) (attempt 1)
 - Event: push · Branch: main
@@ -787,7 +802,7 @@
 (no job log available)
 ```
 
-### 43. Build Linux — failure
+### 44. Build Linux — failure
 
 - Run: [45681015836](https://github.com/AbdallahIsDev/Lausu/actions/runs/45681015836) (attempt 1)
 - Event: push · Branch: main
@@ -802,7 +817,7 @@
 (no job log available)
 ```
 
-### 44. Build installer — failure
+### 45. Build installer — failure
 
 - Run: [45681015474](https://github.com/AbdallahIsDev/Lausu/actions/runs/45681015474) (attempt 1)
 - Event: push · Branch: main
@@ -817,7 +832,7 @@
 (no job log available)
 ```
 
-### 45. CI error collector — failure
+### 46. CI error collector — failure
 
 - Run: [45520898834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45520898834) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -832,7 +847,7 @@
 (no job log available)
 ```
 
-### 46. Build installer — failure
+### 47. Build installer — failure
 
 - Run: [45512898129](https://github.com/AbdallahIsDev/Lausu/actions/runs/45512898129) (attempt 1)
 - Event: push · Branch: main
@@ -847,7 +862,7 @@
 (no job log available)
 ```
 
-### 47. Build Linux — failure
+### 48. Build Linux — failure
 
 - Run: [45512898056](https://github.com/AbdallahIsDev/Lausu/actions/runs/45512898056) (attempt 1)
 - Event: push · Branch: main
@@ -862,7 +877,7 @@
 (no job log available)
 ```
 
-### 48. Build installer — failure
+### 49. Build installer — failure
 
 - Run: [45459252772](https://github.com/AbdallahIsDev/Lausu/actions/runs/45459252772) (attempt 1)
 - Event: push · Branch: main
@@ -877,7 +892,7 @@
 (no job log available)
 ```
 
-### 49. CI error collector — failure
+### 50. CI error collector — failure
 
 - Run: [45455690803](https://github.com/AbdallahIsDev/Lausu/actions/runs/45455690803) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -892,7 +907,7 @@
 (no job log available)
 ```
 
-### 50. Build installer — failure
+### 51. Build installer — failure
 
 - Run: [45454671351](https://github.com/AbdallahIsDev/Lausu/actions/runs/45454671351) (attempt 1)
 - Event: push · Branch: main
@@ -907,7 +922,7 @@
 (no job log available)
 ```
 
-### 51. Build installer — failure
+### 52. Build installer — failure
 
 - Run: [45410434581](https://github.com/AbdallahIsDev/Lausu/actions/runs/45410434581) (attempt 1)
 - Event: push · Branch: main
@@ -922,7 +937,7 @@
 (no job log available)
 ```
 
-### 52. Client CI — failure
+### 53. Client CI — failure
 
 - Run: [45410434401](https://github.com/AbdallahIsDev/Lausu/actions/runs/45410434401) (attempt 1)
 - Event: push · Branch: main
@@ -937,7 +952,7 @@
 (no job log available)
 ```
 
-### 53. Client CI — failure
+### 54. Client CI — failure
 
 - Run: [45409359243](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359243) (attempt 1)
 - Event: push · Branch: main
@@ -952,7 +967,7 @@
 (no job log available)
 ```
 
-### 54. Build installer — failure
+### 55. Build installer — failure
 
 - Run: [45409359123](https://github.com/AbdallahIsDev/Lausu/actions/runs/45409359123) (attempt 1)
 - Event: push · Branch: main
@@ -967,7 +982,7 @@
 (no job log available)
 ```
 
-### 55. Client CI — failure
+### 56. Client CI — failure
 
 - Run: [45401202326](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202326) (attempt 1)
 - Event: push · Branch: main
@@ -982,7 +997,7 @@
 (no job log available)
 ```
 
-### 56. Build installer — failure
+### 57. Build installer — failure
 
 - Run: [45401202297](https://github.com/AbdallahIsDev/Lausu/actions/runs/45401202297) (attempt 1)
 - Event: push · Branch: main
@@ -997,7 +1012,7 @@
 (no job log available)
 ```
 
-### 57. Build Linux — failure
+### 58. Build Linux — failure
 
 - Run: [45399711547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711547) (attempt 1)
 - Event: push · Branch: main
@@ -1012,7 +1027,7 @@
 (no job log available)
 ```
 
-### 58. CodeQL — failure
+### 59. CodeQL — failure
 
 - Run: [45399711542](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711542) (attempt 1)
 - Event: push · Branch: main
@@ -1027,7 +1042,7 @@
 (no job log available)
 ```
 
-### 59. Client CI — failure
+### 60. Client CI — failure
 
 - Run: [45399711163](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711163) (attempt 1)
 - Event: push · Branch: main
@@ -1042,7 +1057,7 @@
 (no job log available)
 ```
 
-### 60. Build installer — failure
+### 61. Build installer — failure
 
 - Run: [45399711111](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711111) (attempt 1)
 - Event: push · Branch: main
@@ -1057,7 +1072,7 @@
 (no job log available)
 ```
 
-### 61. CI error collector — failure
+### 62. CI error collector — failure
 
 - Run: [45307909855](https://github.com/AbdallahIsDev/Lausu/actions/runs/45307909855) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1072,7 +1087,7 @@
 (no job log available)
 ```
 
-### 62. CodeQL — failure
+### 63. CodeQL — failure
 
 - Run: [45306954147](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954147) (attempt 1)
 - Event: push · Branch: main
@@ -1087,7 +1102,7 @@
 (no job log available)
 ```
 
-### 63. Build installer — failure
+### 64. Build installer — failure
 
 - Run: [45306954077](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954077) (attempt 1)
 - Event: push · Branch: main
@@ -1102,7 +1117,7 @@
 (no job log available)
 ```
 
-### 64. Client CI — failure
+### 65. Client CI — failure
 
 - Run: [45306954019](https://github.com/AbdallahIsDev/Lausu/actions/runs/45306954019) (attempt 1)
 - Event: push · Branch: main
@@ -1117,7 +1132,7 @@
 (no job log available)
 ```
 
-### 65. Client CI — failure
+### 66. Client CI — failure
 
 - Run: [45305611455](https://github.com/AbdallahIsDev/Lausu/actions/runs/45305611455) (attempt 1)
 - Event: push · Branch: main
@@ -1132,7 +1147,7 @@
 (no job log available)
 ```
 
-### 66. Build Linux — failure
+### 67. Build Linux — failure
 
 - Run: [45305611432](https://github.com/AbdallahIsDev/Lausu/actions/runs/45305611432) (attempt 1)
 - Event: push · Branch: main
@@ -1147,7 +1162,7 @@
 (no job log available)
 ```
 
-### 67. Build installer — failure
+### 68. Build installer — failure
 
 - Run: [45305611407](https://github.com/AbdallahIsDev/Lausu/actions/runs/45305611407) (attempt 1)
 - Event: push · Branch: main
@@ -1162,7 +1177,7 @@
 (no job log available)
 ```
 
-### 68. CodeQL — failure
+### 69. CodeQL — failure
 
 - Run: [45305611366](https://github.com/AbdallahIsDev/Lausu/actions/runs/45305611366) (attempt 1)
 - Event: push · Branch: main
@@ -1177,7 +1192,7 @@
 (no job log available)
 ```
 
-### 69. CodeQL — failure
+### 70. CodeQL — failure
 
 - Run: [45298879220](https://github.com/AbdallahIsDev/Lausu/actions/runs/45298879220) (attempt 1)
 - Event: push · Branch: main
@@ -1192,7 +1207,7 @@
 (no job log available)
 ```
 
-### 70. Client CI — failure
+### 71. Client CI — failure
 
 - Run: [45298879055](https://github.com/AbdallahIsDev/Lausu/actions/runs/45298879055) (attempt 1)
 - Event: push · Branch: main
@@ -1207,7 +1222,7 @@
 (no job log available)
 ```
 
-### 71. Build Linux — failure
+### 72. Build Linux — failure
 
 - Run: [45298879048](https://github.com/AbdallahIsDev/Lausu/actions/runs/45298879048) (attempt 1)
 - Event: push · Branch: main
@@ -1222,7 +1237,7 @@
 (no job log available)
 ```
 
-### 72. Build installer — failure
+### 73. Build installer — failure
 
 - Run: [45298879046](https://github.com/AbdallahIsDev/Lausu/actions/runs/45298879046) (attempt 1)
 - Event: push · Branch: main
@@ -1241,6 +1256,22 @@
 
 ### 1. CI error collector — failure
 
+- Run: [45865840634](https://github.com/AbdallahIsDev/Lausu/actions/runs/45865840634) (attempt 1)
+- Event: workflow_run · Branch: main
+- Commit: `58e973c` — fix(imports): break the security/registry cycle with a legacy-id constants module
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
+- Category: other
+- Fixed by: [45867530583](https://github.com/AbdallahIsDev/Lausu/actions/runs/45867530583) (success)
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 2. CI error collector — failure
+
 - Run: [45861147074](https://github.com/AbdallahIsDev/Lausu/actions/runs/45861147074) (attempt 1)
 - Event: workflow_run · Branch: main
 - Commit: `f989c88` — test(client): pin worker-backed ASR hidden imports in the spec
@@ -1255,7 +1286,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 2. CI error collector — failure
+### 3. CI error collector — failure
 
 - Run: [45858329686](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858329686) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1271,7 +1302,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 3. CI error collector — failure
+### 4. CI error collector — failure
 
 - Run: [45520898834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45520898834) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1287,7 +1318,7 @@
 (no job log available)
 ```
 
-### 4. CI error collector — failure
+### 5. CI error collector — failure
 
 - Run: [45455690803](https://github.com/AbdallahIsDev/Lausu/actions/runs/45455690803) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1303,7 +1334,7 @@
 (no job log available)
 ```
 
-### 5. Client CI — failure
+### 6. Client CI — failure
 
 - Run: [45410434401](https://github.com/AbdallahIsDev/Lausu/actions/runs/45410434401) (attempt 1)
 - Event: push · Branch: main
@@ -1319,7 +1350,7 @@
 (no job log available)
 ```
 
-### 6. CodeQL — failure
+### 7. CodeQL — failure
 
 - Run: [45399711542](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711542) (attempt 1)
 - Event: push · Branch: main
@@ -1335,7 +1366,7 @@
 (no job log available)
 ```
 
-### 7. Build Linux — failure
+### 8. Build Linux — failure
 
 - Run: [45399711547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711547) (attempt 1)
 - Event: push · Branch: main
@@ -1351,7 +1382,7 @@
 (no job log available)
 ```
 
-### 8. CI error collector — failure
+### 9. CI error collector — failure
 
 - Run: [45307909855](https://github.com/AbdallahIsDev/Lausu/actions/runs/45307909855) (attempt 1)
 - Event: workflow_run · Branch: main
