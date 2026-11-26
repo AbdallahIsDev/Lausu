@@ -350,10 +350,15 @@ MIXIN_STUB_METHODS: dict[str, dict[str, set[str]]] = {
     },
     "voice_typer/server/service/model/_download_dispatch.py": {
         "DownloadDispatchMixin": {
-            "_download_parakeet",
-            "_download_qwen",
-            "_download_whisper_family",
+            "_download_translation",
+            "_download_gguf",
+            "_enqueue_download",
+            "_require_huggingface_consent",
+            "_register_download",
+            "_unregister_download",
+            "_is_download_cancelled",
             "_start_next_queued_download",
+            "_invalidate_model_status_cache",
         },
     },
     "voice_typer/server/service/model/_download_qwen_parakeet.py": {

@@ -14,6 +14,7 @@ from voice_typer.server.gguf_model_registry import (
     available_models,
     is_placeholder_hash,
     is_placeholder_size,
+    is_registered_model_key,
     production_models,
     require_complete_spec,
     resolve_gguf_spec,
@@ -86,6 +87,18 @@ def test_available_models_respects_frozen_state(monkeypatch: pytest.MonkeyPatch)
     assert "tiny" in available_models()
 
 
+def test_registered_model_key_predicate_matches_the_build_catalogue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dispatch asks the registry, never the raw GGUF_MODELS dict."""
+    assert is_registered_model_key(DEFAULT_MODEL_KEY)
+    assert not is_registered_model_key("not-a-model")
+    monkeypatch.setattr(registry, "is_frozen", lambda: True)
+    assert not is_registered_model_key("tiny")
+    monkeypatch.setattr(registry, "is_frozen", lambda: False)
+    assert is_registered_model_key("tiny")
+
+
 def test_placeholder_classifiers_reject_garbage() -> None:
     assert is_placeholder_hash("FILL_ME")
     assert not is_placeholder_hash("a" * 64)
@@ -141,9 +154,11 @@ def test_production_metadata_has_no_dev_model_or_legacy_repo() -> None:
         monkeypatch.undo()
     assert set(metadata) == PRODUCTION_MODEL_KEYS
     assert "tiny" not in metadata
+    from voice_typer.server.gguf_model_registry import LEGACY_REPO_ID_KEYS
+
     for meta in metadata.values():
         assert meta.repo_id.startswith("handy-computer/")
-        assert "systran" not in meta.repo_id.lower()
+        assert meta.repo_id not in LEGACY_REPO_ID_KEYS
         assert "onnx" not in meta.repo_id.lower()
 
 

@@ -9,12 +9,13 @@ class TestBuildModelsSubmenuConfigProvider:
     """build_models_menu_items accepts config_provider kwarg."""
 
     def test_accepts_config_provider(self, tmp_path):
-
+        from voice_typer.server.gguf_model_registry import DEFAULT_MODEL_KEY
         from voice_typer.server.tray_models import build_models_submenu_data
 
         config = MagicMock()
-        config.model_size = "tiny"
+        config.model_size = DEFAULT_MODEL_KEY
         config.asr_backend = "whisper"
+        config.active_plugin_name = ""
 
         result = build_models_submenu_data(
             lambda: tmp_path,
@@ -22,7 +23,7 @@ class TestBuildModelsSubmenuConfigProvider:
             config_provider=config,
         )
         active_models = [name for name, _, is_active, _ in result if is_active]
-        assert "tiny" in active_models
+        assert DEFAULT_MODEL_KEY in active_models
 
     def test_corrupt_config_json_falls_back_to_defaults_and_logs(self, tmp_path, caplog):
         """PI-19 regression: a corrupt ``config.json`` must NOT silently"""

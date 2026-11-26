@@ -127,8 +127,12 @@ class TestIsActiveModelDownloaded:
         assert is_active_model_downloaded(cfg) is True
 
     def test_parakeet_missing_false(self, tmp_config_dir):
+        from voice_typer.server.model_availability import shared_hub_dir
         from voice_typer.server.tray_models import is_active_model_downloaded
 
+        # The GGUF probe resolves HF_HUB_CACHE directly; the suite-wide
+        # fixture must keep it inside tmp, never in the developer's cache.
+        assert str(shared_hub_dir()).startswith(str(tmp_config_dir))
         cfg = Config(asr_backend="parakeet", parakeet_model_path=None)
         assert is_active_model_downloaded(cfg) is False
 

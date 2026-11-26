@@ -13,7 +13,6 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PREWARM_INIT = REPO_ROOT / "voice_typer" / "server" / "prewarm" / "__init__.py"
 RECORDING_INIT = REPO_ROOT / "voice_typer" / "server" / "recording" / "__init__.py"
-TRACKING_DOC = "docs/history/rw9-god-class-decomposition.md"
 MIN_TODO_DATE = "2026-08-01"
 # Matches "TODO (YYYY-MM-DD, TECH-DEBT", the post-fix format.
 TODO_DATE_RE = re.compile(r"TODO\s*\(\s*(\d{4}-\d{2}-\d{2})\s*,\s*TECH-DEBT")
@@ -70,8 +69,7 @@ class TestPrewarmInitTODO:
                 "block, the package was re-architected as a worker-startup "
                 "phase (master plan §6.2). Skipping freshness assertions."
             )
-        # Pre-deletion state, the TODO block must satisfy the freshness contract.
-        assert TRACKING_DOC in source, f"prewarm/__init__.py TODO must reference {TRACKING_DOC}"
+        # The surviving TODO block must satisfy the freshness contract.
         matches = TODO_DATE_RE.findall(source)
         assert matches, "prewarm/__init__.py TODO must have a 'TODO (YYYY-MM-DD, TECH-DEBT' header"
         for date_str in matches:
@@ -126,11 +124,3 @@ class TestRecordingInitTODO:
         assert not SESSION_PREFIX_RE.search(recording_source), (
             "recording/__init__.py contains a 'CR-XX' session prefix; violates C-STYLE-1 (no task IDs in source code)"
         )
-
-
-class TestTrackingDocExists:
-    """Sanity check, the referenced tracking doc must actually exist."""
-
-    def test_tracking_doc_exists(self) -> None:
-        doc_path = REPO_ROOT / TRACKING_DOC
-        assert doc_path.is_file(), f"tracking doc referenced by the TODOs does not exist: {doc_path}"

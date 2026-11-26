@@ -143,6 +143,11 @@ def available_models() -> dict[str, GgufModelSpec]:
     return dict(GGUF_MODELS)
 
 
+def is_registered_model_key(model_key: str) -> bool:
+    """True when this build's catalogue can serve ``model_key``."""
+    return model_key in available_models()
+
+
 def default_model_size_for_build(*, frozen: bool | None = None) -> str:
     """Frozen builds always default to a shipped model; source keeps no-model."""
     frozen = is_frozen() if frozen is None else frozen
@@ -395,6 +400,7 @@ __all__ = [
     "is_frozen",
     "is_placeholder_hash",
     "is_placeholder_size",
+    "is_registered_model_key",
     "normalize_model_key",
     "production_models",
     "require_allowed_model_key",

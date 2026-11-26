@@ -62,6 +62,7 @@ EXPECTED_SURFACE = {
     "_make_ptt_release_callback",
     "_make_repaste_callback",
     "_force_caps_lock_off_before_dictation",
+    "_no_active_engine",
     "register_esc",
     "_on_esc_release",
     "unregister_esc",
@@ -104,6 +105,7 @@ OWNED: dict[str, set[str]] = {
         "_make_repaste_callback",
         "_on_esc_release",
         "_force_caps_lock_off_before_dictation",
+        "_no_active_engine",
     },
     "voice_typer.server.hotkey_lifecycle": {
         "restart",
@@ -264,7 +266,7 @@ DOWNLOAD_GROUP_OWNERS = {
     ),
     "voice_typer.server.service.model._download_dispatch": (
         "DownloadDispatchMixin",
-        {"download_model"},
+        {"download_model", "_download_gguf", "_gguf_failure_outcome"},
     ),
     "voice_typer.server.service.model._download_qwen_parakeet": (
         "QwenParakeetDownloadMixin",
@@ -323,15 +325,15 @@ class TestDownloadsComposite:
         assert "poll_outcome, last_total_bytes_seen = poll_download_progress(" in src
         assert src.count("clear_download_pause_state()") >= 4
 
-    def test_download_model_dispatch_still_delegates_to_three_branches(self):
+    def test_download_model_dispatch_gates_then_uses_the_gguf_branch(self):
         import inspect
 
         from voice_typer.server.service.model import ModelMixin
 
         src = inspect.getsource(ModelMixin.download_model)
-        assert "_download_whisper_family" in src
-        assert "_download_qwen" in src
-        assert "_download_parakeet" in src
+        assert "is_frozen()" in src
+        assert "is_registered_model_key" in src
+        assert "_download_gguf" in src
 
 
 # ---------------------------------------------------------------------------

@@ -9,11 +9,13 @@ class TestBuildModelsSubmenuConfigProvider:
     def test_accepts_config_provider(self, tmp_path):
         from unittest.mock import MagicMock
 
+        from voice_typer.server.gguf_model_registry import DEFAULT_MODEL_KEY
         from voice_typer.server.tray_models import build_models_submenu_data
 
         config = MagicMock()
-        config.model_size = "tiny"
+        config.model_size = DEFAULT_MODEL_KEY
         config.asr_backend = "whisper"
+        config.active_plugin_name = ""
 
         result = build_models_submenu_data(
             lambda: tmp_path,
@@ -21,7 +23,28 @@ class TestBuildModelsSubmenuConfigProvider:
             config_provider=config,
         )
         active_models = [name for name, _, is_active, _ in result if is_active]
-        assert "tiny" in active_models
+        assert DEFAULT_MODEL_KEY in active_models
+
+    def test_frozen_build_never_offers_dev_only_tiny(self, tmp_path, monkeypatch):
+        """The tray is a user-facing surface: tiny must not be selectable."""
+        from unittest.mock import MagicMock
+
+        from voice_typer.server import gguf_model_registry
+        from voice_typer.server.tray_models import build_models_submenu_data
+
+        monkeypatch.setattr(gguf_model_registry, "is_frozen", lambda: True)
+        config = MagicMock()
+        config.model_size = gguf_model_registry.DEFAULT_MODEL_KEY
+        config.asr_backend = "whisper"
+
+        result = build_models_submenu_data(
+            lambda: tmp_path,
+            lambda name: None,
+            config_provider=config,
+        )
+        names = [row[0] for row in result]
+        assert "tiny" not in names
+        assert gguf_model_registry.DEFAULT_MODEL_KEY in names
 
     def test_corrupt_config_json_falls_back_to_defaults_and_logs(self, tmp_path, caplog):
         """PI-19 regression: a corrupt ``config.json`` must NOT silently"""

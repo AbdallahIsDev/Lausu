@@ -429,11 +429,14 @@ class TestQwenTrayAvailabilityAlignsWithModelsPage:
         invalidate_model_availability_cache()
 
     def _make_config(self, qwen_model_path=None):
-        config = MagicMock()
-        config.model_size = "tiny"
-        config.asr_backend = "whisper"
-        config.qwen_model_path = qwen_model_path
-        return config
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            model_size="tiny",
+            asr_backend="whisper",
+            qwen_model_path=qwen_model_path,
+            active_plugin_name="",
+        )
 
     def _qwen_downloaded_flag(self, tmp_path, config):
         """Return the ``downloaded`` flag for the qwen candidate row."""
@@ -516,6 +519,71 @@ class TestQwenTrayAvailabilityAlignsWithModelsPage:
         data = self._rows(tmp_path, config)
         active = {row[0]: row[2] for row in data if row[0].startswith("qwen")}
         assert active == {"qwen3-1.7b": False, "qwen3-0.6b": True}
+
+    @staticmethod
+    def _write_gguf_snapshot(config_dir, model_key):
+        """Create the HF cache leaf the shared installer verdict reads."""
+        from voice_typer.server.gguf_model_registry import resolve_gguf_spec
+
+        spec = resolve_gguf_spec(model_key, allow_dev=False)
+        repo_dir = config_dir / "huggingface" / "hub" / f"models--{spec.repo_id.replace('/', '--')}"
+        (repo_dir / "refs").mkdir(parents=True)
+        (repo_dir / "refs" / "main").write_text(spec.sha256[:40], encoding="utf-8")
+
+    @pytest.mark.parametrize(
+        "installed,selected,expected_downloaded,expected_active",
+        [
+            (
+                ("qwen3-1.7b", "qwen3-0.6b"),
+                "qwen3-0.6b",
+                {"qwen3-1.7b": True, "qwen3-0.6b": True},
+                {"qwen3-1.7b": False, "qwen3-0.6b": True},
+            ),
+            (
+                ("qwen3-1.7b", "qwen3-0.6b"),
+                "qwen3-1.7b",
+                {"qwen3-1.7b": True, "qwen3-0.6b": True},
+                {"qwen3-1.7b": True, "qwen3-0.6b": False},
+            ),
+            (
+                ("qwen3-0.6b",),
+                "qwen3-1.7b",
+                {"qwen3-1.7b": False, "qwen3-0.6b": True},
+                {"qwen3-1.7b": True, "qwen3-0.6b": False},
+            ),
+            (
+                (),
+                "qwen3-0.6b",
+                {"qwen3-1.7b": False, "qwen3-0.6b": False},
+                {"qwen3-1.7b": False, "qwen3-0.6b": True},
+            ),
+        ],
+    )
+    def test_gguf_install_and_selection_matrix_matches_models_page(
+        self, tmp_path, monkeypatch, installed, selected, expected_downloaded, expected_active
+    ):
+        """Tray rows and the Models page read the same install verdict."""
+        from voice_typer.server import model_availability
+        from voice_typer.server.model_registry import get_model_metadata
+
+        for key in installed:
+            self._write_gguf_snapshot(tmp_path, key)
+
+        def _is_installed(repo_id, config_dir=None, **_kwargs):
+            leaf = f"models--{repo_id.replace('/', '--')}"
+            return (model_availability.app_hub_dir(config_dir or tmp_path) / leaf / "refs" / "main").is_file()
+
+        monkeypatch.setattr(model_availability, "is_available", _is_installed)
+        config = self._make_config(qwen_model_path=None)
+        config.model_size = selected
+        config.asr_backend = "qwen"
+        rows = {row[0]: row for row in self._rows(tmp_path, config) if row[0].startswith("qwen3-")}
+
+        assert {key: rows[key][1] for key in expected_downloaded} == expected_downloaded
+        assert {key: rows[key][2] for key in expected_active} == expected_active
+        assert all(
+            rows[key][1] is model_availability.is_available(get_model_metadata(key).repo_id, tmp_path) for key in rows
+        )
 
     def test_variant_repo_decides_downloaded_flag(self, tmp_path, monkeypatch):
         """A cached 0.6B export must not make the 1.7B row look downloaded."""

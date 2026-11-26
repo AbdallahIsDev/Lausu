@@ -281,9 +281,9 @@ class DownloadDispatchMixin:
                 return dict(self._download_translation(model_name))
 
             from voice_typer.server.gguf_model_registry import (
-                GGUF_MODELS,
                 is_dev_only_model_key,
                 is_frozen,
+                is_registered_model_key,
                 production_models,
             )
 
@@ -300,7 +300,7 @@ class DownloadDispatchMixin:
                     "code": code_value,
                     "error": reason,
                 }
-            if model_name not in GGUF_MODELS:
+            if not is_registered_model_key(model_name):
                 from voice_typer.server.ipc.error_codes import ErrorCodes
 
                 log.warning("[SERVICE] Unknown model requested for download: '%s'", model_name)
