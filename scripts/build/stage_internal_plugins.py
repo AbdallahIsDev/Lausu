@@ -43,6 +43,7 @@ SKIPPED_DIRECTORIES = frozenset(
 SKIPPED_FILES = frozenset(
     {
         "PLUGINS_ENABLED",
+        "DEVELOPER_DIAGNOSTICS",
         "config.json",
         "settings.json",
         "token.json",

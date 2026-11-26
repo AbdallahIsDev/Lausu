@@ -2115,3 +2115,11 @@ Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or s
 - REGRESSION-PRESERVATION RULE: enumerate old behavior from code/tests/history before changing it; keep all cases unless explicitly dropped; prove with tests + real-app evidence. Added after hand testing found two regressions hidden by green unit tests.
 - EDGE-CASE RULE: brainstorm and test edge cases before declaring done; owner must not find them by hand.
 
+## 2026-11-26 - Regression restoration: pre-start ensure, truthful readiness, permissions
+
+- Root cause A1/A2: commit 0616c7717 removed the pre-start /ensure-tab round trip and replaced it with a page-ready poll; hotkey path never reached the extension resolver. "bridge ready" only proved the daemon; "dictation window ready" only proved the WebSocket. Fix: one shared session.ensure_target_ready used by hotkey/retry/activation: transport -> /ensure-tab -> real mic gate. Tests updated to pin ensure+start, plus new test_readiness_state_model.py.
+- Real BEFORE A1: 02:00:33 start/bridge ready/dictation window ready, 02:00:45 ERROR control not ready 12.0s, tabs-dump showed no platform tab. AFTER: 02:31:29 start, readiness tab=loading reason=tab.loading, page ready 1.1s, one replacement tab. A2 AFTER: 02:32:02 relaunch about:blank, readiness tab=loading, page ready 4.0s, one ChatGPT tab.
+- A3: /status now carries one readiness tuple (browser/tab/content_script/control/signed_in/reason) from a LIVE tab + content answer. Python logs only on transitions and fail-fasts on signed_out/crashed/browser.down; final messages name the real cause. "dictation window ready" removed; "bridge ready" renamed "bridge daemon ready".
+- A4: plugin_visible=false launch logged visible=False but produced identical readiness/recording and one tab. No source change needed; tests pin visibility out of daemon/generated config.
+- A5: code + daemon log prove the 01:38 empty result was no-speech with the correct commit control; lausu.log now logs verdict=no-speech, control, committed, state_after and the two phase timings. Live empty cycle not captured (UNVERIFIED).
+- Part C: `tabs` removed from production manifest; dev overlay is written only to the installed manifest when the marker/env is set (frozen refuses). Marker gitignored and excluded from staged bundle; tests pin exact permissions and no marker.

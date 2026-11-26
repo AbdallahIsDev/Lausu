@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { build } = require('./tools/build-extension');
+const diagnostics = require('./diagnostics');
 const paths = require('./install_paths');
 
 const SOURCE = path.join(__dirname, 'extension');
@@ -22,6 +23,22 @@ const LOG = '[stt-bridge]';
 
 function expectedTopLevel() {
   return new Set([...SCRIPT_FILES, ICONS_DIR, GENERATED_DIR]);
+}
+
+// The production manifest never carries `tabs`: host permissions already
+// expose the three platform URLs and pendingUrl. Dev diagnostics need the URL
+// of ARBITRARY tabs, so the extra permission is added ONLY to the installed
+// copy when the dev marker/env is present (and never in a frozen build).
+function writeDevManifest(source, targetDir) {
+  if (!diagnostics.enabled()) return false;
+  const manifest = JSON.parse(fs.readFileSync(source, 'utf8'));
+  if (!manifest.permissions.includes('tabs')) manifest.permissions.push('tabs');
+  fs.writeFileSync(
+    path.join(targetDir, 'manifest.json'),
+    JSON.stringify(manifest, null, 2) + '\n',
+    'utf8',
+  );
+  return true;
 }
 
 function copyFresh(source, target) {
@@ -67,6 +84,7 @@ function sync(options = {}) {
   const log = options.log || console;
   fs.mkdirSync(targetDir, { recursive: true });
   for (const name of SCRIPT_FILES) copyFresh(path.join(SOURCE, name), path.join(targetDir, name));
+  writeDevManifest(path.join(SOURCE, 'manifest.json'), targetDir);
   for (const icon of fs.readdirSync(path.join(SOURCE, ICONS_DIR))) {
     copyFresh(path.join(SOURCE, ICONS_DIR, icon), path.join(targetDir, ICONS_DIR, icon));
   }
@@ -96,4 +114,4 @@ function syncedFiles(targetDir) {
   return out.sort();
 }
 
-module.exports = { ICONS_DIR, SCRIPT_FILES, GENERATED_FILE, SOURCE, sync, syncedFiles, warnAboutRepoRegistration };
+module.exports = { ICONS_DIR, SCRIPT_FILES, GENERATED_FILE, SOURCE, sync, syncedFiles, warnAboutRepoRegistration, writeDevManifest };

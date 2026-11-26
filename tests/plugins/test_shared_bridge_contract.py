@@ -67,20 +67,28 @@ class TestOneSharedAuthority:
             "https://chatgpt.com/*",
         ]
         assert set(manifest["host_permissions"]) >= set(matches)
+        # Dev diagnostics are compiled into the INSTALLED copy only; the
+        # production manifest must stay at the original permission set.
+        assert manifest["permissions"] == ["storage", "alarms"]
+        assert "tabs" not in manifest["permissions"]
 
     def test_no_plugin_carries_a_second_transport(self):
         for name in ("anthropic_stt", "google_stt", "chatgpt_stt"):
             root = PLUGINS / name
-            for rel in ("run.js", "relay.js", "control_plane.js", "config_store.py",
-                        "chrome_profile.py", "session.py", "extension"):
+            for rel in (
+                "run.js",
+                "relay.js",
+                "control_plane.js",
+                "config_store.py",
+                "chrome_profile.py",
+                "session.py",
+                "extension",
+            ):
                 assert not (root / rel).exists(), f"{name} duplicated {rel}"
 
 
 class TestDaemonSpawn:
-    @pytest.mark.parametrize(
-        ("module", "platform"),
-        [(anthropic, "claude"), (google, "gemini"), (chatgpt, "chatgpt")]
-    )
+    @pytest.mark.parametrize(("module", "platform"), [(anthropic, "claude"), (google, "gemini"), (chatgpt, "chatgpt")])
     def test_spawns_the_shared_daemon_with_a_platform(self, module, platform):
         calls = []
 
@@ -119,9 +127,10 @@ class TestPlatformGuards:
         original = chrome_profile._set_window_visible_fn
         chrome_profile._set_window_visible_fn = lambda pid, visible, wait: seen.append((pid, visible)) or True
         try:
-            with patch.object(module, "_profile_visible", lambda: False), patch.object(
-                module, "_launch_chrome", MagicMock(return_value=True)
-            ) as launch:
+            with (
+                patch.object(module, "_profile_visible", lambda: False),
+                patch.object(module, "_launch_chrome", MagicMock(return_value=True)) as launch,
+            ):
                 module.launch_profile(chrome_profile.PROFILE_DIR, "https://example.invalid/")
             assert launch.call_args.kwargs["visible"] is False
             assert launch.call_args.kwargs["plugin_dir"] == str(module.HERE)
@@ -135,7 +144,7 @@ class TestPlatformGuards:
             (anthropic, "Claude STT"),
             (google, "Google STT"),
             (chatgpt, "ChatGPT STT"),
-        ]
+        ],
     )
     def test_notify_uses_each_plugins_copy(self, module, display):
         app = SimpleNamespace(tray=MagicMock())

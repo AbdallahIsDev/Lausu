@@ -180,17 +180,29 @@ class TestPluginSourcesAreTrackedButStateIsNot:
         ):
             assert rel in tracked, f"{rel} must be tracked in the parent repo"
 
+    def test_staged_manifest_has_no_dev_permission(self, staged_plugins: Path) -> None:
+        manifest = json.loads(
+            (staged_plugins / "_common" / "bridge" / "extension" / "manifest.json").read_text(encoding="utf-8")
+        )
+        assert manifest["permissions"] == ["storage", "alarms"]
+        assert not (staged_plugins / "DEVELOPER_DIAGNOSTICS").exists()
+
+    def test_dev_marker_is_excluded_from_the_stager(self) -> None:
+        stager = _load_stager()
+        assert "DEVELOPER_DIAGNOSTICS" in stager.SKIPPED_FILES
+
     def test_runtime_state_is_not_tracked(self) -> None:
         code, out = self._git("ls-files", "tools/internal_plugins")
         assert code == 0, f"git ls-files failed: {out}"
         tracked = [line for line in out.splitlines() if line.strip()]
-        forbidden = ("PLUGINS_ENABLED", "config.json", "settings.json")
+        forbidden = ("PLUGINS_ENABLED", "DEVELOPER_DIAGNOSTICS", "config.json", "settings.json")
         leaked = [p for p in tracked if p.rsplit("/", 1)[-1] in forbidden]
         assert leaked == [], f"runtime state must stay untracked: {leaked}"
 
     def test_runtime_state_stays_ignored(self) -> None:
         for rel in (
             "tools/internal_plugins/PLUGINS_ENABLED",
+            "tools/internal_plugins/DEVELOPER_DIAGNOSTICS",
             "tools/internal_plugins/anthropic_stt/config.json",
             "tools/internal_plugins/anthropic_stt/settings.json",
             "tools/internal_plugins/google_stt/config.json",
@@ -229,8 +241,16 @@ def test_shared_bridge_owns_the_extension_and_transport() -> None:
     for plugin in ("anthropic_stt", "google_stt"):
         root = _PLUGINS_DIR / plugin
         for rel in (
-            "run.js", "relay.js", "control_plane.js", "config_store.js", "chrome_profile.py",
-            "session.py", "keepalive.py", "daemon_client.py", "extension", "tools",
+            "run.js",
+            "relay.js",
+            "control_plane.js",
+            "config_store.js",
+            "chrome_profile.py",
+            "session.py",
+            "keepalive.py",
+            "daemon_client.py",
+            "extension",
+            "tools",
         ):
             assert not (root / rel).exists(), f"{plugin} carries a second copy of {rel}"
         assert (root / "plugin.py").is_file()
@@ -240,7 +260,13 @@ def test_shared_bridge_owns_the_extension_and_transport() -> None:
 def test_google_playwright_path_is_deleted() -> None:
     old = _PLUGINS_DIR / "google_stt"
     for name in (
-        "playwright_runner.js", "run.js", "check.js", "probe.js", "probe_dom.js",
-        "login.js", "verify_clean_start.js", "verify_recording_state.js",
+        "playwright_runner.js",
+        "run.js",
+        "check.js",
+        "probe.js",
+        "probe_dom.js",
+        "login.js",
+        "verify_clean_start.js",
+        "verify_recording_state.js",
     ):
         assert not (old / name).exists(), f"the Playwright path must be deleted: {name}"
