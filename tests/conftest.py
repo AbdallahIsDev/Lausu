@@ -575,13 +575,25 @@ def _isolate_shared_hf_cache(tmp_path, monkeypatch, request):
     (large-v3-turbo) because import/delete paths resolve the shared
     system cache and tests ran unredirected. Production keeps
     shared-first; tests must never see the real cache.
+
+    GGUF local-only probes call ``hf_hub_download`` and resolve
+    ``constants.HF_HUB_CACHE`` at call time, so the env AND an already
+    imported constants module must agree with the watch dir below.
     """
     if request.node.get_closest_marker("real_shared_hub"):
         yield
         return
+    import sys
+
+    shared_hub = tmp_path / "test-shared-hub"
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "test-hf-home"))
+    monkeypatch.setenv("HF_HUB_CACHE", str(shared_hub))
+    hf_constants = sys.modules.get("huggingface_hub.constants")
+    if hf_constants is not None:
+        monkeypatch.setattr(hf_constants, "HF_HUB_CACHE", str(shared_hub), raising=False)
     monkeypatch.setattr(
         "voice_typer.server.model_availability.shared_hub_dir",
-        lambda: tmp_path / "test-shared-hub",
+        lambda: shared_hub,
     )
     yield
 
