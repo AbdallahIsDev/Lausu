@@ -1,7 +1,7 @@
 # CI Errors
 
-> Generated: 2026-11-26T03:17:35Z
-> Data branch commit: `fd574b0`
+> Generated: 2026-11-26T15:24:34Z
+> Data branch commit: `d70a14e`
 
 ## Currently failing
 
@@ -1407,21 +1407,6 @@
 - Run: [45295556177](https://github.com/AbdallahIsDev/Lausu/actions/runs/45295556177) (attempt 1)
 - Event: push · Branch: main
 - Commit: `799920e` — Merge pull request #107 from AbdallahIsDev/phase1/gguf-asr
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 86. Build installer — failure
-
-- Run: [45274095995](https://github.com/AbdallahIsDev/Lausu/actions/runs/45274095995) (attempt 1)
-- Event: push · Branch: main
-- Commit: `884603f` — Merge pull request #106 from AbdallahIsDev/arena/ff2b72ab-lausu
 - Job: (job details unavailable) · Leg: n/a
 - Step: 
 - Category: other
