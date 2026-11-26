@@ -65,6 +65,7 @@ async function snapshot(relay) {
       url: '',
       installPath: paths.stableExtensionDir(),
       installHint: paths.INSTALL_HINT,
+      readiness: { browser: 'down', tab: 'missing', content_script: 'absent', control: 'missing', signed_in: 'unknown', reason: 'browser.down' },
     };
   }
   try {
@@ -79,6 +80,10 @@ async function snapshot(relay) {
         hasTab: false,
         platform: status.platform,
         url: status.url || '',
+        readiness: status.readiness || {
+          browser: 'up', tab: 'wrong_url', content_script: 'absent',
+          control: 'missing', signed_in: 'unknown', reason: 'tab.wrong_url',
+        },
       };
     }
     return {
@@ -92,6 +97,12 @@ async function snapshot(relay) {
       selectorsReady: status.selectorsReady === true,
       platform: platformOf(relay),
       url: status.url || '',
+      readiness: status.readiness || {
+        browser: 'up', tab: 'ready', content_script: ['ok', 'signed_out', 'challenge'].includes(status.page) ? 'present' : 'absent',
+        control: Number(status.micCount) > 0 ? 'present' : 'missing',
+        signed_in: status.page === 'signed_out' ? 'no' : 'unknown',
+        reason: 'ready',
+      },
     };
   } catch (_) {
     // A reachable extension whose tab is gone still has a transport state;
@@ -105,6 +116,7 @@ async function snapshot(relay) {
       hasTab: false,
       platform: platformOf(relay),
       url: '',
+      readiness: { browser, tab: 'missing', content_script: 'absent', control: 'missing', signed_in: 'unknown', reason: 'status.unavailable' },
     };
   }
 }
@@ -291,6 +303,15 @@ async function handle(relay, method, pathname) {
     if (method === 'GET' && pathname === '/diagnostics/tabs-dump') {
       try {
         return { status: 200, body: await relay.request('tabs-dump', scoped()) };
+      } catch (err) {
+        return failure(err);
+      }
+    }
+    const tabAction = pathname.match(/^\/diagnostics\/(tabs-close|tabs-discard)\/(\d+)$/);
+    if (method === 'GET' && tabAction) {
+      try {
+        const body = await relay.request(tabAction[1], { tabId: Number(tabAction[2]) });
+        return { status: 200, body };
       } catch (err) {
         return failure(err);
       }

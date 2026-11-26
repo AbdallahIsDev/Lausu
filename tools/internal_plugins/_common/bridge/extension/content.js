@@ -815,6 +815,10 @@
       // /start on these two facts (P2).
       micCount: micButtons().filter(isClickable).length,
       selectorsReady: SELECTORS_READY,
+      // Truthful readiness facts for the single-call state model. The page
+      // gate itself still uses micCount + selectorsReady only (P2).
+      signed_in: page === 'signed_out' ? 'no' : 'unknown',
+      control_disabled: /:(?:aria-)?disabled/.test(String(stopCandidates())) ? 1 : 0,
     };
   }
 

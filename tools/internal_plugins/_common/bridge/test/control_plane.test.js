@@ -69,6 +69,7 @@ test('GET /config exposes only browser knobs, never the token', async () => {
   assert.equal(result.body.profileDir, 'C:/Users/me/AppData/Local/dictation-profile');
   assert.equal(result.body.url, 'https://claude.ai/new');
   assert.equal(JSON.stringify(result.body).includes('must-not-leak'), false);
+  assert.ok(!('visible' in result.body) && !('notify' in result.body));
 });
 
 test('a status from the other platform is reported as wrong-platform', async () => {

@@ -29,6 +29,14 @@ function evaluateGenerated(dir) {
   return sandbox.self.ANTHROPIC_STT_CONFIG;
 }
 
+test('visibility never reaches extension logic', () => {
+  const dir = tempPlugin();
+  build(options(dir));
+  const generated = evaluateGenerated(dir);
+  assert.ok(!('visible' in generated), 'Show Browser Window must not reach the extension');
+  assert.ok(!('notify' in generated));
+});
+
 test('emits BOTH platform selector sets and the same one token the daemon uses', () => {
   const dir = tempPlugin();
   build(options(dir));

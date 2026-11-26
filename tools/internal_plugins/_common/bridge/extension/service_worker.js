@@ -9,7 +9,7 @@
 importScripts('generated/config.js', 'tab_resolution.js', 'nav_bench.js');
 
 const CFG = self.ANTHROPIC_STT_CONFIG || {};
-const { createTabResolver } = self.SttTabResolution;
+const { createTabResolver, matchesUrl } = self.SttTabResolution;
 const RECONNECT_ALARM = 'stt-bridge-reconnect';
 const PING_MS = 20000;
 const HANDSHAKE_MS = 5000;
@@ -311,6 +311,43 @@ function publishSnapshot(status) {
   } catch (_) {}
 }
 
+// One truthful readiness snapshot per /status call. Every field is derived
+// from the LIVE tab or the content script's answer — never from the socket
+// alone. No state here starts a tab; /ensure-tab owns recovery.
+function readinessOf({ platform, tab, info, result }) {
+  const browser = socket && socket.readyState === WebSocket.OPEN && accepted ? 'up' : 'down';
+  if (!tab || !info) {
+    return {
+      browser, tab: 'missing', content_script: 'absent', control: 'missing',
+      signed_in: 'unknown', reason: 'tab.missing',
+    };
+  }
+  const url = info.pendingUrl || info.url || (result && result.url) || '';
+  const tabState = info.discarded
+    ? 'discarded'
+    : info.status === 'loading' || !url
+      ? 'loading'
+      : matchesUrl(url, TAB_PATTERNS[platform])
+        ? 'ready'
+        : 'wrong_url';
+  const answered = !!(result && (result.page === 'ok' || result.page === 'signed_out' || result.page === 'challenge'));
+  const control = result && result.micCount > 0 ? 'present' : 'missing';
+  const signedIn = result && result.page === 'signed_out' ? 'no' : answered ? 'unknown' : 'unknown';
+  const reason = tabState !== 'ready'
+    ? `tab.${tabState}`
+    : !answered
+      ? 'content_script.absent'
+      : control === 'missing'
+        ? 'control.missing'
+        : signedIn === 'no'
+          ? 'signed_in.no'
+          : 'ready';
+  return {
+    browser, tab: tabState, content_script: answered ? 'present' : 'absent',
+    control, signed_in: signedIn, reason,
+  };
+}
+
 function handleCommand(msg) {
   (async () => {
     try {
@@ -335,6 +372,26 @@ function handleCommand(msg) {
             active: !!tab.active,
           })),
         });
+        return;
+      }
+      if (msg.cmd === 'tabs-close' || msg.cmd === 'tabs-discard') {
+        if (CFG.diagnostics !== true) {
+          reply(msg.id, false, null, 'diagnostics-disabled', 'diagnostics are disabled');
+          return;
+        }
+        const tabId = Number(msg.opts && msg.opts.tabId);
+        const fn = msg.cmd === 'tabs-close' ? 'remove' : 'discard';
+        await new Promise((resolve) => {
+          try {
+            chrome.tabs[fn](tabId, () => {
+              if (chrome.runtime && chrome.runtime.lastError) void chrome.runtime.lastError;
+              resolve();
+            });
+          } catch (_) {
+            resolve();
+          }
+        });
+        reply(msg.id, true, { ok: true, tabId, action: msg.cmd });
         return;
       }
       if (msg.cmd === 'nav-bench') {
@@ -363,13 +420,29 @@ function handleCommand(msg) {
             recording: false,
             has_text: false,
             has_tab: false,
+            readiness: readinessOf({ platform, tab: null, info: null, result: null }),
           };
           publishSnapshot(result);
           reply(msg.id, true, result);
           return;
         }
-        const result = await sendToTab(tab.id, 'status', msg.opts);
-        cachedStatus = { ...result, has_tab: true };
+        let result;
+        try {
+          result = await sendToTab(tab.id, 'status', msg.opts);
+        } catch (err) {
+          result = { page: 'unknown', error: String((err && err.kind) || 'page-not-ready') };
+        }
+        const info = await new Promise((resolve) => {
+          try {
+            chrome.tabs.get(tab.id, (found) => {
+              if (chrome.runtime && chrome.runtime.lastError) void chrome.runtime.lastError;
+              resolve(found || null);
+            });
+          } catch (_) {
+            resolve(null);
+          }
+        });
+        cachedStatus = { ...result, has_tab: true, readiness: readinessOf({ platform, tab, info, result }) };
         publishSnapshot(cachedStatus);
         reply(msg.id, true, cachedStatus);
         return;
