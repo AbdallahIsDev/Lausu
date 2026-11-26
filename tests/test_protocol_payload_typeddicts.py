@@ -94,6 +94,7 @@ _HISTORY_SELECT_COLUMNS = [
     "id",
     "text",
     "text_full_length",
+    "has_original",
     "text_is_encrypted",
     "timestamp",
     "duration",
@@ -131,6 +132,8 @@ class TestHistoryEntry:
                 "TypedDict, update the contract type (providers.py) or the "
                 "SELECT/projection (history_db_internals/search.py) together."
             )
+            # SQL yields 0/1; the IPC contract is a real bool.
+            assert projected["has_original"] is True
             # The internal encryption marker must NOT cross the IPC boundary.
             assert "text_is_encrypted" not in projected
         finally:

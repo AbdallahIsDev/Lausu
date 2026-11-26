@@ -64,6 +64,9 @@ Events emitted via ``event_bus.publish`` (the modern path):
 * ``model_language_unsupported`` (``{model:str, language:str}``; the
   pinned spoken language is outside the active model's own language list,
   so the start was refused — the renderer shows the actionable toast).
+* ``plugin_failure`` (``{message:str}``; internal-plugin critical notice —
+  a hidden-browser failure the user cannot see; OS notification + renderer
+  warning snackbar).
 * Model-load lifecycle: ``asr_backend_ready``,
   ``asr_backend_load_failed``, ``asr_backend_disabled``,
   ``asr_last_resort_unloaded``, and the provider layer's
@@ -168,7 +171,7 @@ server):
   former is a per-transition signal with just ``status``; the latter
   is the connect-time snapshot with a ``message`` field.
 
-Total: 62 events, the live count is ``len(EVENT_TYPES)`` and this
+Total: 63 events, the live count is ``len(EVENT_TYPES)`` and this
 sentence is kept in lockstep with it by
 ``tests/test_event_bus.py::TestCanonicalCatalogue
 ::test_catalogue_total_count_updated``. Update this docstring whenever

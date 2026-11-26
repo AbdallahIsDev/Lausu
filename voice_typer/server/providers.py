@@ -223,6 +223,7 @@ class HistoryEntry(TypedDict):
     text: str
     text_full_length: int
     text_truncated: bool
+    has_original: bool
     timestamp: str
     duration: float
     model: str

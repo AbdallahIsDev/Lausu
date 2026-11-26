@@ -311,12 +311,23 @@ class TestAppStateTransitions:
 
     def test_f2_works_after_transcription_failure(self, app):
         """After a transcription failure, pressing F2 should work again."""
-        # Simulate: transcription failed, busy was cleared
-        app.models.transcriber = MagicMock()
-        app.models.transcriber.transcribe_with_fallback = MagicMock(
+        from voice_typer.server.dictation_gate import DictationGate
+
+        # The app-level gate intentionally coalesces presses closer than
+        # PRESS_DEBOUNCE_S; a fake clock (OS boundary) makes the two presses
+        # below distinct user gestures without sleeping.
+        clock = MagicMock()
+        clock.monotonic.return_value = 100.0
+        app._dictation_gate = DictationGate(clock=clock)
+
+        # ``app.models.transcriber`` is registry-backed: assigning registers
+        # the fake as the production "whisper" backend used by the pipeline.
+        failing = MagicMock()
+        failing.transcribe_with_fallback = MagicMock(
             side_effect=RuntimeError("cublas64_12.dll is not found or cannot be loaded")
         )
-        app.models.transcriber.device_info = "cpu (int8)"
+        failing.device_info = "cpu (int8)"
+        app.models.transcriber = failing
 
         app.recorder = MagicMock()
         app.recorder.recording = True
@@ -328,20 +339,26 @@ class TestAppStateTransitions:
 
         assert app._busy_event.is_set(), "_busy_event must be set after failed transcription"
 
-        # Now simulate pressing F2 again
+        # Recovered engine goes through the same registry seam production uses.
+        recovered = MagicMock()
+        recovered.is_loaded = True
+        recovered.device_info = "cpu (int8)"
+        recovered.transcribe_with_fallback = MagicMock(return_value="recovered!")
+        app.models.transcriber = recovered
         app.recorder.recording = False
-        app.models.transcriber.is_loaded = True
-        app.models.transcriber.transcribe_with_fallback = MagicMock(return_value="recovered!")
 
+        clock.monotonic.return_value = 101.0
         app.toggle_dictation()  # F2 → start recording
         app.recorder.start.assert_called_once()
 
         app.recorder.recording = True
+        app.tray._recording_started_at = 101.0
+        clock.monotonic.return_value = 102.0
         app.toggle_dictation()  # F2 → stop recording, transcribe
         wait_for_busy_clear(app)
 
         assert app._busy_event.is_set()
-        app.models.transcriber.transcribe_with_fallback.assert_called_once()
+        recovered.transcribe_with_fallback.assert_called_once()
 
     def test_stop_dictation_emits_recording_stopped_event(self, app, monkeypatch):
         """``recording_stopped`` IPC push event so the renderer's"""

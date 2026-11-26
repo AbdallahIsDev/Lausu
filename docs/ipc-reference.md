@@ -319,7 +319,7 @@ restored `get_prewarm_status` / `run_prewarm` (worker status file +
 in-process warm pass), not the old
 `sentinel` / `PID`-file probe.
 
-## Push events (74 typed)
+## Push events (75 typed)
 
 Push events flow server to renderer via `window.python.onEvent(callback)`.
 The `PythonPushEvent` union in `types/ipc/push_events.ts` is the canonical
@@ -360,6 +360,7 @@ list: events not in the union fall through to the `string` overload of
 | `parakeet_cpu_fallback` | `ParakeetCpuFallbackEvent` | `{ device: string, ... }` |
 | `asr_backend_disabled` | `AsrBackendDisabledEvent` | `{ backend: string, reason: string, ... }` Emitted from `asr_registry._record_failure` when a backend trips its failure threshold. |
 | `model_language_unsupported` | `ModelLanguageUnsupportedEvent` | `{ model: string, language: string }` Emitted from `model_language_gate.refuse` when the pinned spoken language is outside the active model's declared language list (Parakeet Ultra has no Arabic): the start was refused before any audio was captured, and the same message goes to the OS notification area (click → Models). |
+| `plugin_failure` | `PluginFailureEvent` | `{ message: string }` Emitted from the internal-plugin bridge's critical-notice path when a failure the user cannot see occurs (hidden browser died, bridge drop at stop, relaunch attempts exhausted); the same message goes to the OS notification area and the renderer shows one warning snackbar. |
 | `asr_last_resort_unloaded` | `AsrLastResortUnloadedEvent` | `{ backend: string, reason: string, ... }` Emitted when the last-resort ASR backend is force-unloaded. |
 | `llm_polish_failed` | `LlmPolishFailedEvent` | `{ reason: string, ... }` Emitted when LLM polishing fails so the UI can fall back to raw transcription. |
 | `provider_local_onnx_state` | `ProviderLocalOnnxStateEvent` | `{ model: string, state: string, error?: string }` Model-load lifecycle of the local ONNX text provider (`loading` / `ready` / `failed`), published by `model_providers/local_onnx/client.py`; the Providers page renders the "loading model…" state from it. |
