@@ -26,8 +26,8 @@ Feature × OS matrix for Lausu.  Last updated: 2026-10-05.
 | IPC transport (live)       | ✅ WS-only (localhost WebSocket; TCP JSON-lines retired) | ✅ WS-only | ✅ WS-only | ✅ WS-only |
 | IPC session token auth     | ✅ | ✅ | ✅ | ✅ |
 | Config file permissions    | ⚠️ NTFS ACLs (default) | ✅ 0o600/0o700 | ✅ 0o600/0o700 | ✅ 0o600/0o700 |
-| Model download (CLI)       | ⚠️ No dedicated `lausu setup` CLI: model download is handled in-app via Settings → Models (`LausuService.download_model` IPC handler wrapping HuggingFace `snapshot_download`) or implicitly on first dictation. There is no headless CLI flag for triggering a model download. | ⚠️ Same: no dedicated CLI | ⚠️ Same: no dedicated CLI | ⚠️ Same: no dedicated CLI |
-| Model download (UI)        | ✅ Implemented (Settings → Models) | ✅ Implemented (Settings → Models) | ✅ Implemented (Settings → Models) | ✅ Implemented (Settings → Models) |
+| Model download (CLI)       | ⚠️ No dedicated `lausu setup` CLI: model download is handled in-app via Models page (`LausuService.download_model` IPC handler wrapping HuggingFace `snapshot_download`) or implicitly on first dictation. There is no headless CLI flag for triggering a model download. | ⚠️ Same: no dedicated CLI | ⚠️ Same: no dedicated CLI | ⚠️ Same: no dedicated CLI |
+| Model download (UI)        | ✅ Implemented (Models) | ✅ Implemented (Models) | ✅ Implemented (Models) | ✅ Implemented (Models) |
 | Native binary build command | `scripts/build/compile_native.sh` (or `.ps1`) | `bash scripts/build/compile_native.sh` | `bash scripts/build/compile_native.sh` | `bash scripts/build/compile_native.sh` |
 
 ## Legend
