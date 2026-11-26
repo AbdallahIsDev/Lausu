@@ -6,9 +6,10 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from voice_typer.server import event_bus
+from voice_typer.server import event_bus, internal_plugin_hook
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.hotkey_dispatcher import HotkeyDispatcher
+from voice_typer.server.i18n import t
 from voice_typer.server.keyboard_ownership import keyboard_ownership
 
 
@@ -20,6 +21,9 @@ def _make_mock_app() -> SimpleNamespace:
         recording_mode="toggle",
         esc_cancel_enabled=False,
         repaste_hotkey=None,
+        model_size="parakeet",
+        asr_backend="",
+        active_plugin="",
     )
     app.tray = MagicMock()
     app._stop_dictation = MagicMock()
@@ -136,6 +140,68 @@ class TestOnEscRelease:
 
 
 # Shutdown guards () ────────────────────────────────────────
+
+
+class TestActiveEngineGate:
+    """One press reaches dictation only when an engine actually owns it."""
+
+    def test_no_model_refuses_press_and_notifies(self, dispatcher, monkeypatch):
+        published: list[dict] = []
+        monkeypatch.setattr(event_bus, "publish", published.append)
+        dispatcher._app.config.model_size = ""
+        dispatcher._app.config.asr_backend = ""
+        keyboard_ownership().set_owner("normal", reason="test")
+
+        dispatcher._make_dictation_callback()()
+
+        dispatcher._app.toggle_dictation.assert_not_called()
+        message = t("notify.model_manager.no_model_selected")
+        assert any(event["type"] == "notification" and event["data"]["message"] == message for event in published)
+        dispatcher._app.tray.notify.assert_called_once_with(message)
+
+    def test_cloud_backend_owns_dictation_without_local_model(self, dispatcher):
+        dispatcher._app.config.model_size = ""
+        dispatcher._app.config.asr_backend = "cloud"
+        keyboard_ownership().set_owner("normal", reason="test")
+
+        dispatcher._make_dictation_callback()()
+
+        dispatcher._app.toggle_dictation.assert_called_once()
+        dispatcher._app.tray.notify.assert_not_called()
+
+    def test_plugin_owns_dictation_without_local_model(self, dispatcher, monkeypatch):
+        dispatcher._app.config.model_size = ""
+        dispatcher._app.config.active_plugin = "anthropic_stt"
+        monkeypatch.setattr(internal_plugin_hook, "plugins_enabled", lambda _app: True)
+        monkeypatch.setattr(
+            internal_plugin_hook,
+            "_plugin",
+            lambda _app: SimpleNamespace(DISPLAY_NAME="Claude STT"),
+        )
+        keyboard_ownership().set_owner("normal", reason="test")
+
+        dispatcher._make_dictation_callback()()
+
+        dispatcher._app.toggle_dictation.assert_called_once()
+        dispatcher._app.tray.notify.assert_not_called()
+
+    def test_press_burst_during_capture_or_shutdown_is_not_replayed(self, dispatcher):
+        callback = dispatcher._make_dictation_callback()
+        keyboard_ownership().set_owner("normal", reason="test")
+        for _ in range(3):
+            callback()
+        keyboard_ownership().set_owner("hotkey_capture", reason="capture")
+        for _ in range(3):
+            callback()
+        keyboard_ownership().set_owner("normal", reason="test")
+        dispatcher._app._shutting_down = True
+        for _ in range(3):
+            callback()
+        dispatcher._app._shutting_down = False
+        for _ in range(3):
+            callback()
+
+        assert dispatcher._app.toggle_dictation.call_count == 6
 
 
 class TestShutdownGuards:

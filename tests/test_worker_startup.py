@@ -31,12 +31,8 @@ from voice_typer.worker import __main__ as worker_main  # noqa: E402
 _TEST_TOKEN = "test-worker-token-12345"
 
 # The worker validates ``VOICE_TYPER_CONFIG_DIR`` via the SEC-005
-_test_root = Path.home() / ".lausu-test-tmp"
-_test_root.mkdir(parents=True, exist_ok=True)
-for _stale in _test_root.iterdir():
-    if _stale.is_dir() and _stale.name.startswith("lausu-worker-test-"):
-        shutil.rmtree(_stale, ignore_errors=True)
-
+# Fresh root per collection: never write into the user's home directory.
+_test_root = Path(tempfile.mkdtemp(prefix="lausu-worker-test-root-"))
 _worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
 _TEST_CONFIG_DIR = Path(tempfile.mkdtemp(prefix=f"lausu-worker-test-{_worker_id}-", dir=_test_root))
 
@@ -296,17 +292,12 @@ def test_warm_imports_for_worker_swallows_exceptions(monkeypatch) -> None:
 
 
 def test_warm_imports_package_list_is_post_migration() -> None:
-    """The warm-list contains the post-migration packages (no torch/transformers)."""
-    assert "onnxruntime" in _WORKER_WARM_PACKAGES
-    assert "ctranslate2" in _WORKER_WARM_PACKAGES
-    assert "numpy" in _WORKER_WARM_PACKAGES
-    assert "scipy" in _WORKER_WARM_PACKAGES
-    assert "torch" not in _WORKER_WARM_PACKAGES, (
-        "torch must be DROPPED from the warm list, VAD is now ONNX (master plan §6.2 P-1)"
-    )
-    assert "transformers" not in _WORKER_WARM_PACKAGES, (
-        "transformers must be DROPPED, Parakeet is now onnx-asr (master plan §6.2 P-1)"
-    )
+    """Only the post-migration runtime libraries are warmed; ONNX stays for VAD."""
+    assert _WORKER_WARM_PACKAGES == ("onnxruntime", "numpy", "scipy")
+    retired = json.loads((Path(__file__).resolve().parents[1] / "slim-core-ml-baseline.json").read_text())["by_library"]
+    assert not (set(retired) & set(_WORKER_WARM_PACKAGES))
+    assert "torch" not in _WORKER_WARM_PACKAGES
+    assert "transformers" not in _WORKER_WARM_PACKAGES
 
 
 def test_worker_prewarm_skips_the_model_weight_pass(monkeypatch) -> None:

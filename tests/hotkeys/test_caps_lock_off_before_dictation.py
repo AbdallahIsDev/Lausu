@@ -16,7 +16,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from voice_typer.server import hotkeys as hotkeys_pkg
+from voice_typer.server import hotkeys as hotkeys_pkg, internal_plugin_hook
 from voice_typer.server.hotkey_dispatcher import HotkeyDispatcher
 from voice_typer.server.hotkeys.windows import caps_lock_suppressor
 from voice_typer.server.keyboard_ownership import keyboard_ownership
@@ -32,6 +32,9 @@ def _make_app(*, hotkey: str = "<caps_lock>", recording_mode: str = "toggle") ->
         recording_mode=recording_mode,
         esc_cancel_enabled=False,
         repaste_hotkey=None,
+        model_size="parakeet",
+        asr_backend="",
+        active_plugin="",
     )
     app.tray = MagicMock()
     app.toggle_dictation = MagicMock()
@@ -113,15 +116,23 @@ class TestDictationCallbackOrder:
 
         assert order == ["caps", "toggle"]
 
-    def test_caps_cleared_for_plugin_dictation_too(self, clear_caps):
+    def test_caps_cleared_for_plugin_dictation_too(self, clear_caps, monkeypatch):
         """A plugin press goes through the same dispatcher seam."""
         app = _make_app(hotkey="<caps_lock>")
-        app.toggle_dictation = MagicMock()
+        app.config.model_size = ""
+        app.config.active_plugin = "anthropic_stt"
+        monkeypatch.setattr(internal_plugin_hook, "plugins_enabled", lambda _app: True)
+        monkeypatch.setattr(
+            internal_plugin_hook,
+            "_plugin",
+            lambda _app: SimpleNamespace(DISPLAY_NAME="Claude STT"),
+        )
 
         HotkeyDispatcher(app)._make_dictation_callback()()
 
         clear_caps.assert_called_once()
         app.toggle_dictation.assert_called_once()
+        app.tray.notify.assert_not_called()
 
     def test_capture_active_skips_both_caps_and_dictation(self, clear_caps):
         app = _make_app(hotkey="<caps_lock>")

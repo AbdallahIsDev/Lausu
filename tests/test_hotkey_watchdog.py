@@ -19,6 +19,9 @@ def _make_mock_app() -> SimpleNamespace:
         recording_mode="toggle",
         esc_cancel_enabled=False,
         repaste_hotkey=None,
+        model_size="parakeet",
+        asr_backend="",
+        active_plugin="",
     )
     app.tray = MagicMock()
     app._stop_dictation = MagicMock()

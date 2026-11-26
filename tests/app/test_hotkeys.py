@@ -113,6 +113,8 @@ class TestHotkeyMapping:
         """HOTKEY-FIX-001: the dictation hotkey callback must"""
         from voice_typer.server.keyboard_ownership import keyboard_ownership
 
+        # The dispatcher refuses a press with no active engine; give this app one.
+        app.config.model_size = "parakeet"
         # Build the callback via the dispatcher's helper
         callback = app.hotkeys._make_dictation_callback()
         assert callable(callback)
@@ -251,6 +253,7 @@ class TestHotkeyCallbackChain:
         mock_kb = sys.modules["pynput.keyboard"]
         mock_kb.Listener = MagicMock(return_value=mock_listener)
 
+        app.config.model_size = "parakeet"
         # NATIVE-001: force the legacy pynput backend (skip native binary)
         from voice_typer.server import native_hotkeys
 

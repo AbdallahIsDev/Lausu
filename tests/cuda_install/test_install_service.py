@@ -9,6 +9,7 @@ from __future__ import annotations
 import threading
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from voice_typer.server import event_bus
@@ -46,6 +47,12 @@ def svc(cuda_home: Path, monkeypatch: pytest.MonkeyPatch) -> CudaInstallService:
     monkeypatch.setattr(service_module, "verify_file", lambda *a, **k: False)
     monkeypatch.setattr(service_module.state, "write_pending", lambda names: None)
     monkeypatch.setattr(service_module.installer, "install", lambda *a, **k: None)
+    # Real free space is machine-dependent; the disk gate gets a fixed value.
+    monkeypatch.setattr(
+        service_module.shutil,
+        "disk_usage",
+        lambda _path: SimpleNamespace(total=10 * 1024**3, used=0, free=10 * 1024**3),
+    )
     (cuda_home / "dl").mkdir(parents=True, exist_ok=True)
     return CudaInstallService()
 
@@ -214,6 +221,32 @@ def test_cached_verified_wheel_skips_the_transfer(
     final = _wait_status(svc, "completed")
     assert final["percent"] == 100.0
     _wait_thread(svc)
+
+
+def test_insufficient_free_space_fails_fast(
+    svc: CudaInstallService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        service_module.shutil,
+        "disk_usage",
+        lambda _path: SimpleNamespace(total=1024, used=1024, free=0),
+    )
+    snapshot = svc.start()
+    assert snapshot["status"] == "failed"
+    assert snapshot["error"] == "insufficient_disk"
+    assert svc.is_running() is False
+
+
+def test_disk_usage_error_fails_fast(
+    svc: CudaInstallService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _raise(_path):
+        raise OSError("stat failed")
+
+    monkeypatch.setattr(service_module.shutil, "disk_usage", _raise)
+    snapshot = svc.start()
+    assert snapshot["status"] == "failed"
+    assert snapshot["error"] == "disk_unavailable"
 
 
 def test_unsupported_platform_fails_fast(
