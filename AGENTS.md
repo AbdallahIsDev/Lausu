@@ -126,6 +126,8 @@ RAPID-INPUT RULE: Every user-triggered toggle or command (hotkeys, buttons, tray
 USER-ACTION-FIDELITY RULE: When testing what happens if a user closes or interrupts something, reproduce it the way a real user does (closing the window with its close button / Alt+F4, quitting from the tray, closing a tab with the mouse), not only with a process kill; where the two behave differently (graceful vs forced exit), test BOTH.
 
 CRITICAL-NOTICE RULE: A failure that would otherwise be silent to a user who cannot see the cause (for example a hidden browser window closing during dictation) must always notify the user, regardless of the user's notification preferences. Such notices go through the single named critical-notice mechanism; routine notices keep obeying preferences.
+
+REAL-PATH TEST RULE: A fix is not proven by tests that exercise a fake or a re-implementation of the logic. Every state-machine or lifecycle fix needs at least one integration test that enters through the SAME entry point production uses (for the dictation hotkey, the toggle_dictation handler / plugin session start) with fakes ONLY at the OS boundary (process spawn, process enumeration, websocket transport, clock). If a test passes while the owner's real log still fails, the test is wrong: fix the test first, make it fail on the old code, then fix the product.
 ```
 
 ## Web-search first (W0, binds before everything)

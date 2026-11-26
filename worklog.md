@@ -2163,3 +2163,8 @@ Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or s
 - Critical notices: single _critical_notify emits one OS + one in-app notice regardless of notify=False, deduped per cycle; covers browser/tab close during/at stop, page unresponsive at stop, start exhausted relaunches. Routine notices still obey preference. Worker test covers notify=False both channels.
 - Partial dictation recovery: research only, docs/plugin-partial-dictation-recovery-research.md. No production change. Live DOM text capture not reproducible here (no controlled speech input); Gemini looks NOT FEASIBLE with current permissions, ChatGPT/Claude UNVERIFIED pending real capture.
 - Live AFTER double-close verification UNVERIFIED: UI automation toggle did not reach handler after restart in repeated attempts; owner BEFORE log 21:20 retained. No extension reload needed for this round (Python/docs only).
+
+## 2026-11-26 - Real-path test rule
+
+- Added REAL-PATH TEST RULE after relaunch-budget tests passed while the owner's real log still showed no budget lines.
+
