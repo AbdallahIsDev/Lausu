@@ -1,7 +1,7 @@
 # CI Errors
 
-> Generated: 2026-11-26T16:50:51Z
-> Data branch commit: `f989c88`
+> Generated: 2026-11-26T16:57:57Z
+> Data branch commit: `58e973c`
 
 ## Currently failing
 
@@ -1237,39 +1237,25 @@
 (no job log available)
 ```
 
-### 71. Build installer — failure
-
-- Run: [45295930641](https://github.com/AbdallahIsDev/Lausu/actions/runs/45295930641) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ccb2d2b` — fix(plugins): reliable shared browser tab/profile lifecycle and recovery
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
-### 72. Client CI — failure
-
-- Run: [45295930616](https://github.com/AbdallahIsDev/Lausu/actions/runs/45295930616) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ccb2d2b` — fix(plugins): reliable shared browser tab/profile lifecycle and recovery
-- Job: (job details unavailable) · Leg: n/a
-- Step: 
-- Category: other
-
-- Error excerpt:
-
-```text
-(no job log available)
-```
-
 ## Resolved recently
 
 ### 1. CI error collector — failure
+
+- Run: [45861147074](https://github.com/AbdallahIsDev/Lausu/actions/runs/45861147074) (attempt 1)
+- Event: workflow_run · Branch: main
+- Commit: `f989c88` — test(client): pin worker-backed ASR hidden imports in the spec
+- Job: Collect CI failures into ci-reports · Leg: ubuntu-22.04
+- Step: Generate report from main sources
+- Category: other
+- Fixed by: [45862493012](https://github.com/AbdallahIsDev/Lausu/actions/runs/45862493012) (success)
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 2. CI error collector — failure
 
 - Run: [45858329686](https://github.com/AbdallahIsDev/Lausu/actions/runs/45858329686) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1285,7 +1271,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 2. CI error collector — failure
+### 3. CI error collector — failure
 
 - Run: [45520898834](https://github.com/AbdallahIsDev/Lausu/actions/runs/45520898834) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1301,7 +1287,7 @@
 (no job log available)
 ```
 
-### 3. CI error collector — failure
+### 4. CI error collector — failure
 
 - Run: [45455690803](https://github.com/AbdallahIsDev/Lausu/actions/runs/45455690803) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1317,7 +1303,7 @@
 (no job log available)
 ```
 
-### 4. Client CI — failure
+### 5. Client CI — failure
 
 - Run: [45410434401](https://github.com/AbdallahIsDev/Lausu/actions/runs/45410434401) (attempt 1)
 - Event: push · Branch: main
@@ -1333,7 +1319,7 @@
 (no job log available)
 ```
 
-### 5. CodeQL — failure
+### 6. CodeQL — failure
 
 - Run: [45399711542](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711542) (attempt 1)
 - Event: push · Branch: main
@@ -1349,7 +1335,7 @@
 (no job log available)
 ```
 
-### 6. Build Linux — failure
+### 7. Build Linux — failure
 
 - Run: [45399711547](https://github.com/AbdallahIsDev/Lausu/actions/runs/45399711547) (attempt 1)
 - Event: push · Branch: main
@@ -1365,7 +1351,7 @@
 (no job log available)
 ```
 
-### 7. CI error collector — failure
+### 8. CI error collector — failure
 
 - Run: [45307909855](https://github.com/AbdallahIsDev/Lausu/actions/runs/45307909855) (attempt 1)
 - Event: workflow_run · Branch: main
