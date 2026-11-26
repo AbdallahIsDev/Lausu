@@ -2131,3 +2131,9 @@ Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or s
 - Item 2: blind 30 s wait now checks debounced profile liveness (3 empty WMI samples, WMI error = UNKNOWN) and a new press supersedes a stuck start. Real app: Chrome killed at 0/0.5/1.5/3/5 s during startup -> 5/5 recovered, 0.7-7.8 s.
 - Item 3: profile_state.prepare_profile marks exit_type Normal and grants mic for the 3 exact origins before launch, only while no Chrome owns the profile; no new launch flag. 10 unclean kills -> 0 "Restore pages?" windows, tab count 1 each.
 - Tests: readiness fixtures strengthened; liveness, supersede, profile-state tests added; fake browser layer in tests/plugins/conftest.py. Docs table re-classified with status counts.
+
+## 2026-11-26 - Two more rules
+
+- RAPID-INPUT RULE: burst presses are one gesture, in-flight presses ignored/coalesced, decided app-wide. Added after owner found 5-press hotkey spam started/stopped repeatedly.
+- USER-ACTION-FIDELITY RULE: test user-style close (button/Alt+F4/tray) as well as forced kill; graceful vs forced paths differ.
+

@@ -120,6 +120,10 @@ REAL-APP VERIFICATION RULE: Unit tests with fakes are not proof a bug is fixed. 
 REGRESSION-PRESERVATION RULE: When you change, replace or remove a behavior, first list every behavior and edge case the old code handled (from its code, tests and git history), keep all of them working unless the owner explicitly asked to drop one, and prove with tests and real-app evidence that they still work. Implementing only the literal new instruction while breaking previously working cases is a defect.
 
 EDGE-CASE RULE: For every feature or flow you touch, brainstorm the edge cases yourself (failure modes, stale state, user actions in unexpected order, external things closing or changing underneath the app, concurrency, timeouts, offline, permissions) BEFORE declaring it done; write the list in the report, test each case in the real app (or mark UNVERIFIED with the reason), and fix the problems you find. The owner must not have to discover them by hand.
+
+RAPID-INPUT RULE: Every user-triggered toggle or command (hotkeys, buttons, tray actions) must define and test what happens under repeated, rapid or out-of-order input: presses during a start or stop in flight are ignored or coalesced, never queued and replayed later as the opposite action; a burst of presses is one gesture; behavior is decided at the application level for ALL engines (local model, cloud, plugins), not per feature.
+
+USER-ACTION-FIDELITY RULE: When testing what happens if a user closes or interrupts something, reproduce it the way a real user does (closing the window with its close button / Alt+F4, quitting from the tray, closing a tab with the mouse), not only with a process kill; where the two behave differently (graceful vs forced exit), test BOTH.
 ```
 
 ## Web-search first (W0, binds before everything)
