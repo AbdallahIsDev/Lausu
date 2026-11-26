@@ -34,6 +34,14 @@ from voice_typer.server.translation.catalogue import (
     resolve_spec,
 )
 from voice_typer.server.translation.chat_template import CHAT_TEMPLATE
+from voice_typer.server.translation.chunking import (
+    CONTEXT_TOKENS,
+    MAX_OUTPUT_TOKENS,
+    SAFE_INPUT_TOKENS,
+    estimate_tokens,
+    group_chunks,
+    join_translations,
+)
 from voice_typer.server.translation.preservation import protect_spans, restore_spans
 from voice_typer.server.translation.prompt import build_user_prompt, needs_translation
 from voice_typer.server.tts.runtime_server import RuntimeServer, RuntimeSpec
@@ -223,7 +231,7 @@ class TranslationService:
             "--port",
             "{port}",
             "-c",
-            "4096",
+            str(CONTEXT_TOKENS),
             "--jinja",
             "--chat-template-file",
             str(template_path),
@@ -276,7 +284,7 @@ class TranslationService:
             "cache_prompt": False,
             "reasoning_effort": "none",
             "chat_template_kwargs": {"enable_thinking": False},
-            "max_tokens": 1024,
+            "max_tokens": MAX_OUTPUT_TOKENS,
             "stream": False,
         }
         request = Request(
@@ -367,6 +375,34 @@ class TranslationService:
         finally:
             self._lock.release()
 
+    def _translate_groups(
+        self,
+        protected: str,
+        spans: list[tuple[str, str]],
+        target: str,
+        cancel_event: threading.Event | None,
+        max_tokens: int,
+    ) -> str:
+        """Translate over-long text as groups through the one loaded runtime."""
+        groups = group_chunks(protected, max_tokens)
+        results: list[str] = []
+        for group in groups:
+            if cancel_event is not None and cancel_event.is_set():
+                raise TranslationCancelledError("translation cancelled between chunks")
+            group_spans = [(marker, original) for marker, original in spans if marker in group]
+            translated = self._complete(
+                build_user_prompt(group, target, self.glossary, tuple(marker for marker, _ in group_spans)),
+                cancel_event=cancel_event,
+            )
+            if cancel_event is not None and cancel_event.is_set():
+                raise TranslationCancelledError("translation cancelled after a chunk answered")
+            if not translated:
+                raise TranslationError("translation chunk response was empty")
+            results.append(restore_spans(translated, group_spans))
+            # Keep the idle unload from tearing the runtime down between chunks.
+            self.note_activity()
+        return join_translations(groups, results)
+
     def translate(
         self,
         text: str,
@@ -376,11 +412,10 @@ class TranslationService:
     ) -> str:
         """Translate one Stage A text; returns the source unchanged on error.
 
-        Non-translatable spans are masked before the call and restored after,
-        so URLs, emails, inline code and numbers survive byte-identical. A
-        failure never overwrites the dictation and surfaces one user-facing
-        notice per broken episode. ``cancel_event`` is opt-in and never used
-        by the dictation pipeline; a cancellation is not a failure.
+        Short text takes one call exactly as before. Only text that would
+        exceed the model context is grouped; a failure in any group keeps the
+        whole original text and raises one notice. Cancellation is not a
+        failure.
         """
         global _translation_failed_notified
         if cancel_event is not None and cancel_event.is_set():
@@ -390,16 +425,20 @@ class TranslationService:
             return text
         protected, spans = protect_spans(text)
         markers = tuple(marker for marker, _original in spans)
+        budget = SAFE_INPUT_TOKENS
         try:
-            result = self._complete(
-                build_user_prompt(protected, target, self.glossary, markers),
-                cancel_event=cancel_event,
-            )
-            if cancel_event is not None and cancel_event.is_set():
-                raise TranslationCancelledError("translation cancelled after the model answered")
-            if not result:
-                raise TranslationError("translation response was empty")
-            result = restore_spans(result, spans)
+            if estimate_tokens(protected) <= budget:
+                result = self._complete(
+                    build_user_prompt(protected, target, self.glossary, markers),
+                    cancel_event=cancel_event,
+                )
+                if cancel_event is not None and cancel_event.is_set():
+                    raise TranslationCancelledError("translation cancelled after the model answered")
+                if not result:
+                    raise TranslationError("translation response was empty")
+                result = restore_spans(result, spans)
+            else:
+                result = self._translate_groups(protected, spans, target, cancel_event, budget)
         except TranslationCancelledError:
             raise
         except TranslationError as exc:
@@ -426,8 +465,8 @@ class TranslationService:
         """Translate several already-decided texts through one loaded runtime.
 
         This is an opt-in helper for callers that own chunking (e.g. the
-        benchmark). The dictation path sends the whole Stage A text in one call
-        per ADR-0021 §5.2 and never uses this method.
+        benchmark). The dictation path keeps short text in one call and only
+        groups text that would exceed the context; it never uses this method.
         """
         if cancel_event is not None and cancel_event.is_set():
             raise TranslationCancelledError("batch cancelled before start")
