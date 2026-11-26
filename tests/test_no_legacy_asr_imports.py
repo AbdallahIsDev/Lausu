@@ -2,9 +2,10 @@
 
 Covers imports (including dynamic ones), sys.modules injection in tests,
 dependency declarations, freeze flags, live bench/API prose, and a repo-wide
-allowlist/ratchet for legacy terms. ADR-0031 (history), one CHANGELOG line and
-the legacy model-id migration map may name the old stack; pre-existing hits are
-frozen so they can only shrink.
+a strict repo-wide allowlist for legacy terms. Only ADR-0031 (history), one
+CHANGELOG line, the single legacy-id migration map and this guard may name
+the old stack. Files outside this agent's authority (AGENTS.md, worklog.md,
+review.md, docs/adr/0021-*) are explicitly excluded from the scan.
 """
 
 from __future__ import annotations
@@ -54,105 +55,24 @@ ALLOWED_TERM_FILES = frozenset(
     {
         "docs/adr/0031-onnx-to-gguf-migration.md",
         "voice_typer/server/gguf_model_registry.py",
-        "voice_typer/server/model_registry.py",
     }
 )
 CHANGELOG_FILE = "CHANGELOG.md"
 MAX_CHANGELOG_TERM_LINES = 1
 GUARD_TEST_FILE = Path(__file__).relative_to(ROOT).as_posix()
 
-# Files that already contained legacy terms when this gate landed. Only the
-# owner may edit AGENTS.md / worklog.md / review.md; ADR-0021 belongs to another
-# session. The rest are legacy runtime modules and generated baselines queued
-# for a separate deletion. This is a ratchet: no new file, no count growth.
-PRE_EXISTING_TERM_FILES: dict[str, int] = {
-    "AGENTS.md": 6,
-    "docs/adr/0021-transcription-translation-split.md": 22,
-    "docs/audit/ui-evidence.mjs": 2,
-    "mypy-baseline.json": 3,
-    "pyproject.toml": 6,
-    "requirements-lock.txt": 3,
-    "review.md": 1,
-    "scripts/slim_core_ml_ratchet_check.py": 2,
-    "scripts/verify_windows_bundle.py": 8,
-    "slim-core-ml-baseline.json": 2,
-    "src-tauri/src/commands/system_cmds/dialogs.rs": 1,
-    "src-tauri/src/sidecar/spawn/event_drain_tests.rs": 1,
-    "tests/cuda_install/test_activation.py": 2,
-    "tests/cuda_install/test_gpu_capability.py": 2,
-    "tests/model_download/test_download_abort_gate.py": 10,
-    "tests/model_download/test_download_stall_guard.py": 1,
-    "tests/model_download/test_offline_probe_log_quiet.py": 8,
-    "tests/model_download/test_segmented_download.py": 2,
-    "tests/model_download/test_segmented_lfs_planning.py": 1,
-    "tests/packaging/test_third_party_notices_av_version.py": 6,
-    "tests/packaging/test_third_party_notices_generated.py": 3,
-    "tests/security/test_redact_secret.py": 3,
-    "tests/tauri/mig15/test_nuitka_windows_build.py": 13,
-    "tests/tauri/mig16/test_autostart_installer_macos.py": 1,
-    "tests/tauri/mig16/test_nuitka_macos_build.py": 14,
-    "tests/tauri/mig17/test_nuitka_linux_build.py": 13,
-    "tests/tauri/mig18/test_macos_signing.py": 1,
-    "tests/tauri/mig18/test_openmp_runtimes.py": 22,
-    "tests/tauri/mig18/test_per_triple_freeze.py": 21,
-    "tests/tauri/test_no_legacy_asr_flags.py": 6,
-    "tests/tauri/test_windows_freeze_drift.py": 2,
-    "tests/test_allowed_user_models.py": 6,
-    "tests/test_asr_registry_busy_flag.py": 1,
-    "tests/test_config_validators_split.py": 2,
-    "tests/test_dev_model_frozen.py": 2,
-    "tests/test_e2e_smoke.py": 13,
-    "tests/test_gdpr_delete.py": 2,
-    "tests/test_gdpr_export.py": 1,
-    "tests/test_gguf_families.py": 2,
-    "tests/test_gguf_model_registry.py": 1,
-    "tests/test_i18n_completeness.py": 2,
-    "tests/test_import_model_security.py": 11,
-    "tests/test_language_auto_detect.py": 1,
-    "tests/test_log_third_party_levels.py": 2,
-    "tests/test_model_switch_logging.py": 2,
-    "tests/test_module_split_reexports_wave6.py": 2,
-    "tests/test_nuitka_asr_exclusions.py": 12,
-    "tests/test_parakeet_cpu_abort.py": 3,
-    "tests/test_parakeet_engine.py": 5,
-    "tests/test_parakeet_mem_arena.py": 2,
-    "tests/test_parakeet_onnx_abort.py": 8,
-    "tests/test_parakeet_onnx_gpu_fallback.py": 5,
-    "tests/test_parakeet_onnx_load.py": 24,
-    "tests/test_parakeet_onnx_sha.py": 6,
-    "tests/test_parakeet_onnx_transcribe.py": 3,
-    "tests/test_parakeet_warmup.py": 4,
-    "tests/test_security_hardening.py": 4,
-    "tests/test_slim_core_ml_ratchet.py": 19,
-    "tests/test_slim_no_asr_imports.py": 11,
-    "tests/test_windows_bundle_gate.py": 3,
-    "tests/test_worker_load_parakeet_qwen.py": 2,
-    "tests/test_worker_startup.py": 2,
-    "tests/test_worker_whisper_fallback.py": 2,
-    "voice_typer/client/src/renderer/src/__tests__/behavior-rewrite/host-ipc-build-behavior.test.tsx": 2,
-    "voice_typer/client/src/renderer/src/components/gpu/GpuRequestDialog.tsx": 1,
-    "voice_typer/client/src/renderer/src/components/gpu/__tests__/GpuRequestDialog.test.tsx": 1,
-    "voice_typer/client/src/renderer/src/components/help/PunctuationCheatSheet.tsx": 1,
-    "voice_typer/client/src/renderer/src/components/layout/DeviceToggle.tsx": 1,
-    "voice_typer/client/src/renderer/src/components/layout/__tests__/DeviceToggle.test.tsx": 1,
-    "voice_typer/client/src/renderer/src/hooks/__tests__/useCudaInstallToast.test.tsx": 2,
-    "voice_typer/client/src/renderer/src/types/config.ts": 2,
-    "voice_typer/server/asr_setup.py": 1,
-    "voice_typer/server/dictation_pipeline/enhancement_steps.py": 1,
-    "voice_typer/server/log/levels.py": 2,
-    "voice_typer/server/model_hashes.json": 19,
-    "voice_typer/server/parakeet_engine/_constants.py": 3,
-    "voice_typer/server/parakeet_engine/_load.py": 17,
-    "voice_typer/server/parakeet_engine/_transcribe.py": 1,
-    "voice_typer/server/parakeet_engine/engine.py": 2,
-    "voice_typer/server/prewarm/cache_probe.py": 2,
-    "voice_typer/server/qwen_engine.py": 2,
-    "voice_typer/server/security/model_integrity.py": 15,
-    "voice_typer/server/transcription_download.py": 6,
-    "voice_typer/server/worker_proxy_asr.py": 1,
-    "voice_typer/stubs/onnx_asr.pyi": 8,
-    "worklog.md": 28,
-}
+# Not editable by this agent: owner-authored rules/history and another
+# session's ADR. Excluded from the scan with explicit justification.
+OUT_OF_AUTHORITY_FILES = frozenset(
+    {
+        "AGENTS.md",
+        "worklog.md",
+        "review.md",
+        "docs/adr/0021-transcription-translation-split.md",
+        # Untracked evidence captured by another agent session.
+        "docs/audit/ui-evidence.mjs",
+    }
+)
 SKIP_DIRS = frozenset(
     {
         ".git",
@@ -381,31 +301,16 @@ def test_no_legacy_freeze_flags_or_shim_strip() -> None:
 
 
 def test_no_legacy_terms_outside_allowlist() -> None:
-    """No NEW file may carry a term; a recorded file may only shrink.
-
-    Absolute target: ADR-0031, one CHANGELOG line, the migration map and this
-    guard. Files carrying terms when this gate landed are frozen above because
-    they are owner-owned history, another session's ADR, generated baselines or
-    legacy runtime modules queued for a separate deletion.
-    """
-    offenders: dict[str, int] = {}
+    """Strict: a term outside the four allowed places fails the gate."""
+    failures: list[str] = []
     for rel, lines in _repo_text_files():
-        if rel == GUARD_TEST_FILE or rel in ALLOWED_TERM_FILES:
+        if rel == GUARD_TEST_FILE or rel in ALLOWED_TERM_FILES or rel in OUT_OF_AUTHORITY_FILES:
             continue
         hits = _legacy_term_hits(lines)
         if rel == CHANGELOG_FILE and len({lineno for lineno, _ in hits}) <= MAX_CHANGELOG_TERM_LINES:
             continue
-        if hits:
-            offenders[rel] = len(hits)
-    new_files = sorted(set(offenders) - set(PRE_EXISTING_TERM_FILES))
-    grown = sorted(
-        f"{rel}: {n} > {PRE_EXISTING_TERM_FILES[rel]}"
-        for rel, n in offenders.items()
-        if rel in PRE_EXISTING_TERM_FILES and n > PRE_EXISTING_TERM_FILES[rel]
-    )
-    assert not new_files and not grown, "legacy terms spread to a new file or grew in a frozen file:\n" + "\n".join(
-        new_files + grown
-    )
+        failures.extend(f"{rel}:{lineno}: {label}" for lineno, label in hits)
+    assert not failures, "retired ASR terms outside the allowlist:\n" + "\n".join(failures)
 
 
 @pytest.mark.parametrize("source", ["import faster_whisper", "from av import open", "import ctranslate2 as ct2"])
