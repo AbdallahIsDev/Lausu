@@ -778,7 +778,7 @@ class TestPartialWriteTolerance:
 class TestStartupNeverReDrives:
     """check_on_startup only READS unpasted entries for display/export;
     no code path re-drives audio or re-submits a recording (regression
-    guard, docs/voice_typer_recording_edge_cases.md §5)."""
+    guard)."""
 
     def test_check_on_startup_only_reads_and_leaves_entries_untouched(self, recovery_dir, cr):
         cr.add("unpasted dictation", pasted=False)

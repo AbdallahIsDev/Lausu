@@ -79,8 +79,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) format.
 - **`recorder.py` decomposition**: the 3286-line `recorder.py` monolith
   was split into a `voice_typer/server/recording/` package (`recorder.py`,
   `buffer.py`, `device_manager.py`, `resampling.py`, `exceptions.py`,
-  `_recorder_split.py`). Public API unchanged; behavior preserved. See
-  `docs/rw04-recording-decomposition.md`.
+  `_recorder_split.py`). Public API unchanged; behavior preserved.
 
 - **`ipc_server.py` decomposition**: the 2808-line `ipc_server.py` was
   split: domain handlers extracted into `voice_typer/server/handlers/`

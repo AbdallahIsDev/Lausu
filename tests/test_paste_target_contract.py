@@ -1,7 +1,6 @@
 """Paste-delivery-target contract: Option A "typewriter model".
 
-User decision 2026-10-17 (docs/voice_typer_recording_edge_cases.md §3,
-AGENTS.md C-PASTE-1): text is pasted into whatever window is foreground
+User decision 2026-10-17 (AGENTS.md C-PASTE-1): text is pasted into whatever window is foreground
 at keystroke-dispatch time. The app must never capture the dictation
 window at stop or refocus a remembered window at paste time.
 """

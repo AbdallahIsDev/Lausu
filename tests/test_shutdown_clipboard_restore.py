@@ -1,6 +1,6 @@
 """Clipboard-on-quit: the pending restore runs before teardown kills it.
 
-docs/voice_typer_recording_edge_cases.md §5: a graceful quit killed the
+A graceful quit killed the
 ``clipboard-restore`` daemon and ended in ``os._exit`` (atexit skipped),
 so the user's original clipboard never came back. ``do_cleanup`` now runs
 the pending restore synchronously, bounded and best-effort, before the

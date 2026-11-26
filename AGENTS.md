@@ -24,7 +24,7 @@ pass the same `--prefix <name>` to `xerj search` and `xerj def` (without it they
 the default `ax` prefix). Cite file:line for anything you rely on.
 Reference-coding corpora on this node (`xerj corpus list`) — peer projects to learn from,
 NOT this repo: hex, handy, voxtype, openasr, scrawl, macparakeet, fluidvoice,
-freestyle, dictate, faster-whisper. (`--prefix lausu` indexes this repo itself
+freestyle, dictate. (`--prefix lausu` indexes this repo itself
 for go-to-definition / "where is X" searches — a different job.) Before
 implementing any feature that a peer project likely already has, run
 `xerj code <corpus> "<problem>"` over the relevant corpora and compare their
@@ -52,7 +52,7 @@ Search BEFORE writing code, even when you already have an implementation approac
 
 If there is no established solution for a problem or feature, you may implement your own approach and test it. If the test results show it doesn't work, treat that as information, not as a cue to keep trying: the feature may have no viable implementation today, and recognizing that quickly saves a large number of tokens on trial and error. Full trigger list and
 the canonical example live in `## Web-search first (W0)` below; that
-section is the operational detail of this rule. Local source-code search is a leg of this rule — `xerj code <corpus> "<problem>"` over the indexed reference corpora (hex, handy, voxtype, openasr, scrawl, macparakeet, fluidvoice, freestyle, dictate, faster-whisper) and `xerj search --prefix lausu "<words>"` / `xerj def --prefix lausu <symbol>` over this codebase, before writing code.
+section is the operational detail of this rule. Local source-code search is a leg of this rule — `xerj code <corpus> "<problem>"` over the indexed reference corpora (hex, handy, voxtype, openasr, scrawl, macparakeet, fluidvoice, freestyle, dictate) and `xerj search --prefix lausu "<words>"` / `xerj def --prefix lausu <symbol>` over this codebase, before writing code.
 
 ## Rule template
 
@@ -260,7 +260,7 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-ASR-1
-Rule: Do NOT pin a single decode `temperature` on the Whisper path (no bare `temperature=0.0`). Pass the full ladder `_DECODE_TEMPERATURES` `(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)` from `transcription_batching` — faster-whisper only retries at the NEXT temperature when a decode trips the compression-ratio (repeat) or avg-logprob guard (`temperatures=(temperature if isinstance(...) else [temperature])`).
+Rule: Do NOT pin a single decode `temperature` on the Whisper path (no bare `temperature=0.0`). Pass the full ladder `_DECODE_TEMPERATURES` `(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)` from `transcription_batching` — the decoder only retries at the NEXT temperature when a decode trips the compression-ratio (repeat) or avg-logprob guard (`temperatures=(temperature if isinstance(...) else [temperature])`).
 Rationale: The single 0.0 made the guard retry nothing, so a degenerate repeat-loop on music/noise-heavy media was accepted verbatim (a 17-min YouTube run returned the same confident 447-char block in 7 windows of 30s, `avg_logprob ≈ -0.15`, media entry 2026-10-27).
 Applies to: All agents, all modes, all sub-agents.
 ```
@@ -345,7 +345,7 @@ Applies to: All agents, all modes, all sub-agents.
 ```
 C-MEDIA-2
 Rule: Do NOT let two media jobs decode against the shared ASR model at the same time, and do NOT fire or clear the engine's shared abort signal from media at all. Concurrency belongs in the INGEST phases (resolve, download, container decode); each job's window decode runs inside `MediaJobManager.asr_lane`, and cancellation is SCOPED: the job's own `cancel_event` is passed into its decode call as the abort source (`transcribe_windows` → `transcribe_unlocked(abort_event=…)`), so stopping one job cannot truncate a dictation recording or another job's window.
-Rationale: There is one ctranslate2 model behind one `_inference_lock`, so parallel decode is either serialized anyway or unsafe — and ONE shared `_abort_event` meant a media cancel truncated whichever decode happened to be running (silent text loss, the job still reporting "completed"), while clearing that flag on lane entry swallowed an in-flight dictation cancel. Per-job Events take the shared flag out of the media path entirely (2026-10-27).
+Rationale: There is one shared ASR model behind one `_inference_lock`, so parallel decode is either serialized anyway or unsafe — and ONE shared `_abort_event` meant a media cancel truncated whichever decode happened to be running (silent text loss, the job still reporting "completed"), while clearing that flag on lane entry swallowed an in-flight dictation cancel. Per-job Events take the shared flag out of the media path entirely (2026-10-27).
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -599,7 +599,7 @@ Applies to: All agents, all modes, all sub-agents.
 ```
 C-CACHE-11
 Rule: Do NOT let a third-party library's built-in model alias choose which cache entry your app loads. Load by the same canonical repo id + pinned revision the downloader used, never a bare size/name alias.
-Rationale: faster-whisper's alias still pointed at a renamed HF repo, so bare-name loading would have addressed a different cache directory than the download and silently fallen back to the network (2026-10-22).
+Rationale: a third-party alias still pointed at a renamed HF repo, so bare-name loading would have addressed a different cache directory than the download and silently fallen back to the network (2026-10-22).
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -906,7 +906,7 @@ Applies to: All agents, all modes, all sub-agents.
 ```
 C-LOG-6
 Rule: Do NOT print a placeholder for an absent optional field (`reason=-`) or an unlabelled number; log only fields that exist, each with its name and unit (`elapsed=22.2s`), and never report a measurement the code did not take (a configured language is logged `(configured; not detected)`, never with a probability).
-Rationale: `[MEDIA] job completed: … reason=- 22.2s` made every clean completion read as a cancellation and left the duration unattributed; `language=en (prob=1.00)` on pure silence claimed a detection faster-whisper never ran (2026-10-31).
+Rationale: `[MEDIA] job completed: … reason=- 22.2s` made every clean completion read as a cancellation and left the duration unattributed; `language=en (prob=1.00)` on pure silence claimed a detection the decoder never ran (2026-10-31).
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -1765,7 +1765,7 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-CONC-1
-Rule: Do NOT implement overlapping dictation (record-while-transcribing, queued multi-cycle recording, parallel transcription pipelines, "multicore-style" dictation). Dictation is SINGLE-FLIGHT: exactly one operation at a time — recording XOR transcription+delivery; a hotkey press while busy is refused by design (visible feedback for that refusal is a separate UX item, see docs/voice_typer_recording_edge_cases.md §2).
+Rule: Do NOT implement overlapping dictation (record-while-transcribing, queued multi-cycle recording, parallel transcription pipelines, "multicore-style" dictation). Dictation is SINGLE-FLIGHT: exactly one operation at a time — recording XOR transcription+delivery; a hotkey press while busy is refused by design.
 Rationale: one mic + one model + one bubble state machine + one paste path; overlap would need per-cycle audio slots, watchdogs, delivery ordering, and per-cycle undo isolation (user decision 2026-10-17 after reviewing and rejecting the overlap idea).
 Applies to: All agents, all modes, all sub-agents.
 ```

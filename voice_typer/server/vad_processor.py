@@ -13,8 +13,7 @@ Scope of extraction (this module):
     * Auto-calibration of RMS-dB thresholds from ambient noise floor.
     * Config-driven ``vad_enabled`` cache (5s TTL safety net).
 
-Out of scope (remain in ``recording.py``: see
-``docs/history/rw04-recording-decomposition.md``):
+Out of scope (remain in ``recording.py``):
     * AudioDeviceManager (device resolution, hot-plug, Bluetooth).
     * AudioBuffer (buffer mgmt, snapshot cache, 3-tier resampling).
 

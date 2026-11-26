@@ -1,6 +1,6 @@
 """A cancelled (ESC) dictation must leave zero traces.
 
-``docs/voice_typer_recording_edge_cases.md`` §1: the default pipeline used
+The default pipeline used
 to guard only the paste stage, but ``_store_result`` runs BEFORE it, so a
 cancelled cycle still wrote a history row, a crash-recovery entry, the
 usage count, and ``_last_transcription`` (undo/repaste resurrected the

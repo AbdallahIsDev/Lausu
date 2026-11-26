@@ -324,5 +324,4 @@ deletion + verification).
   `_get_resample_poly`, `_start_scipy_preloader`).
 - `voice_typer/server/recording/buffer.py` (owns `_buffer_clear_worker`,
   `_secure_clear_array_background`).
-- `docs/history/rw9-god-class-decomposition.md` (the original migration plan
-  reference; this ADR is the per-wave execution log).
+- The original migration plan was retired; this ADR is the per-wave execution log.

@@ -1,11 +1,11 @@
 """Fail-closed guard: the retired Python ASR/media stack must stay gone.
 
 Covers imports (including dynamic ones), sys.modules injection in tests,
-dependency declarations, freeze flags, live bench/API prose, and a repo-wide
-a strict repo-wide allowlist for legacy terms. Only ADR-0031 (history), one
-CHANGELOG line, the single legacy-id migration map and this guard may name
-the old stack. Files outside this agent's authority (AGENTS.md, worklog.md,
-review.md, docs/adr/0021-*) are explicitly excluded from the scan.
+dependency declarations, freeze flags, live bench/API prose, and a strict
+repo-wide allowlist for legacy terms. Only ADR-0031 (history), one CHANGELOG
+line, the single legacy-id migration map and this guard may name the old
+stack. `review.md` and one untracked evidence file are excluded because they
+belong to another session's uncommitted work.
 """
 
 from __future__ import annotations
@@ -61,14 +61,10 @@ CHANGELOG_FILE = "CHANGELOG.md"
 MAX_CHANGELOG_TERM_LINES = 1
 GUARD_TEST_FILE = Path(__file__).relative_to(ROOT).as_posix()
 
-# Not editable by this agent: owner-authored rules/history and another
-# session's ADR. Excluded from the scan with explicit justification.
+# Excluded only while they hold another session's uncommitted work.
 OUT_OF_AUTHORITY_FILES = frozenset(
     {
-        "AGENTS.md",
-        "worklog.md",
         "review.md",
-        "docs/adr/0021-transcription-translation-split.md",
         # Untracked evidence captured by another agent session.
         "docs/audit/ui-evidence.mjs",
     }

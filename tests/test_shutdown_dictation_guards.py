@@ -1,6 +1,6 @@
 """Shutdown vs an in-flight dictation: discard-on-shutdown + cycle-start gate.
 
-docs/voice_typer_recording_edge_cases.md §5: a graceful quit let a worker
+A graceful quit let a worker
 the 3s transcription join did not finish still store/paste after teardown
 started. ``do_cleanup`` (and the Windows logoff fast path) now mark the
 app's live cycle cancelled BEFORE any phase, so the already-built

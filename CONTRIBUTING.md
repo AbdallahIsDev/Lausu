@@ -453,7 +453,7 @@ lausu/
 â”‚   â”‚   â”œâ”€â”€ config/                 # SEC-002 allowlist, SEC-003 redaction (package: __init__.py + loader.py + sanitization.py + coercion.py)
 â”‚   â”‚   â”œâ”€â”€ security.py               # token / URL / file-perm helpers
 â”‚   â”‚   â”œâ”€â”€ tray.py / tray_menu.py    # pystray tray icon + menu
-â”‚   â”‚   â”œâ”€â”€ recording/                # PortAudio capture â†’ deque (package; see docs/rw04-recording-decomposition.md)
+â”‚   â”‚   â”œâ”€â”€ recording/                # PortAudio capture â†’ deque (package)
 â”‚   â”‚   â”œâ”€â”€ transcription.py          # ASR dispatch (whisper/qwen/parakeet)
 â”‚   â”‚   â”œâ”€â”€ text_cleanup.py           # dedup, misspellings, capitalization
 â”‚   â”‚   â”œâ”€â”€ vocabulary.py             # user corrections (single source)

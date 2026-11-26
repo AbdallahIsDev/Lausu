@@ -31,7 +31,7 @@ audiences: [`README.md`](../README.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md),
 | [auto-update-feature.md](auto-update-feature.md) | Runtime-pack auto-update (IMPLEMENTED 2026-08-13; Python-side pack manifest + downloader + `useNetworkOnline` trigger). |
 | [modules/](modules/) | Per-module deep dives: [_index.md](modules/_index.md), [audio_quality_controller.md](modules/audio_quality_controller.md), [sidecar_ws.md](modules/sidecar_ws.md), [shutdown_controller.md](modules/shutdown_controller.md). |
 | [architecture/](architecture/) | Cross-cutting architecture contracts: [error-envelope-contract.md](architecture/error-envelope-contract.md). |
-| [ux/](ux/) | UX rationale notes: [model-delete-rationale.md](ux/model-delete-rationale.md). |
+| [ux/](ux/) | UX rationale notes. |
 
 ## For release engineers / migration drivers
 

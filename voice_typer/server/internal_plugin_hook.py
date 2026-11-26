@@ -24,7 +24,6 @@ including remaps, PTT release, ESC cancel and tray/API calls.
 
 Which plugin runs is ``config.active_plugin``; an id with no entry in
 ``PLUGIN_MODULES`` selects nothing and the local model stays in charge.
-Plan: docs/plan-internal-plugin-google-stt.md.
 """
 
 from __future__ import annotations

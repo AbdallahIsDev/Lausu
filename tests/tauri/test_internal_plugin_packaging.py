@@ -1,6 +1,6 @@
 """The internal plugin source ships bundled, but never active by default.
 
-Plan: docs/plan-internal-plugin-google-stt.md. Three properties, all
+Three properties, all
 greppable, no process launches:
 
 1. Every sidecar freeze stages the plugin tree and embeds it as data, so a
