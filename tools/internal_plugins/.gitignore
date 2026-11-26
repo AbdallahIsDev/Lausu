@@ -1,5 +1,6 @@
 PLUGINS_ENABLED
 DEVELOPER_DIAGNOSTICS
+debug/
 dictation-profile/
 google-stt-profile/
 google_stt/debug/

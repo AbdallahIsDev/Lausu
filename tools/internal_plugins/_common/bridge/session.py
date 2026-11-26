@@ -184,6 +184,7 @@ def wait_for_page_ready(
         if state["signed_in"] == "no" or state["reason"] in (
             "tab.crashed",
             "browser.down",
+            "status.unavailable",
             "challenge",
             "signed_in.no",
         ):
@@ -229,17 +230,19 @@ def ensure_target_ready(
         post_fn("/ensure-tab", timeout=20.0)
     except BridgeError as exc:
         # An older extension can reject the route; /start still resolves its
-        # own tab in that case (fdd3758fd's legacy fallback).
-        if "unknown command" not in str(exc).lower():
-            if log is not None:
-                log.warning(
-                    "[PLUGIN] target tab could not be resolved (cycle=#%d): %s",
-                    cycle,
-                    type(exc).__name__,
-                )
-            return False, "tab-not-ready"
+        # own tab in that case (fdd3758fd's legacy fallback). Any other resolve
+        # failure right after a launch is "still starting", not a terminal
+        # refusal; the page-ready gate below consumes the shared budget if the
+        # profile really died.
+        if "unknown command" not in str(exc).lower() and log is not None:
+            log.debug(
+                "[PLUGIN] target tab resolve deferred (cycle=#%d, kind=%s)",
+                cycle,
+                type(exc).__name__,
+            )
     except Exception:
-        return False, "tab-not-ready"
+        if log is not None:
+            log.debug("[PLUGIN] target tab resolve deferred (cycle=#%d)", cycle)
     reason_out: dict = {"reason": "page-not-ready"}
     for recovery in range(2):
         if not wait_for_page_ready(
@@ -481,12 +484,13 @@ def _fallback_ensure_daemon(client, log):
     )
 
 
-def _fallback_ensure_browser(client):
+def _fallback_ensure_browser(client, budget: RelaunchBudget | None = None):
     return ensure_browser(
         status_fn=client.status,
         launch_fn=lambda: False,
         ready_fn=client.bridge_ready,
         clock=time,
+        budget=budget,
     )
 
 
@@ -560,11 +564,29 @@ class PluginSession:
     def _ensure_daemon(self) -> bool:
         return self._host("ensure_daemon", lambda: _fallback_ensure_daemon(self._client, self._log))()
 
-    def _ensure_browser(self, timeout: float | None = None) -> bool:
-        def default(timeout: float | None = None) -> bool:
-            return _fallback_ensure_browser(self._client)
+    def _ensure_browser(
+        self,
+        timeout: float | None = None,
+        *,
+        force: bool = False,
+        budget: RelaunchBudget | None = None,
+        caller: str = "hotkey-start",
+    ) -> bool:
+        def default(
+            timeout: float | None = None,
+            *,
+            force: bool = False,
+            budget: RelaunchBudget | None = None,
+            caller: str = "hotkey-start",
+        ) -> bool:
+            return _fallback_ensure_browser(self._client, budget=budget)
 
-        return self._host("_ensure_browser", default)(timeout=timeout)
+        host = self._host("_ensure_browser", default)
+        try:
+            return host(timeout=timeout, force=force, budget=budget, caller=caller)
+        except TypeError:
+            # Test fakes implement the narrow old signature.
+            return host(timeout=timeout)
 
     @property
     def active(self) -> bool:
@@ -773,6 +795,8 @@ class PluginSession:
                         clock=time,
                         log=self._log,
                         cycle=cycle,
+                        budget=budget,
+                        stage="tab",
                     )
                     if not retry_ready:
                         self._log.error(

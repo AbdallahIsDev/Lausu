@@ -209,7 +209,7 @@ def _profile_running() -> bool:
         return False
 
 
-def _launch_profile_if_due(force: bool = False) -> bool:
+def _launch_profile_if_due(force: bool = False, caller: str = "plugin-activation") -> bool:
     """Open the dictation profile at most once per cooldown window (C-START-3)."""
     global _last_launch_ts
 
@@ -225,13 +225,19 @@ def _launch_profile_if_due(force: bool = False) -> bool:
         on_due=_record,
         bypass_fn=lambda: True if force else _profile_missing(),
         running_fn=lambda: False if force else _profile_running(),
-        caller="plugin-activation",
+        caller=caller,
     )
     _last_launch_ts = new_ts
     return launched
 
 
-def _ensure_browser(timeout: float | None = None, *, force: bool = False, budget=None) -> bool:
+def _ensure_browser(
+    timeout: float | None = None,
+    *,
+    force: bool = False,
+    budget=None,
+    caller: str = "hotkey-start",
+) -> bool:
     """Open the dictation profile if needed, and wait until its page answers.
 
     The visibility setting is applied at launch only; a press never shows or
@@ -241,7 +247,7 @@ def _ensure_browser(timeout: float | None = None, *, force: bool = False, budget
     # focus from the target field and can reveal a hidden helper window.
     return session.ensure_browser(
         status_fn=_daemon_status,
-        launch_fn=_launch_profile_if_due,
+        launch_fn=lambda **kwargs: _launch_profile_if_due(caller=caller, **kwargs),
         ready_fn=_bridge_ready,
         transport_fn=_browser_connected,
         alive_fn=lambda: _chrome_profile.browser_liveness(_daemon_config().get("profileDir") or str(_profile_dir())),

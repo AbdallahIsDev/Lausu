@@ -2168,3 +2168,9 @@ Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or s
 
 - Added REAL-PATH TEST RULE after relaunch-budget tests passed while the owner's real log still showed no budget lines.
 
+
+## 2026-11-26 - Real-path budget and dev channel
+
+- Root cause: PluginSession._ensure_browser had narrow signature; ensure_target_ready's browser_fn(budget=...) raised TypeError and fell back to browser_fn() with no budget, so ensure_browser saw budget=None and returned browser-not-open instead of consuming an attempt. Commit 4bed5fd54 introduced budget but did not update this seam (introduced earlier by 495e21706). /ensure-tab BridgeError also returned tab-not-ready before the budget loop (from 81c96d5bd).
+- Fixed: full signature on session seam, /ensure-tab deferral, status.unavailable terminal, budget passed to click retry, truthful caller=hotkey-start. Added dev-only file command channel into the real wrapped hotkey entry; live run 22:56:42 confirmed caller=hotkey-start. Real-path tests through PluginSession.toggle() added.
+- Full 10x10 close matrix and Item2 real capture NOT completed (exact reasons in doc/worklog); no fabricated counts.

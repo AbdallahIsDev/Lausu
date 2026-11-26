@@ -388,6 +388,13 @@ def install(app: Any) -> bool:
     app._stop_dictation = stop_dictation
     app._cancel_dictation = cancel_dictation
     app._internal_plugin_wrapped = True
+    try:
+        from voice_typer.server.plugin_dev_driver import start_watcher
+
+        app._dev_command_watcher = start_watcher(app)
+    except Exception:
+        app._dev_command_watcher = None
+        log.debug("[PLUGIN] dev command watcher not started", exc_info=True)
     log.info("[PLUGIN] dictation entry points installed; selection resolved per press")
     # A selection made in a previous run must survive the restart: activating
     # a plugin was the user's decision, and the browser should be up without

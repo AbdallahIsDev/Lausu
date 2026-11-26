@@ -210,11 +210,14 @@ class TestCopy:
 
 
 class TestSession:
-    def test_the_session_uses_the_chatgpt_copy(self) -> None:
+    def test_the_session_uses_the_chatgpt_copy(self, monkeypatch) -> None:
         from unittest.mock import MagicMock
 
         from tools.internal_plugins.chatgpt_stt import plugin as chatgpt
 
+        from tools.internal_plugins.chatgpt_stt import copy as chatgpt_copy
+
+        monkeypatch.setattr(chatgpt_copy, "notify_enabled", lambda: True)
         app = SimpleNamespace(tray=MagicMock())
         session = chatgpt.PluginSession(app)
         session._notify("hello")
