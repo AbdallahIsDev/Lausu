@@ -8,7 +8,6 @@ import { SettingRow } from "@/components/common/SettingRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
 import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { SAMPLE_CONFIG } from "@/components/skullet/sampleConfig";
-import { Button } from "@/components/ui/button";
 import {
 	Select,
 	SelectContent,
@@ -17,9 +16,9 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { usePython } from "@/hooks/usePython";
 import { useT } from "@/i18n/i18n";
 import { LANGUAGE_OPTIONS } from "@/lib/utils/languages";
+import { TranslationModelDownloadRow } from "./TranslationModelDownloadRow";
 import type { SettingsSectionSharedProps } from "./types";
 
 // ADR-0021 scope lock: the translator only supports the 8 core locales.
@@ -44,7 +43,6 @@ export const PostProcessingSettingsSection = memo(
 		isVisible,
 	}: SettingsSectionSharedProps) {
 		const t = useT();
-		const { call } = usePython();
 
 		// ── Inline handler extraction ─────────────────────────────────
 		const handleLanguageChange = (v: string) =>
@@ -59,8 +57,6 @@ export const PostProcessingSettingsSection = memo(
 			updateConfig({ translation_target_language: v === "same" ? "" : v });
 		const handleTranslationGpuChange = (checked: boolean) =>
 			updateConfig({ translation_gpu_enabled: checked });
-		const handleTranslationDownload = () =>
-			void call("download_model", { model: "index-translate-2b-q4-k-m" });
 
 		//section-level visibility check for the Post-Processing section.
 		// The title constant feeds BOTH the `<SettingsSection title>` prop
@@ -251,14 +247,11 @@ export const PostProcessingSettingsSection = memo(
 								label={t("settings.translationDownload")}
 								info={t("settings.translationTargetInfo")}
 							>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={handleTranslationDownload}
-									aria-label={t("settings.translationDownload")}
-								>
-									{t("settings.translationDownload")}
-								</Button>
+								<TranslationModelDownloadRow
+									config={cfg}
+									downloadLabel={t("settings.translationDownload")}
+									sizeLabel={t("settings.translationDownload")}
+								/>
 							</SettingRow>
 						)}
 

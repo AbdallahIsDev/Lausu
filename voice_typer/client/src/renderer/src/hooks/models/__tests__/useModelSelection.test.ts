@@ -405,6 +405,27 @@ describe("useModelSelection, requestDeleteModel + confirmDelete", () => {
 		expect(result.current.deleteModelTarget).toBeNull();
 	});
 
+	it("confirmDelete shows the backend's localized auto-switch notice on success", async () => {
+		const notice =
+			"Model 'tiny' was not on disk, switched to 'large-v3-turbo'.";
+		callMock.mockResolvedValue({
+			success: true,
+			reason: "stale_cleared_switched",
+			message: notice,
+		});
+		const args = makeHookArgs();
+		const { result } = renderHook(() => useModelSelection(args));
+
+		act(() => {
+			result.current.requestDeleteModel(makeModel({ name: "tiny" }));
+		});
+		await act(async () => {
+			await result.current.confirmDelete();
+		});
+
+		expect(args.showSnack).toHaveBeenCalledWith(notice, "success");
+	});
+
 	it("confirmDelete rewrites the cached status entry so no revisit serves downloaded:true", async () => {
 		// Seed a fresh snapshot claiming the model is downloaded (as a
 		// mount would have written it).

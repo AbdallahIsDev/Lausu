@@ -55,6 +55,7 @@ class TranslationCancelledError(RuntimeError):
 # is still delivered verbatim, so a repeating toast on every dictation would
 # be noise. A later success clears the flag so a new failure is reported.
 _translation_failed_notified = False
+_translation_model_missing_notified = False
 _translation_failed_lock = threading.Lock()
 # Weak handle to the app, set by translate_text so service-level failures can
 # reach the standalone tray without an app reference on the service itself.
@@ -73,21 +74,8 @@ def _bind_app(app: Any | None) -> None:
         _app_ref = app
 
 
-def _notify_translation_failure(app: Any | None = None) -> None:
-    """Surface one user-facing notice per broken episode; never raise.
-
-    Reusing the catalogue ``notification`` event means no new IPC command /
-    event type, no parity files and no renderer changes. In the Tauri sidecar
-    the host turns it into a native toast. In standalone mode there is no
-    renderer consumer, so also call the app's tray directly — the same path
-    the LLM-polish failure uses.
-    """
-    global _translation_failed_notified
-    with _translation_failed_lock:
-        if _translation_failed_notified:
-            return
-        _translation_failed_notified = True
-    message = i18n.t("notify.dictation_pipeline.translation_failed")
+def _publish_notice(message: str, app: Any | None) -> None:
+    """Publish one localized notice through the shared catalogue event."""
     with contextlib.suppress(Exception):
         from voice_typer.server import event_bus
 
@@ -108,6 +96,35 @@ def _notify_translation_failure(app: Any | None = None) -> None:
 
             if not is_tauri_sidecar():
                 app.tray.notify(APP_NAME, message)
+
+
+def _notify_translation_failure(app: Any | None = None) -> None:
+    """Surface one generic-failure notice per broken episode; never raise."""
+    global _translation_failed_notified
+    with _translation_failed_lock:
+        if _translation_failed_notified:
+            return
+        _translation_failed_notified = True
+    _publish_notice(i18n.t("notify.dictation_pipeline.translation_failed"), app)
+
+
+def _notify_translation_model_missing(app: Any | None = None) -> None:
+    """Missing GGUF: one actionable notice, never a raw error or a download."""
+    global _translation_model_missing_notified
+    with _translation_failed_lock:
+        if _translation_model_missing_notified:
+            return
+        _translation_model_missing_notified = True
+    _publish_notice(i18n.t("notify.dictation_pipeline.translation_model_missing"), app)
+
+
+def _model_is_installed(config: Any) -> bool:
+    """Use the same resolver the service uses, so tests patch one seam."""
+    try:
+        resolve_model_path(config)
+        return True
+    except TranslationError:
+        return False
 
 
 def work_dir() -> Path:
@@ -309,6 +326,7 @@ class TranslationService:
             return text
         with _translation_failed_lock:
             _translation_failed_notified = False
+            _translation_model_missing_notified = False
         return result
 
     def translate_batch(
@@ -378,6 +396,10 @@ def prewarm(config: Any) -> bool:
     """
     if not bool(getattr(config, "translation_enabled", False)):
         return False
+    if not _model_is_installed(config):
+        # A missing model is never installed here: prewarm must not download,
+        # load or block on a translator the user has not installed.
+        return False
     try:
         get_service(config).ensure_runtime()
         return True
@@ -413,6 +435,15 @@ def translate_text(
         return text
     if not needs_translation(text, target, spoken):
         return text
+    spec = resolve_spec(str(getattr(config, "translation_model", "") or ""))
+    if not _model_is_installed(config):
+        # Fast refusal: no service construction, no process start, no download.
+        # The original text is always kept and the user gets one actionable
+        # notice instead of a raw TranslationError. No notice when Stage B
+        # would have been skipped anyway (same language / empty text).
+        log.warning("[TRANSLATE] %s not installed; keeping original text", spec.label)
+        _notify_translation_model_missing(app)
+        return text
     try:
         return get_service(config).translate(text, target, cancel_event=cancel_event)
     except TranslationCancelledError:
@@ -429,7 +460,7 @@ def translate_text(
 
 def shutdown() -> None:
     """Stop the cached runtime at process exit."""
-    global _SERVICE, _SERVICE_KEY, _translation_failed_notified
+    global _SERVICE, _SERVICE_KEY, _translation_failed_notified, _translation_model_missing_notified
     with _SERVICE_LOCK:
         if _SERVICE is not None:
             _SERVICE.stop()
@@ -437,6 +468,7 @@ def shutdown() -> None:
         _SERVICE_KEY = None
     with _translation_failed_lock:
         _translation_failed_notified = False
+        _translation_model_missing_notified = False
 
 
 atexit.register(shutdown)

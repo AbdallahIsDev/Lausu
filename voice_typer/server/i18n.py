@@ -46,6 +46,10 @@ _INITIAL_LABELS: dict[str, str] = {
         "Translation failed. Your original transcription was kept and inserted unchanged; "
         "check the log file for details."
     ),
+    "notify.dictation_pipeline.translation_model_missing": (
+        "Translation model is not installed. Your original text was kept. "
+        "Download it in Settings > Post-Processing > Download translation model."
+    ),
     "notify.dictation_pipeline.history_save_failed": (
         "Could not save the transcription to history. Check the log file for details."
     ),

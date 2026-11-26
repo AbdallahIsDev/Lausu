@@ -9,14 +9,59 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from voice_typer.server.asr_setup import ensure_hf_env
+from voice_typer.server.asr_utils import _DISK_SPACE_MARGIN_MB, _disk_space_error
 from voice_typer.server.translation.catalogue import TranslationModelSpec
 
 log = logging.getLogger(__name__)
+
+_MIB = 1024 * 1024
+
+
+def _hub_cache_dir() -> Path | None:
+    """Resolve the shared HF hub cache without importing huggingface_hub."""
+    try:
+        from huggingface_hub import constants
+
+        return Path(constants.HF_HUB_CACHE)
+    except (ImportError, AttributeError):
+        try:
+            return Path(os.path.expanduser("~")) / ".cache" / "huggingface" / "hub"
+        except Exception:
+            return None
+
+
+def check_translation_disk_space(spec: TranslationModelSpec) -> None:
+    """Require room for this catalogue artefact before any network call.
+
+    The ASR threshold (``asr_utils._check_disk_space_for_download``) is
+    deliberately untouched; only the shared message builder is reused.
+    """
+    cache_dir = _hub_cache_dir()
+    if cache_dir is None:
+        return
+    try:
+        available_mb = shutil.disk_usage(str(cache_dir)).free // _MIB
+        size_mb = -(-spec.size_bytes // _MIB)
+        required_mb = size_mb + _DISK_SPACE_MARGIN_MB
+        if available_mb < required_mb:
+            raise _disk_space_error(
+                str(cache_dir),
+                available_mb,
+                required_mb,
+                f"translation model {spec.label}",
+                detail=f"model ~{size_mb} MB + {_DISK_SPACE_MARGIN_MB} MB margin",
+            )
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        log.debug("[TRANSLATE] disk space check skipped: %s", exc)
 
 
 def _sha256(path: Path) -> str:
@@ -33,6 +78,7 @@ def download_translation_weights(
     progress_callback: Callable[[str], None] | None = None,
     config: Any = None,
     force: bool = False,
+    tqdm_class: type | None = None,
 ) -> tuple[bool, str, tuple[type, BaseException, Any] | None]:
     """Download + integrity-check the GGUF into the shared HF hub cache."""
     if not force and (config is None or not bool(getattr(config, "huggingface_consent", False))):
@@ -59,6 +105,7 @@ def download_translation_weights(
                 repo_id=spec.repo_id,
                 filename=spec.filename,
                 local_files_only=True,
+                tqdm_class=tqdm_class,
             )
         )
         if cached.is_file() and cached.stat().st_size == spec.size_bytes and _sha256(cached) == spec.sha256:
@@ -73,6 +120,7 @@ def download_translation_weights(
             hf_hub_download(
                 repo_id=spec.repo_id,
                 filename=spec.filename,
+                tqdm_class=tqdm_class,
             )
         )
     except Exception as exc:

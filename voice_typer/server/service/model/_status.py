@@ -77,6 +77,19 @@ class StatusMixin:
             "deps_ok": True,
         }
 
+        # The translator is a separate ADR-0030 artefact, but its on-disk
+        # truth rides on this command so the Settings row needs no new IPC.
+        from voice_typer.server.translation.catalogue import (
+            INDEX_TRANSLATE_Q4,
+            TRANSLATION_MODEL_ID,
+        )
+        from voice_typer.server.translation.paths import model_is_available
+
+        status[TRANSLATION_MODEL_ID] = {
+            "downloaded": model_is_available(INDEX_TRANSLATE_Q4, config),
+            "deps_ok": True,
+        }
+
         return status
 
     def _invalidate_model_status_cache(self) -> None:

@@ -382,8 +382,14 @@ class TestDeleteStaleActiveModel:
 
         result = service.delete_model("tiny")
         assert result["success"] is True, f"Expected success, got: {result}"
-        assert not result.get("message"), f"success must omit message, got: {result}"
         assert result.get("reason") == "stale_cleared_switched", f"got: {result}"
+        from voice_typer.server import i18n
+
+        assert result.get("message") == i18n.t(
+            "notify.model.delete.stale_cleared_switched",
+            model="tiny",
+            replacement="large-v3-turbo",
+        ), "the auto-switch must reach the renderer as a localized one-time notice"
         assert app.config.model_size == "large-v3-turbo", (
             f"delete_model must clear the stale active config to the "
             f"downloaded fallback, got model_size={app.config.model_size!r}"
@@ -455,8 +461,12 @@ class TestDeleteStaleActiveModel:
 
         result = service.delete_model("tiny")
         assert result["success"] is True, f"Expected success, got: {result}"
-        assert not result.get("message"), f"success must omit message, got: {result}"
         assert result.get("reason") == "stale_cleared_no_model", f"got: {result}"
+        from voice_typer.server import i18n
+
+        assert result.get("message") == i18n.t("notify.model.delete.stale_cleared_no_model", model="tiny"), (
+            "the stale clear must reach the renderer as a localized one-time notice"
+        )
         assert app.config.model_size == NO_MODEL_SIZE, (
             "config must enter the 'no model selected' state when no "
             f"downloaded fallback exists, got model_size={app.config.model_size!r}"

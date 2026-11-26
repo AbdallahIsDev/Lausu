@@ -45,6 +45,10 @@ class DeleteImportMixin:
         from voice_typer.server.config import _config_dir
         from voice_typer.server.model_availability import snapshot_search_dirs
         from voice_typer.server.model_registry import get_model_metadata
+        from voice_typer.server.translation.catalogue import TRANSLATION_MODEL_ID
+
+        if model_name == TRANSLATION_MODEL_ID:
+            return self._delete_translation_model()
 
         # Resolve repo_id from MODEL_REGISTRY so all registered
         meta = get_model_metadata(model_name)
@@ -107,6 +111,37 @@ class DeleteImportMixin:
             log.warning("[SERVICE] delete_model failed: %s", exc)
             return {"success": False, "message": redact_secret(redact_url(str(exc)))}
 
+    def _delete_translation_model(self) -> dict[str, object]:
+        """Remove the translator GGUF from the HF cache, never a dev override."""
+        import shutil
+
+        from voice_typer.server.translation.catalogue import INDEX_TRANSLATE_Q4
+        from voice_typer.server.translation.paths import hub_search_dirs
+
+        dirs = [d for d in hub_search_dirs(INDEX_TRANSLATE_Q4) if d.is_dir()]
+        if not dirs:
+            return {
+                "success": False,
+                "reason": "not_downloaded",
+                "message": _t("notify.model.delete.not_downloaded", model=INDEX_TRANSLATE_Q4.label),
+            }
+        try:
+            from voice_typer.server.translation.service import shutdown as stop_translation
+
+            stop_translation()
+        except Exception:
+            log.debug("[SERVICE] translation runtime stop before delete failed", exc_info=True)
+        try:
+            for directory in dirs:
+                shutil.rmtree(directory)
+        except Exception as exc:
+            log.warning("[SERVICE] translation model delete failed: %s", exc)
+            return {"success": False, "message": redact_secret(redact_url(str(exc)))}
+        self._invalidate_model_status_cache()
+        self._invalidate_tray_model_cache("delete_translation_model")
+        log.info("[SERVICE] Translation model '%s' deleted", INDEX_TRANSLATE_Q4.label)
+        return {"success": True, "reason": "deleted"}
+
     def _clear_stale_active_model(self, model_name: str) -> dict[str, object]:
         """Clear a stale active-model selection whose files are missing from disk."""
         updates, replacement = self._reassign_selection_away_from(model_name, context="stale")
@@ -131,8 +166,12 @@ class DeleteImportMixin:
             )
             reason = "stale_nothing_to_delete"
         log.info("[SERVICE] delete_model: %s", message)
-        # Stale-clear is a SUCCESS recovery path: omit ``message`` so
-        return {"success": True, "reason": reason}
+        result: dict[str, object] = {"success": True, "reason": reason}
+        if updates:
+            # The selection actually changed: surface the localized notice
+            # once via the renderer's existing success-snack path.
+            result["message"] = message
+        return result
 
     def _reassign_selection_away_from(
         self, exclude_name: str, context: str

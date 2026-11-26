@@ -428,6 +428,10 @@ export function trayLabelsForLocale(): Record<string, string> {
 			"notify.dictation_pipeline.translation_failed",
 		],
 		[
+			"notify.dictation_pipeline.translation_model_missing",
+			"notify.dictation_pipeline.translation_model_missing",
+		],
+		[
 			"notify.dictation_pipeline.history_save_failed",
 			"notify.dictation_pipeline.history_save_failed",
 		],
