@@ -2137,3 +2137,11 @@ Harness for the owner: create tools/internal_plugins/DEVELOPER_DIAGNOSTICS (or s
 - RAPID-INPUT RULE: burst presses are one gesture, in-flight presses ignored/coalesced, decided app-wide. Added after owner found 5-press hotkey spam started/stopped repeatedly.
 - USER-ACTION-FIDELITY RULE: test user-style close (button/Alt+F4/tray) as well as forced kill; graceful vs forced paths differ.
 
+## 2026-11-26 - Rapid input, graceful close, stop loss, activation bound
+
+- Added app-wide DictationGate at AppDictation/plugin wrapper; 500 ms leading-edge debounce, transition rejection, min recording window; removed plugin deferred restart replay; ESC aborts starting generation. BEFORE: 5 clicks produced repeated 0.0s cycles. AFTER 17:14:04 one start, no stop; 17:14:43 a later press stopped/started normally.
+- Graceful user close via window Close button during start: 5/5 recovered (0.1-6.0s). Forced kill at same stage 3/5 -> OPEN DEFECT (cooldown/late WMI race).
+- Close during recording 17:18:38: one-line WARN, no traceback, bubble idle, next press 17:19:08 recorded. Added STOP_HINTS, one-line _report_stop_failure, plugin_failure event to renderer snackbar + OS notify, Rust allowlist and parity updates.
+- Activation prepare bounded 5s: 17:13:31 prepare 4.8s (previous 64.9s), truthful warning on incomplete.
+- User-tab policy: storage.session owned-id set, validate id+url+windowId, only owned tabs removed, user tabs adopted. Node tests in tab_ownership.test.js.
+- Edge-case status counts computed from table: VERIFIED-LIVE=9, UNIT-ONLY=5, OPEN DEFECT=1, UNVERIFIED=4. 30-minute soak not implemented (no internal-entry driver channel; C-HOOK-1 blocks injected keys; UI automation cannot reliably deliver 150 ms bursts) -> UNVERIFIED.

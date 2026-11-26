@@ -1,32 +1,29 @@
 # Plugin dictation edge cases — status
 
-Status values: **VERIFIED-LIVE** (real app evidence), **UNIT-ONLY** (fake
-browser/process layer named), **OPEN DEFECT**, **UNVERIFIED** (exact reason).
+Statuses: **VERIFIED-LIVE**, **UNIT-ONLY** (faked layer named), **OPEN DEFECT**, **UNVERIFIED** (reason).
 
-| Case | Expected | Status | Evidence / faked layer |
+| Case | Expected | Status | Evidence / reason |
 |---|---|---|---|
-| Profile never started; first hotkey | one blank launch tab adopted, 1 tab | VERIFIED-LIVE | 1 ChatGPT/Gemini/Claude tab, 5 runs each |
-| Tab closed by hand, profile open | exactly 1 replacement tab, dictation starts | VERIFIED-LIVE | `02:59` failed before; `03:35` tab=loading→ready, recording 2.3 s; 20 ChatGPT cycles |
-| Whole profile closed | relaunch and navigate same tab, 1 tab | VERIFIED-LIVE | `02:32` recovery; 20/20 ChatGPT, Gemini cycles |
-| Chrome killed during startup (0/0.5/1.5/3/5 s) | immediate abort, relaunch, recording | VERIFIED-LIVE | 5/5 stages recovered in 0.7–7.8 s |
-| Chrome killed mid-recording | stop gives clear result, no hang | VERIFIED-LIVE | stage 5 s kill + stop; 10 kill/relaunch cycles |
-| Tab=loading with mic in DOM | must NOT pass gate | VERIFIED-LIVE | `02:59` before; `03:35` after state transition to ready |
-| Restore pages bubble | never appears, no tab change | VERIFIED-LIVE | Preferences clean-exit before launch; 10 kills → 0 bubbles, 1 tab each |
-| Mic permission | granted for exactly 3 origins, no global flag | UNIT-ONLY | profile Preferences inspected; fake layer = tmp file |
-| Extension reload / service worker restart | no duplicate tabs | VERIFIED-LIVE | reload driven repeatedly; tabs-dump 1–3, no stray blank |
-| Daemon killed | next start respawns, no second daemon | UNIT-ONLY | fake process/launch layer; live kill UNVERIFIED |
-| Port busy | no second daemon, clear failure | UNIT-ONLY | liveness helpers; live port occupancy UNVERIFIED |
-| Tab discarded by Memory Saver | detect, re-ensure/reload, wait ready | UNIT-ONLY | `ensure_target_ready` re-posts `/ensure-tab` on `tab.discarded`; live `chrome.tabs.discard` UNVERIFIED |
-| Tab navigated to other site / login / settings | fail fast with actionable hint, no tab churn | VERIFIED-LIVE (login detection unit only) | `tab.wrong_url` / `signed_in.no` state; live navigation UNVERIFIED |
-| Second manual tab of same platform | never close user tab; pick active matching tab | UNIT-ONLY | active-tab selection pinned by tab_resolution tests |
-| Double press <300 ms | one cycle, no duplicate tab | UNIT-ONLY | generation/supersede tests with fake session |
-| Press during activation / stuck start | new press supersedes old start | UNIT-ONLY | `test_start_supersede.py` fake session |
-| Press during stop / plugin switch | single-flight preserved | UNIT-ONLY | C-CONC-1 tests |
-| Offline at start / mid-session | actionable failure, no blind 12 s | UNVERIFIED | no admin firewall rule applied |
-| Sleep/resume, Windows lock | reconnect, no tab churn | UNVERIFIED | cannot simulate in this session |
-| Hidden vs visible mode | logic identical, only visibility differs | VERIFIED-LIVE | 5 cycles each scenario in both modes; 1 tab |
-| Plugin off/on | tabs reused, no duplicate | VERIFIED-LIVE | cold start 5 runs each; 1 tab |
+| 5 taps at 150 ms | one started recording, no stop | VERIFIED-LIVE | `17:14:04` one start, no stop; gate rejects rest |
+| 2 taps at 300 ms | one gesture | UNIT-ONLY | fake clock `tests/test_dictation_gate.py` |
+| press during starting | ignored, no replay | VERIFIED-LIVE | `17:14` burst; unit replay pin |
+| press during stopping | ignored | UNIT-ONLY | gate state test |
+| press while profile launching | relaunch then one recording | VERIFIED-LIVE | graceful close 5/5 at 0.5 s |
+| press 1 s after recording | stops normally | VERIFIED-LIVE | `17:14:37` stop + `17:14:43` next start |
+| Esc during starting | aborts, no late start | UNIT-ONLY | generation bump in `cancel()` |
+| Chrome closed gracefully during start | relaunch bounded, one recording | VERIFIED-LIVE | 5/5 graceful at 0.5 s, 0.1–6.0 s |
+| Chrome killed during start | same | OPEN DEFECT | 3/5 at same stage; cooldown/late-WMI race under investigation |
+| Chrome closed during recording | one-line WARN, idle, next press works | VERIFIED-LIVE | `17:18:38` WARN no traceback; `17:19:08` next recording |
+| Bridge disconnect during recording | same + text recovery | UNVERIFIED | text recovery requires page alive; not driven |
+| Tab closed by hand | one replacement, ready | VERIFIED-LIVE | 20/20 ChatGPT prior round |
+| Tab discarded | reload then ready | UNIT-ONLY | ownership/re-ensure tests; live discard UNVERIFIED |
+| User's own platform tab | never closed, adopted | UNIT-ONLY | `tab_ownership.test.js`, no live second tab |
+| 65 s activation | bounded few seconds | VERIFIED-LIVE | `17:13:31` prepare 4.8 s (was 64.9 s) |
+| Hidden vs visible | logic identical | VERIFIED-LIVE | earlier 5-cycle both modes; not repeated after gate |
+| Offline | actionable failure | UNVERIFIED | no firewall rule applied |
+| Sleep/resume, lock screen | reconnect | UNVERIFIED | cannot simulate here |
+| Local/cloud engine burst | one gesture | UNVERIFIED | no local model file/API key available; gate unit tests cover all engines |
 
-Decision: one tab per plugin. Measured 1/2/3 tabs = 1168/1566/2108 MB
-working set; ChatGPT navigation 885–2206 ms and drafts lost. Revisit only if
-plugins become end-user visible or RAM pressure dominates.
+Decision: one tab per plugin. 1/2/3 tabs = 1168/1566/2108 MB working set;
+ChatGPT navigation 885–2206 ms, composer text lost. Revisit only if plugins
+become end-user visible or RAM pressure dominates.
