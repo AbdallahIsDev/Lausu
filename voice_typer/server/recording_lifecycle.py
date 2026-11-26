@@ -250,6 +250,15 @@ class RecordingLifecycle(
             self._notify_mic_watcher_of_active_device(app)
             # System-volume ducking moved OFF this thread: it now runs at
             log.info("[DICTATION] Recording started OK (cycle=%s)", app._cycle_id)
+            # C-START-USER-1: only a user action reaches this entry, so a
+            # successful mic open is the genuine "recording started" moment.
+            # The warm helper spawns its own daemon thread; never block here.
+            try:
+                from voice_typer.server.translation.service import warm_on_user_record
+
+                warm_on_user_record(app.config)
+            except Exception:
+                log.debug("[TRANSLATE] warm-on-record skipped (non-fatal)", exc_info=True)
             self._claim_keyboard_ownership_for_recording(app)
             self._rearm_esc_cancel_if_enabled(app)
             self._spawn_dictation_start_worker(controller, app)
