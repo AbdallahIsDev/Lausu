@@ -166,6 +166,7 @@
     patterns,
     targetUrls,
     probe = async () => true,
+    ownership = null,
     logEvent = () => {},
     delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     maxWaitMs = SETTLE_MAX_MS,
@@ -210,18 +211,42 @@
     // One tab per platform. Only surplus tabs that matched THIS platform's
     // URL pattern are removed; other platforms and unrelated tabs are never
     // touched, and the preferred tab is always kept.
+    async function allTabs() {
+      return new Promise((resolve) => {
+        try {
+          chromeApi.tabs.query({}, (tabs) => {
+            if (chromeApi.runtime && chromeApi.runtime.lastError) void chromeApi.runtime.lastError;
+            resolve(tabs || []);
+          });
+        } catch (_) {
+          resolve([]);
+        }
+      });
+    }
+
     async function dropSurplus(tabs, keepId) {
+      // Only tabs marked as ours may be closed. A user's own platform tab is
+      // adopted but never removed, even when several matches exist.
+      const owned = ownership ? await ownership.ids(await allTabs()) : null;
       for (const tab of tabs) {
         if (tab.id === keepId) continue;
+        if (owned && !owned.includes(tab.id)) continue;
         await removeTab(chromeApi, tab.id);
+        if (ownership) await ownership.unmark(tab.id);
       }
+    }
+
+    async function markOwned(tab, platform) {
+      if (!ownership || !tab) return;
+      const prefix = patterns[platform] ? patterns[platform].slice(0, -1) : "";
+      await ownership.mark(tab, platform, prefix);
     }
 
     async function waitForTab(platform, expectedId) {
       const started = Date.now();
       for (;;) {
-        const tab = await find(platform);
-        if (tab && (tab.id === expectedId || !expectedId)) return tab;
+        const tab = (await allTabs()).find((candidate) => candidate.id === expectedId) || null;
+        if (tab) return tab;
         if (Date.now() - started >= maxWaitMs) return null;
         await delay(SETTLE_POLL_MS);
       }
@@ -258,6 +283,7 @@
       const blank = await findBlank(chromeApi);
       if (blank) {
         await navigateTab(chromeApi, blank.id, targetUrl(platform, opts, patterns, targetUrls), logEvent);
+        await markOwned({ id: blank.id, windowId: blank.windowId, url: targetUrl(platform, opts, patterns, targetUrls) }, platform);
         tab = await waitForTab(platform, blank.id);
         if (tab) {
           await dropSurplus(await allMatches(platform), tab.id);
@@ -281,6 +307,7 @@
         return { tabId: null, created: false, ready: false, reason: "create-failed" };
       }
       if (!created) return { tabId: null, created: false, ready: false, reason: "create-failed" };
+      await markOwned(created, platform);
 
       tab = await waitForTab(platform, created.id);
       if (!tab) {

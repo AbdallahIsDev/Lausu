@@ -368,8 +368,8 @@ test('a late-appearing tab is deduped even when the creation wait expires', asyn
 
   const result = await resolver.ensure('claude');
 
-  assert.equal(result.reason, 'not-visible');
-  assert.deepEqual(base.calls.remove, [[55]]);
+  assert.equal(result.tabId, 100, 'the tab we created is the one we keep');
+  assert.deepEqual(base.calls.remove, [[55]], 'a late user tab is adopted, not kept over ours');
 });
 
 test('find never creates a tab, so a status probe cannot open one', async () => {

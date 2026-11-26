@@ -13,7 +13,7 @@ const paths = require('./install_paths');
 
 const SOURCE = path.join(__dirname, 'extension');
 const SCRIPT_FILES = [
-  'manifest.json', 'content.js', 'service_worker.js', 'tab_resolution.js', 'nav_bench.js',
+  'manifest.json', 'content.js', 'service_worker.js', 'tab_resolution.js', 'tab_ownership.js', 'nav_bench.js',
   'popup.html', 'popup.js',
 ];
 const ICONS_DIR = 'icons';

@@ -6,7 +6,7 @@
 // as long as a socket is open. The alarms entry is the reconnect backstop for
 // the case where Chrome terminated the worker while the daemon was down.
 
-importScripts('generated/config.js', 'tab_resolution.js', 'nav_bench.js');
+importScripts('generated/config.js', 'tab_resolution.js', 'tab_ownership.js', 'nav_bench.js');
 
 const CFG = self.ANTHROPIC_STT_CONFIG || {};
 const { createTabResolver, matchesUrl } = self.SttTabResolution;
@@ -278,6 +278,7 @@ function resolver() {
       chromeApi: chrome,
       patterns: TAB_PATTERNS,
       targetUrls: TARGET_URLS,
+      ownership: self.SttTabOwnership.createOwnership(chrome.storage),
       logEvent: (event) =>
         send({ event: 'tab-event', at: new Date().toISOString(), ...event }),
       // A created tab answers the port before its content script listens;

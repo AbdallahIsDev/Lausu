@@ -224,6 +224,7 @@ _SHARED_PIECES = (
     "extension/content.js",
     "extension/service_worker.js",
     "extension/tab_resolution.js",
+    "extension/tab_ownership.js",
     "selectors/claude.json",
     "selectors/gemini.json",
     "chrome_profile.py",
