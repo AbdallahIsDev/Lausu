@@ -83,8 +83,13 @@ def test_dictation_gate_topic_has_color_entry() -> None:
     color_code = _TOPIC_COLOR["DICTATION-GATE"]
     assert color_code == "38;5;80"
     record = logging.LogRecord(
-        name="voice_typer", level=logging.INFO, pathname=__file__, lineno=1,
-        msg="[DICTATION-GATE] ignore-burst (generation=1)", args=(), exc_info=None,
+        name="voice_typer",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="[DICTATION-GATE] ignore-burst (generation=1)",
+        args=(),
+        exc_info=None,
     )
     formatted = _ColorFormatter().format(record)
     assert f"\033[{color_code}m" in formatted
