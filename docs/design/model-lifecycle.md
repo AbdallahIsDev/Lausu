@@ -423,3 +423,79 @@ commit times is not evidence of final code. The shared app was never stopped or
 killed by this work; S2 briefly changed `translation_gpu_enabled` for the GPU
 test and restored it, leaving that process's translator on its old flag until
 its next dictation.
+
+
+---
+
+## Provider ownership rule (dated 2026-11-28, Round 8)
+
+Plain English first. The owner saw a browser plugin serving dictation while the
+app still tried to load the local speech model on every hotkey press, produced
+"offline pack is not installed" warnings and showed a no-model notice. That was
+a real regression, not a misunderstanding: the startup path and the record-start
+path disagreed about who owns dictation.
+
+### Root cause
+
+Commit `afe72f7e6` (2026-11-27 15:39, the Round 5 lifecycle work) added the
+record-start hook at `dictation_gate.py:80-94` with `_AsrPolicy.applicable()`
+returning `True` unconditionally. Startup had an older plugin-only skip
+(`_phases_late.py:376-391`, commit `32ecd9915`), and the model manager had
+another plugin-only probe (`_loading.py:283-289`). A plugin press therefore
+passed the startup skip, hit the record-start hook, created `WorkerBackedAsr`
+and tried to load weights that the shipped slim installer does not provide —
+exactly the owner's log shape. `git log -S` confirms only `afe72f7e6` added
+`class _AsrPolicy` and `on_dictation_start(app)`.
+
+### Decision: one shared provider definition
+
+`voice_typer/server/dictation_provider.py` is now the single answer to "who
+serves dictation right now" (kinds: `local`, `cloud`, `plugin`, `remote`,
+`none`). It reads fresh config/plugin state on every call, checks the plugin
+surface visibility FIRST, and never starts a browser profile just to answer.
+Consumers: `_AsrPolicy.applicable()`, startup phases 7/8, model-manager warm
+paths, the no-engine refusal/notices, tray status and tray label, and the
+local-fallback guard at the shared start entry. Translator and TTS policies are
+untouched — translation is independent of which provider writes Stage A.
+
+Consequences, all verified with real-entry tests in
+`tests/test_dictation_provider_ownership.py`:
+- plugin, remote or cloud provider selected -> local ASR kind is NOT
+  applicable: no `WorkerBackedAsr` creation, no load attempt, no idle reload,
+  no local-model notice, no OS toast, no `[ASR_REGISTRY] refused` warnings. A
+  cloud ENGINE still activates; that is not a local model.
+- plugin selected but its session is not ready -> local recorder refuses with
+  one warning; there is no hidden switch to local ASR.
+- local provider selected with pack/model/runtime missing -> one actionable
+  notice per episode (what is missing and where to click), deduplicated until a
+  successful load, and the microphone is not opened.
+- visible plugin surface off -> no plugin code is imported or profile touched.
+
+### Live re-run
+
+Three scratch sidecars from current source, plugin selected, three start/stop
+pairs each (boundary-only launcher patches; no OS key injection): before the
+fix 1 backend was created, with 6 `refused to load` and 6 `reload refused`
+warnings; after the fix all three counts were **0**, with zero no-model notices.
+The local converse produced exactly one pack-missing notice and no microphone
+open. OS toast delivery is UNVERIFIED headless; the in-app notice event was
+verified. Full trimmed log excerpts and commands are in
+`C:\Users\11\AppData\Local\Temp\opencode\r8-s2-report.md`.
+
+### Edge-case matrix
+
+| Case | Covered by |
+| --- | --- |
+| provider local / cloud / plugin / remote / none | `test_dictation_provider_ownership.py` (23 tests) |
+| plugin -> local, with and without pack | ownership tests + local converse live re-run |
+| local -> plugin while ASR loaded | lifecycle idle tests (unload stays owned by model_manager) |
+| plugin area hidden | visibility-first probe in provider tests |
+| plugin fails to start | plugin-not-ready branch test (no hidden local fallback) |
+| model present but pack missing / pack present but model missing | applicability tests + live local converse |
+| translation on with each provider | translation policy untouched; translation lifecycle tests |
+| two quick presses | dictation gate tests |
+| shutdown during load | lifecycle shutdown tests |
+
+Follow-up, not done here: renderer label parity for a remote `asr_provider`
+(the renderer still treats some remote ids as "custom" in one label path); no
+user-visible behavior is wrong, so this is cosmetic.
