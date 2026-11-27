@@ -20,22 +20,151 @@ this machine:
   This is real but still small next to native startup, which the logs put at
   1.6 s warm / 3.0 s spaced-out (up to 8 s) before the Python app even says
   hello.
-- The whole-buffer copy the audit called the one real defect is real, but this
-  Windows machine copies 30 MB in **1.9 s of CPU over an 8-minute take**, not
-  5.7 s, and stalls other threads up to **38 ms**, not 25 ms. Also important:
-  the path is **dormant in this profile** — the offline pack is missing and a
-  browser plugin owns dictation, so no worker-backed local engine is active.
-- The resampler is the one place where the cloud estimate was too _low_. With
-  real numpy/scipy the 16 kHz → 48 kHz → 16 kHz pair burns **~8.6% of one core**
+- The whole-buffer copy the audit called the one real defect was real in the
+  baseline, but this Windows machine copies 30 MB in **1.9 s of CPU over an
+  8-minute take**, not 5.7 s, and stalls other threads up to **38 ms**, not
+  25 ms. Also important: the path is **dormant in this profile** — the offline
+  pack is missing and a browser plugin owns dictation, so no worker-backed
+  local engine is active. Round 6 fixed it anyway (unseen-tail copy); the
+  measurement above is the before picture.
+- The resampler was the one place where the cloud estimate was too _low_. With
+  real numpy/scipy the 16 kHz → 48 kHz → 16 kHz pair burned **~8.6% of one core**
   while a suppressor runs, not 0.8%. At 44.1 kHz the audit's exact shape costs
-  ~22 ms CPU per audio-second, about 2.7x its proxy.
+  ~22 ms CPU per audio-second, about 2.7x its proxy. Round 6 vectorized it down
+  to 0.37% of one core; the figures above are the before picture.
 - The 5 ms / 300 ms teardown poll is correctly described in the source, but on
   a real audio device it added **0 ms** in normal stops. It adds the full 300 ms
   only when a callback flag never clears. A real 1-second take stopped in
-  **17 ms** median.
+  **17 ms** median. Round 6 left it alone: zero normal-path gain, nonzero risk.
 - The overlay bubble's Python half is microseconds. The missing end-to-end
   "hotkey → bubble visible" measurement is what would justify a renderer
   change; there is no measured Python bottleneck to remove there.
+
+## Round 6 fixes and verdicts (2026-11-27)
+
+Plain English: two fixes shipped, two were deliberately declined, and no Rust
+rewrite is supported by the numbers. The worker now copies only the audio it
+has not sent yet (480 s take: ~1.9 s of conversion CPU down to ~2 ms), and the
+resampler now does one vectorized reduction per chunk instead of a per-sample
+loop (16→48→16 pair: 2.84 → 0.12 ms per chunk, 8.9% → 0.37% of one core). The
+teardown poll costs nothing in a normal stop, so changing it was not worth the
+risk; lazy imports save only tens of milliseconds of a multi-second start and
+were not done because of frozen-build risk. Every number below comes from the
+Round 6 worker reports, using the same harnesses as the measurements above.
+Where a path could not be driven in this profile, it is marked UNVERIFIED.
+
+### B1 — SHIPPED: unseen-tail copy instead of whole-buffer copy
+
+`worker_streaming.py` now converts only `snapshot[from_samples:]` before
+`tobytes()` on each push and at `finalize()`. Wire bytes, frame indices,
+chunking, thread name, log lines, public API and failure behavior are unchanged.
+
+| Take | Before: whole-copy CPU median / p95 | After: real push-path CPU median / p95 | After: wall median (before) |
+| --- | --- | --- | --- |
+| 30 s | 7.877 / 7.920 ms | **0.135 / 0.155 ms** | 7.365 ms (15.834) |
+| 120 s | 96.538 / 96.592 ms | **0.526 / 0.548 ms** | 28.547 ms (129.201) |
+| 480 s | **1856.642 / 2035.309 ms** | **2.043 / 2.051 ms** | 113.873 ms (2034.968) |
+
+- 480 s: conversion ~1857 → ~2.0 ms (~910x); bytes copied 14,077 → 29.3 MiB
+  (~480x); wall ~2035 → ~114 ms (~18x). Per-call conversion is ~2 µs
+  (2.043 ms over 960 polls).
+- GIL probe: the old path gave p95 17.17 ms / max 21.18 ms lateness (baseline
+  p95 0.59 ms). A tight loop of 32 KB delta copies still shows median 14.6 ms
+  lateness because it saturates a core; that is not a per-call stall. Real-app
+  GIL effect: **UNVERIFIED**.
+- Remaining 480 s cost is push encode (base64/JSON frame building), median
+  **111.3 ms**, untouched by this change and out of scope.
+- Correctness: byte-identical oracle tests (growth, no-change, shrink/resync,
+  non-contiguous view, delta larger than `_PUSH_RAW_BYTES`; finalize with
+  unseen-all / partial / all-seen / over-large cursor), exact 4x and 16x
+  linearity and one copy per sample through the real `_drive_pushes`; unusable
+  input stays non-fatal. Scoped run: **139 passed, 0 failed**; ruff check and
+  format clean. The four required files (`test_worker_streaming.py`,
+  `test_worker_streaming_session.py`, `test_worker_samples_atomic_send.py`,
+  `test_recorder_snapshot_view.py`) were not modified and pass unchanged.
+- The path is dormant in this profile (offline pack missing, browser plugin
+  owns dictation), but the fix is justified by the measured copy/GIL cost when
+  the path is active. No real local-engine take was driven here: **UNVERIFIED**.
+
+### B2 — NOT SHIPPED: 5 ms / 300 ms teardown poll left alone
+
+- Real `Recorder.start()` → 1 s capture → `stop()`: stop median **17.3 ms**
+  (p95 17.5, max 46.9).
+- Isolated teardown: no callback in flight **55.97 ms**; callback clears after
+  10 ms **56.02 ms** (poll hidden inside stop/close, **+0.05 ms**); callback
+  never clears **356.95 ms** (the poll adds the full 300 ms).
+- The poll is a confirmed worst-case bound, **0 ms in normal stops**. Changing
+  it adds risk for zero measured normal gain. If a never-clearing callback is
+  ever seen in a real log, fix the callback release, not the poll.
+
+### B3 — SHIPPED: vectorized streaming resampler
+
+The per-output `for j in range(count)` + `np.dot` loop is replaced by one gather
+plus row-wise `np.einsum("ij,ij->i", ..., optimize=False)`; public interface,
+output count, history/phase/counter updates, `reset()` and zero-length behavior
+are unchanged.
+
+| Pair | Before median | After median | Speedup | Before p99 | After p99 | CPU per audio-second |
+| --- | --- | --- | --- | --- | --- | --- |
+| 16→48→16 | 2.8373 ms | 0.1194 ms | 23.8x | 3.6498 ms | 0.1932 ms | 88.666 → 3.731 ms (8.9% → 0.37% of one core) |
+| 44.1 kHz | 1.4828 ms | 0.0713 ms | 20.8x | 2.3595 ms | 0.1081 ms | 46.336 → 2.23 ms |
+
+All single stages got faster (median / p99, ms):
+
+| Shape | Before | After | Speedup | Before p99 | After p99 |
+| --- | --- | --- | --- | --- | --- |
+| 16→48 (3/1), 512→1536 | 2.0953 | 0.0718 | 29.2x | 3.3701 | 0.1511 |
+| 48→16 (1/3), 1536→512 | 0.7033 | 0.0487 | 14.4x | 0.8742 | 0.1056 |
+| 16→44.1 (160/147), 512→557 | 0.7564 | 0.0378 | 20.0x | 1.0228 | 0.0682 |
+| 44.1→16 (147/160), 1411→1296 | 1.7792 | 0.0630 | 28.2x | 2.6358 | 0.1174 |
+| 44.1→16 narrow (160/441), 512→185 | 0.2595 | 0.0275 | 9.4x | 0.5527 | 0.0592 |
+
+- Correctness: **6,661** golden float32 values compared; 3,726 bit-identical
+  (56%); worst absolute difference **7.45e-9** on 0.05-scale inputs, worst
+  difference relative to a chunk's output peak 1.8e-7. That is float32
+  reduction-order noise between BLAS `sdot` and einsum's row reduction; a
+  phase/history error would shift whole samples (~1e-2). Tolerance 2e-8
+  absolute, rtol=0, still 50x below the existing 1e-6 chunking tolerance.
+- State (`phase`, `in_total`, `out_total`, `hist` bytes) byte-identical in every
+  golden chunk. 10,000-chunk runs at 13/1, 1/3 and 160/147: worst divergence
+  7.45e-09 / 1.12e-08 / 1.16e-10, no drift, final state byte-identical to the
+  scalar reference. Zero-length input still returns empty float32 and leaves
+  state untouched.
+- Scoped run: **250 passed in 5.40 s** (18 new, 232 existing tests unchanged);
+  ruff check and format clean. Existing suppressor/noise-gate tests unchanged.
+  Construction cost 0.119 → 0.120 ms (16 kHz) and 0.477 → 0.544 ms (44.1 kHz,
+  noise); noise-gate scalar-fallback counters unchanged (0/160 both scenarios).
+
+### B4 — NOT DONE per instruction: no lazy import of ssl / security.http_safety
+
+15-30 ms of a multi-second start does not justify the Nuitka frozen-import risk.
+Left as an idea, not a change; nothing was lazy-imported for this item.
+
+### B5 — startup ideas, ranked; none implemented
+
+| # | Measured cost | Idea | Risk / reason not done |
+| --- | --- | --- | --- |
+| 1 | Browser-plugin activation: 3.1 s median, 10.3 s at last boot | Prepare/overlap it with host boot | The plugin must be ready before the first hotkey; recovery stays bounded |
+| 2 | Speech-synthesis prewarm: 3.2 s median, 1.6 s at last boot | Defer to first use | Moves the wait into the first synthesis request |
+| 3 | Worker process spawn: 0.6 s median (0.4 s last boot; p95 22.8 s under load) | Overlap with startup | Worker liveness/parent-watch contract must stay intact |
+| 4 | scipy file warm: 0.5 s median (1.5 s at last boot) | Warm on a background thread after the handshake | First decode could pay it instead |
+| 5 | Worker warm-import pass: 0.2-2.3 s (1.7 s at last boot) | Same background overlap | Same first-use latency risk |
+| 6 | Config import graph: 78 ms cumulative | Lazy imports | Frozen-build import failures (see B4) |
+| 7 | Security / TLS import graph: 60.7 ms cumulative (`security.http_safety` 34.4) | Lazy imports | Same Nuitka frozen-import risk (B4) |
+
+The owner's "enabled-feature checks" suspicion is **refuted**: 21.5 ns per flag
+read, ~0.37 µs for all 17 flags. The cost is importing the modules those flags
+gate (~130 ms cumulative of the 200 ms import), not reading the flags.
+
+### Rust verdict after Round 6
+
+No broad Rust rewrite is supported. After B3 the resampler's 16→48→16 p99 is
+0.1932 ms against a 32 ms chunk budget and 0.37% of one core: a PyO3 extension
+would add a Nuitka build artifact, integrity-manifest entry and installer work
+for a sub-0.5% core cost, so it is **not worth it now**. Revisit only if the
+suppressor path shows a different bottleneck after this change. The GPUI bubble
+remains orthogonal to Python performance; the missing measurement is WebView /
+host paint latency on Windows. No Rust or PyO3 build was attempted in Round 6.
 
 ## Audit claim → measured on Windows → verdict
 
@@ -192,6 +321,13 @@ Python names are UNVERIFIED; thread counts are MEASURED.
 - Python work worth doing first: the worker whole-buffer copy (1.9 s CPU per 8-minute take when the path is active), and lazy imports for the ~130 ms config/security import share. The teardown poll only matters if a stuck callback is actually observed.
 - The resampler inner loop is the only candidate with a real CPU share (8.6% of one core while a suppressor runs). A small native function could help, but it adds a build artifact to the frozen sidecar; measure the audio-thread p99 before deciding.
 - The GPUI bubble is orthogonal to Python performance. The missing number is WebView/host paint latency on Windows, not backend time.
+
+**Round 6 update (2026-11-27):** this is the pre-fix decision list. The
+whole-buffer copy and resampler items are done (B1/B3 shipped, with byte/oracle
+equivalence); the teardown poll and lazy imports were left alone (B2/B4), and
+the ranked startup ideas (B5) were not implemented. After B3 a native resampler
+is not worth its build cost; no Rust rewrite is supported. See "Round 6 fixes
+and verdicts" above for the measured before/after and the reasons.
 
 ## UNVERIFIED
 
