@@ -364,7 +364,7 @@ def install(app: Any) -> bool:
             return
         if decide_toggle(app).startswith("ignore"):
             return
-        if session is previous:
+        if previous is not None and session is previous:
             session.toggle()
             return
         # Selection changed since the last press: stop the old owner first so

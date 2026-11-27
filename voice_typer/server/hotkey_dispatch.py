@@ -27,9 +27,7 @@ def no_active_engine(app: Any) -> bool:
         return False
     if internal_plugin_hook.plugin_display_name(app):
         return False
-    if getattr(cfg, "model_size", "") or getattr(cfg, "asr_backend", "") == "cloud":
-        return False
-    return True
+    return not (getattr(cfg, "model_size", "") or getattr(cfg, "asr_backend", "") == "cloud")
 
 
 def notify_no_active_engine(app: Any, caller: str = "HOTKEY") -> None:

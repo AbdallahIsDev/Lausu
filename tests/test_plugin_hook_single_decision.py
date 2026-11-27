@@ -8,6 +8,7 @@ are stubbed at the process boundary.
 from __future__ import annotations
 
 from voice_typer.server import dictation_origin
+
 from tests.plugins.test_user_initiated_start import _installed_app
 
 
