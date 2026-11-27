@@ -373,14 +373,15 @@ class LatePhases:
                 "[STARTUP] model reconciliation failed (non-fatal, load precheck still guards)",
                 exc_info=True,
             )
-        plugin_owner = internal_plugin_hook.plugin_display_name(app)
-        if plugin_owner:
-            # The plugin transcribes in the browser, so a local engine would be
-            # warmed for nothing: no local recording, no local decode. The load
-            # stays available on demand (Media transcription, switching back).
+        from voice_typer.server.dictation_provider import for_app
+
+        provider = for_app(app)
+        if provider.kind in ("plugin", "remote"):
+            # This provider never uses local weights: no local recording, no
+            # local decode. On-demand local loads (Media, switching back) stay.
             log.info(
                 "[STARTUP] %s serves dictation, skipping the local model load",
-                plugin_owner,
+                provider.label,
             )
         elif os.environ.get("VOICE_TYPER_DEFER_MODEL_LOAD") == "1":
             # Dev-bridge sidecars skip the multi-GB background model load;
@@ -449,17 +450,20 @@ class LatePhases:
         model_size = getattr(getattr(app, "config", None), "model_size", "") or ""
         load_thread = getattr(getattr(app, "models", None), "_model_load_thread", None)
         loading = bool(getattr(load_thread, "is_alive", lambda: False)())
-        plugin_owner = internal_plugin_hook.plugin_display_name(app)
+        from voice_typer.server.dictation_provider import for_app
+
+        provider = for_app(app)
         elapsed = format_duration(time.perf_counter() - self._t0)
-        if plugin_owner:
+        if provider.kind in ("plugin", "remote"):
             log.info(
                 "[STARTUP] Startup complete (%s serves dictation, no local model loaded)%s",
-                plugin_owner,
+                provider.label,
                 elapsed,
             )
-            # The startup LOADING state was raised by app.start() and the
-            # local loader used to be the only thing that cleared it. One
-            # shared reconcile keeps startup and runtime switches identical.
+            # The startup LOADING state has no local loader to clear it here.
+            internal_plugin_hook.reconcile_status(app)
+        elif provider.kind == "cloud":
+            log.info("[STARTUP] Startup complete (%s serves dictation)%s", provider.label, elapsed)
             internal_plugin_hook.reconcile_status(app)
         else:
             if not model_size:
@@ -472,7 +476,7 @@ class LatePhases:
 
         # Terminal tray reconcile (no-model hole). One helper covers startup
         # and runtime switches; no engine is not a LOADING state.
-        if not model_size and not loading and not getattr(app, "_shutting_down", False):
+        if not provider.owns_dictation and not loading and not getattr(app, "_shutting_down", False):
             internal_plugin_hook.reconcile_status(app)
 
         # Post-ready maintenance: the stale backup/``.tmp`` sweeps run on

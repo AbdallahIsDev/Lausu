@@ -211,24 +211,27 @@ def reconcile_status(app: Any) -> bool:
     """Make the tray status agree with the engine that actually serves dictation.
 
     ``LOADING`` is raised once by startup and normally cleared by the local
-    model loader. When a plugin owns dictation that loader never runs, so the
-    stale loading state would otherwise survive forever. Startup and runtime
-    plugin switches both call this one helper.
+    model loader. When a plugin or cloud provider owns dictation that loader
+    never runs, so the stale loading state would otherwise survive forever.
+    The provider decision is shared with startup and the record-start hook.
     """
     tray = getattr(app, "tray", None)
     setter = getattr(tray, "set_state", None)
     if not callable(setter):
         return False
     try:
+        from voice_typer.server.dictation_provider import for_app
         from voice_typer.server.i18n import t as _t
         from voice_typer.server.tray_types import AppState
 
-        owner = plugin_display_name(app)
-        if owner:
-            setter(AppState.IDLE, _t("state.plugin_serves_dictation", name=owner))
+        provider = for_app(app)
+        if provider.kind == "plugin":
+            setter(AppState.IDLE, _t("state.plugin_serves_dictation", name=provider.name))
             return True
-        config = getattr(app, "config", None)
-        if not str(getattr(config, "model_size", "") or ""):
+        if provider.kind in ("cloud", "remote"):
+            setter(AppState.IDLE, _t("state.ready"))
+            return True
+        if provider.kind == "none":
             # No engine is a real, actionable error state — same as startup.
             setter(AppState.ERROR, _t("state.model_manager.no_model_selected"))
             return True

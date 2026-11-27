@@ -19,15 +19,13 @@ log = logging.getLogger("voice_typer.server.hotkey_dispatcher")
 
 
 def no_active_engine(app: Any) -> bool:
-    """True when no local model, cloud backend or browser plugin can transcribe."""
-    from voice_typer.server import internal_plugin_hook
+    """True when no local model, cloud backend, remote provider or plugin can transcribe."""
+    from voice_typer.server.dictation_provider import for_app
 
     cfg = getattr(app, "config", None)
     if cfg is None:
         return False
-    if internal_plugin_hook.plugin_display_name(app):
-        return False
-    return not (getattr(cfg, "model_size", "") or getattr(cfg, "asr_backend", "") == "cloud")
+    return not for_app(app, cfg).owns_dictation
 
 
 def notify_no_active_engine(app: Any, caller: str = "HOTKEY") -> None:

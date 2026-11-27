@@ -79,16 +79,21 @@ def tooltip_model_label(config) -> str:
     """
     from voice_typer.server.model_registry import NO_MODEL_SIZE, get_model_metadata
 
-    # A selected plugin owns dictation: the local model is not transcribing,
-    # so the tray names the plugin instead (same rule as the sidebar caption).
+    # The tray names whoever actually serves dictation, never the unused
+    # local model. The app-aware probe stays authoritative for plugin callers.
     try:
         from voice_typer.server import internal_plugin_hook
 
         plugin_name = internal_plugin_hook.plugin_display_name_for(config)
     except Exception:
         plugin_name = ""
-    if plugin_name:
-        return plugin_name
+    from voice_typer.server.dictation_provider import for_config
+
+    provider = for_config(config, plugin_name=plugin_name)
+    if provider.kind == "plugin":
+        return provider.name
+    if provider.kind == "remote":
+        return provider.name
 
     backend = getattr(config, "asr_backend", "whisper") or "whisper"
     if backend in ("qwen", "parakeet"):

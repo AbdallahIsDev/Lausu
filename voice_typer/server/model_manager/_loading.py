@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from voice_typer.server import i18n, internal_plugin_hook
+from voice_typer.server import i18n
 from voice_typer.server.asr.registry import MODEL_LOAD_TIMEOUT_SECONDS, MODEL_SLOW_LOAD_GRACE_SECONDS
 from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError
 from voice_typer.server.asr_registry import AsrBackendRegistry
@@ -123,6 +123,9 @@ class LoadingMixin:
         """1. touch the freshly-loaded backend so PERF-015 LRU tracking
         ``set_tray_locale`` (see ``client/.../i18n/push.ts``), so the
         """
+        from voice_typer.server.model_manager._notify import clear_load_refusal_notice
+
+        clear_load_refusal_notice()
         try:
             self.touch_model(backend_name)
             self._evict_lru_model()
@@ -167,6 +170,12 @@ class LoadingMixin:
         # bail out early if shutdown was signalled while this
         if self._app._shutting_down:
             log.debug("[MODEL] load_background skipped, shutdown already in progress")
+            return
+        from voice_typer.server.dictation_provider import for_app
+
+        provider = for_app(self._app)
+        if provider.kind in ("plugin", "remote"):
+            log.info("[MODEL] local model load skipped: %s serves dictation", provider.label)
             return
         # can log them without re-reading ``self._app.config`` (which
         backend_name = getattr(self._app.config, "asr_backend", "unknown")
@@ -283,9 +292,11 @@ class LoadingMixin:
         # A plugin transcribes in the browser and never records locally, so
         # warming an engine here would hold RAM (and a worker process) for a
         # hotkey it does not serve. On-demand loads stay available.
-        owner = internal_plugin_hook.plugin_display_name(self._app)
-        if owner:
-            log.info("[MODEL] background load skipped: %s serves dictation", owner)
+        from voice_typer.server.dictation_provider import for_app
+
+        provider = for_app(self._app)
+        if provider.kind in ("plugin", "remote"):
+            log.info("[MODEL] background load skipped: %s serves dictation", provider.label)
             return
         if self._model_load_thread is not None and self._model_load_thread.is_alive():
             return

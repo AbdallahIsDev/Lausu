@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from typing import TYPE_CHECKING
 
 from voice_typer.server import i18n
@@ -16,6 +17,16 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("voice_typer.server.model_manager")
 
+_notice_lock = threading.Lock()
+_last_refusal: tuple[str, ...] | None = None
+
+
+def clear_load_refusal_notice() -> None:
+    """A fresh load success starts a new episode: the next refusal is news."""
+    global _last_refusal
+    with _notice_lock:
+        _last_refusal = None
+
 
 class LastResortNotifyMixin:
     # Members provided by ModelManagerCore (_base.py):
@@ -28,6 +39,7 @@ class LastResortNotifyMixin:
 
         Returns a short human-readable ``failure_reason`` string for
         """
+        global _last_refusal
         backend_name = (backend or getattr(self._app.config, "asr_backend", "unknown")).title()
         # Distinguish the three load-refusal flavors so the tray surfaces
         from voice_typer.server.asr_errors import OfflinePackMissingError
@@ -48,6 +60,30 @@ class LastResortNotifyMixin:
                 "state.model_manager.model_not_downloaded",
                 backend=backend_name,
             )
+        from voice_typer.server.dictation_provider import for_app
+
+        provider = for_app(self._app)
+        if provider.kind in ("plugin", "remote"):
+            # Another provider owns the hotkey: this local refusal is not the
+            # user's problem and must never produce a local-model notice.
+            log.debug("[MODEL] %s load refusal suppressed: %s serves dictation", backend_name, provider.label)
+            return reason
+
+        key = (
+            provider.kind,
+            provider.name,
+            str(backend or ""),
+            str(getattr(exc, "model_size", "") or ""),
+            reason,
+        )
+        with _notice_lock:
+            repeat = _last_refusal == key
+            if not repeat:
+                _last_refusal = key
+        if repeat:
+            log.debug("[MODEL] %s load refused again; notice already shown for this episode", backend_name)
+            return reason
+
         log_method = log.info if no_model_selected else log.warning
         log_method("[MODEL] %s load refused: %s", backend_name, exc)
         try:

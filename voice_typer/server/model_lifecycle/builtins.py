@@ -27,7 +27,13 @@ class _AsrPolicy(ModelPolicy):
     """Core ASR: every verb delegates to the existing ModelManager."""
 
     def applicable(self, config: Any) -> bool:
-        return True
+        # Only the selected local model needs local weights. A plugin, the
+        # cloud engine or a remote ASR provider owns the hotkey instead.
+        from voice_typer.server.dictation_provider import for_app, for_config
+
+        app = current_app()
+        provider = for_app(app, config) if app is not None else for_config(config)
+        return provider.serves_local_asr
 
     def is_loaded(self, config: Any) -> bool:
         engine = getattr(current_app(), "models", None)

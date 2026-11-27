@@ -32,6 +32,7 @@ class RecordingLifecycleStartMixin:
     """Toggle decision and start-side flow (wiring, ownership, start worker)."""
 
     if TYPE_CHECKING:
+
         def _publish_permission_denied_refusal(self, app, state: str = "denied") -> None: ...
 
     def _toggle_impl(self, controller) -> None:
@@ -69,6 +70,16 @@ class RecordingLifecycleStartMixin:
         except Exception:
             log.debug("[DICTATION] no-engine precheck failed; continuing", exc_info=True)
 
+        # A selected plugin owns the hotkey. If its session is not ready the
+        # plugin reports that itself; falling through to the local recorder
+        # would silently switch engines behind the user's back.
+        from voice_typer.server.dictation_provider import for_app
+
+        provider = for_app(app)
+        if provider.kind == "plugin":
+            log.warning("[DICTATION] %s serves dictation; local fallback refused", provider.label)
+            return
+
         # Record-while-loading: an in-flight loader is no reason to
         # refuse the hotkey. Recording starts immediately; the
         # DictationStart worker joins the load via
@@ -98,8 +109,7 @@ class RecordingLifecycleStartMixin:
                 if isinstance(pre_exc, MicrophonePermissionDeniedError):
                     _deny_state = getattr(pre_exc, "state", "denied")
                     log.warning(
-                        "[HOTKEY FIRED] Refusing hotkey press: mic permission "
-                        "%s (no model load kicked, cycle=%s)",
+                        "[HOTKEY FIRED] Refusing hotkey press: mic permission %s (no model load kicked, cycle=%s)",
                         _deny_state,
                         app._cycle_id,
                     )
