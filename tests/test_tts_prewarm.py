@@ -9,9 +9,17 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from voice_typer.server.model_lifecycle import memory
 from voice_typer.server.tts import prewarm
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+_GIB = 1024 * 1024 * 1024
+
+
+@pytest.fixture(autouse=True)
+def _fit_memory(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fake only the OS memory read; the real TTS policy/guard stays in play."""
+    monkeypatch.setattr(memory, "available_physical_bytes", lambda: 8 * _GIB)
 
 
 def _app(
@@ -21,6 +29,7 @@ def _app(
     calls: list[str] | None = None,
     fail: bool = False,
     attach_service: bool = True,
+    fast_startup: bool = True,
 ):
     """Fake ``LausuApp``.
 
@@ -38,7 +47,7 @@ def _app(
         calls.append(name)
         return True
 
-    app = SimpleNamespace(config=SimpleNamespace(tts_enabled=enabled, tts_engine=engine))
+    app = SimpleNamespace(config=SimpleNamespace(tts_enabled=enabled, tts_engine=engine, fast_startup=fast_startup))
     if attach_service:
         app._ipc_server = SimpleNamespace(service=SimpleNamespace(tts_prewarm=tts_prewarm))
     return app
@@ -63,6 +72,33 @@ def test_no_engine_selected_does_not_start_anything() -> None:
     calls: list[str] = []
     assert prewarm.start_prewarm(_app(enabled=True, engine="off", calls=calls)) is None
     assert calls == []
+
+
+def test_fast_startup_off_does_not_start_anything() -> None:
+    """Fast Startup is the optional-preload gate: off means load on first use."""
+    calls: list[str] = []
+    app = _app(enabled=True, calls=calls, fast_startup=False)
+    assert prewarm.start_prewarm(app) is None
+    assert calls == []
+
+
+def test_memory_guard_failure_does_not_start_anything(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Guard cannot fit the TTS policy: no runtime is spawned."""
+    monkeypatch.setattr(memory, "available_physical_bytes", lambda: 512 * 1024 * 1024)
+    calls: list[str] = []
+    assert prewarm.start_prewarm(_app(enabled=True, calls=calls)) is None
+    assert calls == []
+
+
+def test_enabled_fast_startup_and_fitting_memory_prewarms_as_today() -> None:
+    """All three gates open: same background prewarm as before the gate."""
+    calls: list[str] = []
+    thread = prewarm.start_prewarm(_app(enabled=True, calls=calls, fast_startup=True))
+    assert thread is not None
+    assert _wait_until(lambda: calls == ["magpie"])
+    thread.join(timeout=5)
+    assert calls == ["magpie"]
+    assert not thread.is_alive()
 
 
 def test_enabled_and_selected_prewarms_the_engine_once() -> None:

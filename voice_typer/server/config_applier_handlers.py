@@ -231,6 +231,23 @@ class _PrewarmSyncHandler:
             _notify_side_effect_failure(app, "fast_startup", e)
 
 
+class _ModelIdleHandler:
+    """Apply the shared model idle duration when its config key changes."""
+
+    name = "model_idle_unload_minutes"
+
+    def applies(self, updates: dict) -> bool:
+        return "model_idle_unload_minutes" in updates
+
+    def apply(self, ctx: SideEffectContext) -> None:
+        try:
+            from voice_typer.server.model_lifecycle import apply_idle_setting
+
+            apply_idle_setting(ctx.updates["model_idle_unload_minutes"])
+        except Exception as e:
+            log.warning("Failed to apply model idle duration: %s", e)
+
+
 class _EscHotkeyHandler:
     """Register/unregister ESC hotkey when ``esc_cancel_enabled`` changes."""
 

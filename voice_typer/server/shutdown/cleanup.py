@@ -62,6 +62,21 @@ def _restore_clipboard_before_teardown(controller, *, timeout: float, label: str
         log.debug("[SHUTDOWN] clipboard pending restore failed", exc_info=True)
 
 
+def _shutdown_model_lifecycle() -> None:
+    """Cancel in-flight loads and stop runtimes before any teardown phase.
+
+    Plan steps are deadline-gated and parallel (``shutdown/plan.py``), so a
+    model load still in flight at quit would outlive a skipped step. This runs
+    unconditionally on both the full and the Windows logoff path.
+    """
+    try:
+        from voice_typer.server.model_lifecycle import shutdown_all
+
+        shutdown_all()
+    except Exception:
+        log.debug("[SHUTDOWN] model lifecycle shutdown failed", exc_info=True)
+
+
 def do_cleanup(controller) -> None:
     """shared cleanup body used by ``quit()``, ``restart_app()``,"""
     app = controller._app
@@ -73,6 +88,9 @@ def do_cleanup(controller) -> None:
 
     # C-LOG-2: shutdown is a timed operation, the completion line
     _cleanup_t0 = time.perf_counter()
+
+    # Cancel in-flight loads before anything else can be skipped or blocked.
+    _shutdown_model_lifecycle()
 
     # Session-liveness marker: the session ends HERE. The marker is
 
@@ -142,6 +160,9 @@ def do_fast_cleanup(controller) -> None:
     # Set ``_cleanup_done`` so a concurrent / subsequent
     with controller._quit_lock:
         app._cleanup_done = True
+
+    # Same orphan risk with a ~5 s OS deadline: cancel loads first.
+    _shutdown_model_lifecycle()
 
     # Session-liveness marker: Windows logoff/shutdown is a clean
     try:

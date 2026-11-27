@@ -33,6 +33,7 @@ from voice_typer.server.config_applier_handlers import (  # noqa: F401  # facade
     _DictationHotkeyHandler,
     _EscHotkeyHandler,
     _FilterChainHandler,
+    _ModelIdleHandler,
     _NotificationsHandler,
     _notify_side_effect_failure,
     _PrewarmSyncHandler,
@@ -124,6 +125,7 @@ class ConfigApplier:
         self._side_effect_handlers: list[ConfigSideEffect] = [
             _AutostartSyncHandler(),
             _PrewarmSyncHandler(),
+            _ModelIdleHandler(),
             _EscHotkeyHandler(),
             _RepasteHotkeyHandler(),
             _DictationHotkeyHandler(),

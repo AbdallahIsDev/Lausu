@@ -492,4 +492,12 @@ class LatePhases:
 
             start_prewarm(app)
 
+        # Optional kinds without a dedicated hook (translation, future kinds)
+        # share the Fast Startup gate + private-memory guard. The unconditional
+        # local ASR load above is deliberately untouched.
+        with contextlib.suppress(Exception):
+            from voice_typer.server.model_lifecycle import prewarm_optional_at_startup
+
+            prewarm_optional_at_startup(app)
+
         return StageResult(success=True)
