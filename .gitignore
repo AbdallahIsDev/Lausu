@@ -22,6 +22,8 @@ bench-run*.txt
 # bench/ harness artifacts (synthesized speech WAVs, JSON results): regenerate
 # locally, never ship.
 bench-out/
+# Generated benchmark results (real-run JSON + readable comparisons), never committed.
+bench/results/
 
 # MSYS2/mingw-w64 GNU linker shim (x86_64-pc-windows-gnu, Windows-without-MSVC
 # hosts). The SOURCE (src-tauri/toolchain/linker_wrap.c) and its generator
