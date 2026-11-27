@@ -1,14 +1,204 @@
 # Translation chunking — design proposal (2026-11-26)
 
-Status: **DESIGN ONLY.** No code, config, UI, behavior or ADR was changed by this
-document. Every option below is a candidate; nothing here is approved until the
-owner picks from §9.
+Status: **PARTLY SHIPPED (dated note 2026-11-27).** The 2026-11-26 proposal
+below is kept intact as history. Two of its options are now SHIPPED product
+changes on `main`: background translator warm-up on a genuine user recording
+start with idle unload (Option 4 defaults: `translation_warm_on_record=True`,
+`translation_idle_unload_seconds=600`, `0` disables), and bounded GROUP
+chunking of over-long final text (Option 2, no new setting). Live per-chunk
+translation DURING recording (Option 1), media Stage B (Option 3) and a shared
+GPU lock/queue (Option 5) are still PROPOSALS, not shipped. The dated
+"Decisions and evidence" section immediately below is the current state; older
+sections still describe the 2026-11-26 design only.
 
 Read first: `docs/design/translation-audit.md` (what exists today),
 `docs/adr/0021-transcription-translation-split.md` (Stage A / Stage B contract),
 `docs/adr/0030-one-asr-model-and-text-translator.md` (one ASR + one text model).
 The full today-map with file:line for every claim is in
 `C:\Users\11\AppData\Local\Temp\opencode\r3-s3-report.md`.
+
+## Decisions and evidence (dated note 2026-11-27)
+
+Everything in this section is a dated note layered on top of the 2026-11-26
+proposal below. Where an older section says "not approved", "recommended" or
+"UNVERIFIED", that was the 2026-11-26 state; this section is current.
+
+### Plain English first
+
+Last round this document was a proposal and nothing was shipped. This round the
+owner approved two things and they are now in the product:
+
+1. **Load the translator in the background when a real user starts recording.**
+   Not at app start, not on the hotkey thread, and never as a model download.
+   Stop using it after 10 minutes of inactivity. The advanced config keys are
+   `translation_warm_on_record=True` and
+   `translation_idle_unload_seconds=600` (`0` turns the unload off). No renderer
+   setting was added.
+2. **Translate only over-long finished text in groups.** If the complete text
+   fits the model context, the app still makes exactly one translation call,
+   byte-for-byte as before. Above the measured safe bound of **2,176 input
+   tokens** it splits at paragraph, then sentence, then whitespace boundaries,
+   translates one group at a time through the one loaded translator, and joins
+   with **only the whitespace that was in the source** (including no space at
+   all). No new setting: the split happens only when the text would not fit.
+   The skip decision is made once on the whole text. Any group failure returns
+   the entire original transcript with one notice and no retry.
+
+**Not shipped:** translating text while the user is still recording. We
+measured that design; it cuts the wait after stop a lot with a GPU translator,
+but later audio windows changed already-translated text (3 of 5 groups at
+30 s and 120 s, 29 of about 96 groups at 480 s), so a reconciliation pass and
+an owner decision are still needed. Media transcription still never translates.
+Browser plugins still load the translator lazily; they did not get a second
+warm-up hook.
+
+In plain English, the numbers below come from two real bench days: Round 3 on
+2026-11-26 (translator-only, short Arabic text) and Round 4 on 2026-11-27
+(translator-only B1 plus real ASR/translation pipeline B2/B3). Some Round 4
+pipeline runs fed audio instantly instead of on a clock — those are labelled
+**virtual-paced**; only one 30 s set was **real-paced**. The machine was shared
+with other Python and translator processes, and every VRAM figure is a
+whole-GPU sample from `nvidia-smi`, not a per-app or peak measurement.
+
+### One table per path
+
+| Path | What happens today (shipped 2026-11-27) | DECIDED this round | NOT decided yet | Measured evidence (run file, date) |
+| --- | --- | --- | --- | --- |
+| **Local ASR** (hotkey / button / tray) | One translation of the finished transcript after stop; hidden 12/5/3/1.5 s audio windows only build the text. Translator warms on a genuine user recording start and unloads after 600 s idle. Over-long text is translated in bounded groups joined with exact source whitespace. | Warm-up only from a real user start, on a background daemon thread, never at app start, never a download; idle 600 s, `0` disables. Bounded GROUP chunking above 2,176 input tokens, no new setting, skip once, whole original text + one notice on any chunk failure, no retry, exact source whitespace on join. | Live per-chunk translation during recording; shared GPU lock/queue; per-script bound tuning. | Round 3 `bench/results/translation-compare.txt` + `translation-results.json` (2026-11-26): cold 15.4/33.9 s, whole 467 ms vs per-sentence 108 ms, `complete.Sentence` join bug, `slide/overlap` to `chip/interference`, cache_prompt no difference, 1.64x under CPU load. Round 4 `bench/results/b1-ar_one_paragraph_gpu/translation-compare.txt`, `bench/results/pipeline-translation-compare.txt`, `bench/results/pipeline-translation-results.json`, `bench/results/pipeline-real30/pipeline-translation-results.json` (2026-11-27). |
+| **Cloud ASR** | Whole finished buffer, one request, one final text, then the same single Stage B call through the shared translation service. Warm-up applies if the translator's GGUF is present; cloud needs no local Stage A model. Group chunking applies to over-long text because it lives in the shared service. | Same bounded GROUP chunking and warm/idle contract as local; no cloud-specific branch or setting. | Live per-chunk translation of realtime WS bursts; any real cloud-provider A/B. | Round 3 code trace in §2.3 of this document (2026-11-26); no Round 4 cloud run — **UNVERIFIED**, no cloud credentials or network this round. |
+| **Browser plugins** | `/stop` returns one string; plugin delivery translates once and the translator loads lazily. Group chunking applies to over-long text through the shared service, but there is no warm hook because the plugin session bypasses the recording lifecycle. | Explicitly decided: plugins stay lazy-load this round; no second warm hook and no second policy. | Plugin warm parity (needs the plugin session hook, files owned by another session); browser-side live STT algorithm still unaudited. | Worker A1 decision record `r4-s1-report.md` §2.8 (2026-11-27); Round 3 code trace §2.3 (2026-11-26); no plugin run — **UNVERIFIED**. |
+| **Media** | 5 s pieces accumulate into 120 s windows, texts are joined, one flat string goes to History, decoder timestamps are off, and there is no translate call anywhere in media. | Nothing changed. Media Stage B stays unshipped and there is no new setting. | Per-segment translation with timestamps; a timestamped History/IPC output shape; toast + log failure routing. | Round 3 code trace §2.3 and §6 (2026-11-26) plus design `translation-audit.md`; no Round 4 media run — **UNVERIFIED** (no call site, no run). |
+
+### Owner hypotheses and status
+
+1. **"Translating per chunk is fine on GPU but may be slow on CPU" — TESTED.**
+   Round 4 GPU translation is about **0.22–0.44 s per group** versus **1.6–2.0 s
+   per group** on CPU. For a 480 s CPU-ASR dictation the wait after stop fell
+   **31.5 s -> 12.8 s** with the GPU translator and **164.6 s -> 140.1 s** with
+   the CPU translator (current whole-text design vs per-group, virtual-paced).
+   Round 3 on short text went the other way: whole text **467 ms** vs per
+   sentence **108 ms** each (8 sentences) and per chunk **268 ms** each (2
+   chunks); chunking was not faster there. Sources:
+   `bench/results/pipeline-translation-results.json` and S3 report §B3
+   (2026-11-27); `bench/results/translation-compare.txt` (2026-11-26).
+   The wait numbers are bench evidence for a possible future design, **not**
+   shipped behavior.
+2. **"Per-sentence chunking hurts quality" — TESTED, Round 3 exact example.**
+   Whole text said "The window schedule starts a new slide every five
+   seconds. Each slide contains three seconds of overlap." Per-sentence
+   translation produced "The window layout starts a new slide every five
+   seconds." and "Each chip tolerates three seconds of interference."
+   (`bench/results/translation-results.json:61,68`, 2026-11-26). The same run
+   also showed the join bug `complete.Sentence` instead of `complete. Sentence`
+   (`bench/results/translation-compare.txt:22`); Round 4 showed the same input
+   before and after the bench join fix in
+   `bench/results/b1-ar_one_paragraph_gpu/translation-compare.txt`
+   (2026-11-27). The whitespace bug was in the bench harness, not the product;
+   the remaining wording drift is real and inherent to any multi-call
+   translation. The shipped group join preserves source whitespace exactly.
+3. **"cache_prompt helps" — NO CLEAR DIFFERENCE, stays OFF.** Round 3: OFF
+   487.9/480.1 ms, ON 493.1/490.1 ms, outputs byte-identical (ON about 1.6%
+   slower that run; an earlier run had ON about 3.6% faster). Round 4: OFF
+   513.8/533.4 ms, ON 509.6/522.0 ms, again byte-identical. Sources:
+   `bench/results/translation-compare.txt:49-61` (2026-11-26) and
+   `bench/results/b1-ar_one_paragraph_gpu/translation-compare.txt:55-67`
+   (2026-11-27). The production flag is unchanged.
+4. **"ASR and translator contend for the GPU" — PARTLY TESTED.** Across the 24
+   virtual-paced Round 4 runs, ASR decode with translation running was
+   **0.64–2.22x** the ASR-alone decode (worst case 2.22x at 30 s Vulkan ASR +
+   GPU translator, current design). Round 3's CPU-load simulation, which was
+   not real dictation, showed a **1.64x** per-request slowdown. Sampled
+   whole-GPU VRAM was about **3.0–3.8 GB** with GPU translation and
+   **1.6–2.3 GB** with CPU translation, including other processes on the
+   shared GPU; that is not a per-app footprint or a peak. There is no real CUDA
+   contention measurement (Round 3 had no CUDA here; Round 4 used Vulkan), so
+   true GPU contention and a per-process VRAM figure remain UNVERIFIED. No
+   shared lock or queue was built. Sources:
+   `bench/results/pipeline-translation-results.json` and S3 report §B3
+   (2026-11-27); `bench/results/translation-compare.txt:64-71` (2026-11-26).
+5. **"Warming at recording start beats cold start" — MEASURED.** Round 3 cold
+   launch to healthy runtime **15.4 s** warm file cache / **33.9 s** cold cache;
+   launch to first response **16.2 s / 34.5 s**. Round 4 first GPU launch
+   **44.8 s** vs warm launches **2.1–2.7 s** (a second translator process on
+   the shared machine made one replayed CPU run pay 39.3 s cold). The warm hook
+   waits at most 45 s at translate time before proceeding. Sources:
+   `bench/results/translation-compare.txt:73-79` (2026-11-26), S3 report §B1
+   (2026-11-27), worker A1 report §2.4.
+
+### Round 4 real numbers (from S3's report, 2026-11-27)
+
+Pacing and sharing caveats first. The table immediately below is translator-only
+B1 data: cold-start, decode throughput and latency, no audio pacing involved.
+The second table is the 24-run B2/B3 matrix with **virtual pacing**: real audio
+fed in 0.5 s slices without sleeping, so decode and translation timings are
+real but wall-clock audio cadence is not. The separate **real-paced** 30 s set
+is listed after the tables. All runs shared this machine with other Python and
+translator processes; absolute latencies are not idle-lab numbers. VRAM is
+sampled whole-GPU via `nvidia-smi`, not per-process and not peak.
+
+Paste-ready summary from S3 report §"Summary table for S4":
+
+| finding | real number | source |
+|---|---|---|
+| translator cold start, first GPU launch vs warm | **44.8 s** vs **2.1-2.7 s** | `bench/results/b1-ar_two_sentences_gpu`, others |
+| translator decode throughput GPU / CPU | **185-197 tok/s** / **16-19 tok/s** | 12 B1 JSONs |
+| whole-text latency GPU / CPU, 2 sentences | **179-182 ms** / **1.68-1.72 s** | B1 |
+| whole-text latency GPU / CPU, multi paragraph | **1.08-1.38 s** / **11.0-14.2 s** | B1 |
+| join bug before vs after (same input) | `complete.Sentence` -> `complete. Sentence` | `bench/results/b1-ar_one_paragraph_gpu/translation-compare.txt` |
+| ASR 30 s window decode, native CPU / Vulkan | **622.6 ms** / **146.8 ms** (median, ≈8-11 s windows) | `probe-b2-native` |
+| ASR 30 s window decode, app ctypes CPU / Vulkan | **968.0 ms** / **799.1 ms** | `pipeline-app-b2-30` |
+| wait after stop, current vs per-group (30 s, CPU ASR + GPU translator) | **1.514 s** -> **0.855 s** | `probe-b3` |
+| translated groups revised by later windows (30 s probe) | **3 of 5** | `probe-b3` |
+
+S3 report §B3 highlights (the 24-run final matrix, **virtual-paced**):
+
+| duration | wait current -> stream (CPU ASR + GPU translator) | wait current -> stream (Vulkan ASR + GPU translator) | revised groups / translated groups | ASR decode stream vs alone (range over 24 runs) |
+|---:|---:|---:|---:|---:|
+| 30 s | 1.614 s -> 0.845 s | 1.574 s -> 0.598 s | 3 / 5 | 0.64-2.22x |
+| 120 s | 3.827 s -> 0.807 s | 3.437 s -> 3.051 s | 3 / ~24 | 0.64-2.22x |
+| 480 s | 31.506 s -> 12.788 s | 12.936 s -> 10.333 s | 29 / ~96 | 0.64-2.22x |
+
+With the CPU translator, wait after stop is 10.8-164.6 s and per-group
+translation is about 1.6-2.0 s/group; the GPU translator is about 0.22-0.44
+s/group. That is the decision-relevant difference, not the small ASR decode
+shift. **Real-paced** 30 s, current -> stream: CPU ASR + GPU translator
+1.391 -> 0.866 s; CPU ASR + CPU translator 9.921 -> 2.957 s; Vulkan ASR + GPU
+translator 1.069 -> 0.404 s; Vulkan ASR + CPU translator 8.831 -> 2.137 s
+(`bench/results/pipeline-real30/pipeline-translation-results.json`). Every
+stream run still revised 3 of 5 translated groups. Longer real-paced runs
+(120 s / 480 s) were not run — UNVERIFIED by runtime-budget choice.
+
+### Next decision gates
+
+1. **Live per-chunk translation during recording (Option 1).** Owner decision
+   required; not shipped. Needs a reconciliation pass for revised groups
+   (3/5 at 30/120 s, 29/~96 at 480 s), one source-language decision per cycle,
+   protected-span carry, and a proof that the production word stream exists —
+   the app's GGUF adapter exposes no word timestamps, so production would take
+   the batch-finalize path. Quality diff: `bench/results/pipeline-translation-compare.txt`.
+2. **GPU contention lock or queue (Option 5 B/C).** Revisit only with a dedicated
+   quiet-machine run; current evidence is shared-machine, VRAM is whole-GPU
+   sampled, and 0.64–2.22x decode ratios are not proof of a VRAM or kernel
+   conflict. A shared scheduler must not let two models decode at once
+   (ADR-0030 §1). The existing `translation_gpu_enabled=false` switch stays the
+   answer for now.
+3. **Bound tuning for non-Latin/Arabic scripts.** Latin 0.20 and Arabic 0.32
+   tokens/char were measured on the installed tokenizer; Cyrillic 0.60,
+   Devanagari 0.80 and Han/other 1.00 are deliberately conservative guesses.
+   Re-measure with the installed `/tokenize` endpoint before raising the char
+   bound; no new setting is proposed.
+4. **Plugin warm parity.** Only if the owner wants it; needs a hook in the
+   plugin session (files owned by another session) and must not create a second
+   warm policy.
+5. **Media Stage B with timestamps.** Needs decoder timestamp preservation
+   across 120 s windows, a new History/IPC output shape with matching send and
+   receive types, and toast + log failure routing. No decision this round.
+6. **Real-app verification.** The warm/idle shipped behavior was proven with
+   integration tests at the real recording entry point, not in the GUI, and
+   no real GGUF load was exercised by that worker; the bench runs used real
+   binaries but not the packaged app. With a GUI session available, boot the
+   app and confirm warm-on-record, idle unload and the group join on a real
+   over-long dictation before calling the lifecycle fully verified.
 
 ## 1. PLAIN-ENGLISH SUMMARY
 

@@ -161,3 +161,31 @@ Sources: `opennmt.net`'s former-runtime transformers guide (v4.8.2: MarianMT/M2M
 Status: reported, STOPPED, no download. Approval pending per Sec. 3 HARD RULE.
 
 ## 9. Build order
+
+## 10. Dated implementation note (2026-11-27) — Round 4 shipped behavior
+
+This note records implementation decisions only. It does not amend any locked
+rule above (§1, §5.2, §5.3, §6) or the Stage A / Stage B split.
+
+**(a) Bounded GROUP chunking (shipped).** When the protected Stage B input
+would exceed the measured safe bound of 2,176 input tokens (4,096 context minus
+1,024 reserved output, 768 prompt/glossary/marker reserve and 128 safety
+margin), the service translates bounded groups through the single loaded
+runtime. The grouping engages ONLY when the text would not fit; short text keeps
+the original single-call path byte-for-byte. No new setting was added. The skip
+decision is made ONCE on the whole text and is never re-run per group. On any
+chunk failure the whole original Stage A text is returned with ONE per-episode
+notice; no partial output and no retry. The join preserves the exact source
+whitespace, including a zero space, so History, crash recovery and the final
+text keep the original transcript byte-identical (C-TRANS-2).
+
+**(b) Translator lifecycle (shipped).** `translation_warm_on_record` defaults to
+`True` and `translation_idle_unload_seconds` defaults to `600` (`0` disables the
+unload). Warm-up runs on a background daemon thread after a genuine user
+recording start only — never at app start — and never triggers a model
+download. Browser plugins stay lazy-load; they were deliberately not given a
+second warm-up hook.
+
+**(c) Live per-chunk translation DURING recording is NOT shipped.** It remains a
+proposal pending an owner decision. Nothing in this note authorizes live
+partial text or a second translator runtime.
