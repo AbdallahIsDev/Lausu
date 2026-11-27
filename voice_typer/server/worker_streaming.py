@@ -35,14 +35,27 @@ _OPEN_TIMEOUT_SECONDS = 10.0
 _FINALIZE_TIMEOUT_SECONDS = 120.0
 
 
-def _to_f32_bytes(audio: Any) -> bytes:
-    """Coerce recorder audio to raw float32 PCM bytes (never raises)."""
+def _f32_delta_bytes(audio: Any, from_samples: int) -> tuple[int, bytes]:
+    """Flatten audio once, then copy only the unseen tail (never raises).
+
+    Byte order stays C-order over the flattened view, so the payload matches
+    converting the whole snapshot and slicing the resulting byte string.
+    """
     import numpy as _np
 
     try:
-        return _np.asarray(audio, dtype=_np.float32).reshape(-1).tobytes()
+        view = _np.asarray(audio, dtype=_np.float32).reshape(-1)
+        total_samples = int(view.size)
+        if from_samples >= total_samples:
+            return total_samples, b""
+        return total_samples, view[from_samples:].tobytes()
     except Exception:
-        return b""
+        return 0, b""
+
+
+def _to_f32_bytes(audio: Any) -> bytes:
+    """Coerce recorder audio to raw float32 PCM bytes (never raises)."""
+    return _f32_delta_bytes(audio, 0)[1]
 
 
 class WorkerStreamingSession:
@@ -137,7 +150,7 @@ class WorkerStreamingSession:
         if request_id is None or self._failed:
             return ""
         try:
-            tail = _to_f32_bytes(full_audio)[self._sent_samples * 4 :]
+            tail = _f32_delta_bytes(full_audio, self._sent_samples)[1]
             if tail:
                 self._push_bytes(tail)
             self._client.enqueue_frames([build_streaming_frame("streaming_session_finalize", request_id, {})])
@@ -221,17 +234,15 @@ class WorkerStreamingSession:
 
     def _drive_pushes(self) -> None:
         """Snapshot recorder deltas and push them until stopped/failed."""
-        import numpy as _np
-
         while not self._stop_event.is_set():
             try:
                 snapshot = self._recorder.snapshot()
-                raw = _np.asarray(snapshot, dtype=_np.float32).reshape(-1).tobytes()
-                total_samples = len(raw) // 4
+                total_samples, raw = _f32_delta_bytes(snapshot, self._sent_samples)
                 if total_samples < self._sent_samples:
                     self._sent_samples = 0
-                if total_samples > self._sent_samples:
-                    self._push_bytes(raw[self._sent_samples * 4 :])
+                    total_samples, raw = _f32_delta_bytes(snapshot, 0)
+                if raw:
+                    self._push_bytes(raw)
                     self._sent_samples = total_samples
             except Exception:
                 log.debug("[STREAMING] worker push failed, stopping pushes", exc_info=True)
