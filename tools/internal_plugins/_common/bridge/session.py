@@ -35,6 +35,10 @@ _ACTIVATION_PREPARE_TIMEOUT_S = 5.0
 _PAGE_READY_TIMEOUT_S = 12.0
 _PAGE_READY_POLL_S = 0.1
 _RECOVERY_MARK = "recovered (partial)"
+# Live-text backoff: fast while words change, slow once the user goes quiet.
+_SNAPSHOT_FAST_S = 1.0
+_SNAPSHOT_SLOW_S = 3.0
+_SNAPSHOT_STILL_READS = 3
 _START_RETRY_KINDS = frozenset({"browser-not-open", "browser-closed", "wrong-platform"})
 # Failures whose cause is invisible when the browser window is hidden: these
 # bypass the user's notify preference through one named mechanism (CRITICAL-NOTICE).
@@ -557,6 +561,11 @@ class PluginSession:
         self._live_snapshot = ""
         self._snapshot_baseline = ""
         self._recovered_cycle: int | None = None
+        self._snapshot_reads = 0
+        self._snapshot_changes = 0
+        self._snapshot_words = 0
+        self._snapshot_summary_done = False
+        self._last_snapshot_log = 0.0
 
     def _host(self, name: str, default: Any) -> Any:
         return getattr(self._entry, name, default) if self._entry is not None else default
@@ -791,9 +800,14 @@ class PluginSession:
             )
             # Baseline BEFORE the platform starts streaming: a draft the user
             # typed earlier is not part of this dictation and must not be
-            # recovered as one.
-            self._snapshot_baseline = self._read_draft()
+            # recovered as one. This pre-start read is silent so it cannot be
+            # mistaken for a live snapshot in the log.
+            self._snapshot_baseline = self._read_draft(purpose="baseline")
             self._live_snapshot = ""
+            self._snapshot_reads = 0
+            self._snapshot_changes = 0
+            self._snapshot_words = 0
+            self._snapshot_summary_done = False
             click_attempts = 0
             transient_retry = False
             for click in range(1, _START_CLICK_ATTEMPTS + 1):
@@ -906,7 +920,7 @@ class PluginSession:
         self._stop_and_deliver(target_snapshot=stop_snapshot)
         return True
 
-    def _read_draft(self, timeout: float = 2.0) -> str:
+    def _read_draft(self, timeout: float = 2.0, *, purpose: str = "poll") -> str:
         """One read-only page snapshot; empty on any bridge failure."""
         try:
             result = self._post("/draft-snapshot", timeout=timeout)
@@ -915,32 +929,59 @@ class PluginSession:
         if not isinstance(result, dict):
             return ""
         text = str(result.get("text", "") or "").strip()
-        if text:
-            self._log.debug(
-                "[PLUGIN] draft snapshot read (%d words, source=%s)",
-                len(text.split()),
-                result.get("source") or "unknown",
-            )
+        if purpose == "poll":
+            self._snapshot_reads += 1
+            words = len(text.split())
+            now = time.monotonic()
+            if words != self._snapshot_words and now - self._last_snapshot_log >= 5.0:
+                # Counts only: never log the dictated text itself.
+                self._log.debug(
+                    "[PLUGIN] draft snapshot read (%d words, source=%s)",
+                    words,
+                    result.get("source") or "unknown",
+                )
+                self._last_snapshot_log = now
         return text
 
-    def _poll_live_text(self) -> None:
+    def _poll_live_text(self) -> bool:
         """Keep the latest cumulative page text in RAM while a cycle is live."""
         text = self._read_draft()
         if not text:
-            return
+            return False
         baseline = self._snapshot_baseline
         if baseline and not text.startswith(baseline):
             # The page replaced the box (new chat/navigation): rebase instead
             # of treating someone else's text as this cycle's capture.
             self._snapshot_baseline = text
-            return
+            return False
         if len(text) > len(self._live_snapshot):
             self._live_snapshot = text
-            self._log.debug(
-                "[PLUGIN] live draft snapshot (%d words, %d chars)",
-                len(text.split()),
-                len(text),
+            words = len(text.split())
+            if words != self._snapshot_words:
+                self._snapshot_words = words
+                self._snapshot_changes += 1
+            return True
+        return False
+
+    def _emit_snapshot_summary(self) -> None:
+        """Exactly one durable count-only summary per cycle."""
+        with self._lock:
+            if self._snapshot_summary_done:
+                return
+            self._snapshot_summary_done = True
+            cycle, reads, changes, words = (
+                self._cycle,
+                self._snapshot_reads,
+                self._snapshot_changes,
+                self._snapshot_words,
             )
+        self._log.debug(
+            "[PLUGIN] draft snapshot summary (cycle=#%d): reads=%d, changes=%d, final=%d words",
+            cycle,
+            reads,
+            changes,
+            words,
+        )
 
     def _recover_lost_cycle(self, *, trigger: str) -> None:
         """Deliver the text already visible before the browser/bridge died."""
@@ -955,7 +996,8 @@ class PluginSession:
         self._session_events(start=False)
         # Page alive but bridge dropped: prefer the FULL current text over the
         # older snapshot; a dead page leaves only the last in-RAM snapshot.
-        text = self._read_draft(timeout=3.0) or self._live_snapshot
+        text = self._read_draft(timeout=3.0, purpose="recovery") or self._live_snapshot
+        self._emit_snapshot_summary()
         if not text:
             self._log.warning(
                 "[PLUGIN] browser lost mid-dictation (cycle=#%d, trigger=%s, captured=%s); nothing was pasted",
@@ -1069,6 +1111,7 @@ class PluginSession:
         """Deliver a completed stop response (text, history, paste, cleanup)."""
         # A successful final stop wins: the RAM snapshot is discarded here.
         self._live_snapshot = ""
+        self._emit_snapshot_summary()
         text = str(res.get("text", "")).strip()
         duration = float(res.get("duration_s", 0.0) or (time.monotonic() - self._t0))
         with self._lock:
@@ -1139,6 +1182,9 @@ class PluginSession:
         """
         time.sleep(self._host("_PLATFORM_WATCH_GRACE_S", _WATCH_GRACE_S))
         idle_reads = 0
+        unchanged = 0
+        snapshot_s = _SNAPSHOT_FAST_S
+        next_snapshot = time.monotonic()
         while True:
             with self._lock:
                 if not self._active or self._stopping:
@@ -1147,7 +1193,16 @@ class PluginSession:
             state = str((status or {}).get("state") or "")
             if state == "recording":
                 idle_reads = 0
-                self._poll_live_text()
+                now = time.monotonic()
+                if now >= next_snapshot:
+                    if self._poll_live_text():
+                        unchanged = 0
+                        snapshot_s = _SNAPSHOT_FAST_S
+                    else:
+                        unchanged += 1
+                        if unchanged >= _SNAPSHOT_STILL_READS:
+                            snapshot_s = _SNAPSHOT_SLOW_S
+                    next_snapshot = now + snapshot_s
             elif state in ("idle", "no-page", "unknown"):
                 idle_reads += 1
                 if idle_reads >= 2:
@@ -1187,6 +1242,7 @@ class PluginSession:
             self._active = False
             self._pending_stop_snapshot = None
             self._live_snapshot = ""
+        self._emit_snapshot_summary()
         self._log.info(
             "[PLUGIN] cycle cancelled (ESC, cycle=#%d, captured=%s)",
             self._cycle,

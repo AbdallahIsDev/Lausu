@@ -179,7 +179,7 @@ def test_esc_cancel_discards_the_snapshot(plugin, monkeypatch):
 
     session, delivered, notices, watch = _session(plugin, monkeypatch, posts=posts)
     _start(plugin, session)
-    assert session._poll_live_text() is None
+    assert session._poll_live_text() is True
     assert session._live_snapshot == SENTENCE
     assert session.cancel() is True
 
@@ -204,6 +204,47 @@ def test_normal_stop_ignores_the_snapshot(plugin, monkeypatch):
     assert len(delivered) == 1 and delivered[0][0] == "Final text wins."
     assert delivered[0][1].get("method") is None, "final stop text must not be marked as recovered"
     assert notices == []
+
+
+def test_preexisting_draft_is_not_recovered_as_this_cycle(plugin, monkeypatch):
+    old = "Typed words that existed before the hotkey."
+    dictated = "Only these words were dictated."
+    reads = [0]
+
+    def posts(path, timeout=None):
+        if path != "/draft-snapshot":
+            return {}
+        reads[0] += 1
+        return {"text": old if reads[0] == 1 else dictated}
+
+    session, delivered, _notices, _watch = _session(plugin, monkeypatch, posts=posts)
+    with dictation_origin.user_action("hotkey"):
+        session.start()
+    assert session._snapshot_baseline == old
+    session._poll_live_text()
+    session._poll_live_text()
+    session._recover_lost_cycle(trigger="browser-lost")
+    assert delivered[0][0] == dictated
+    assert old not in delivered[0][0]
+
+
+def test_text_typed_during_recording_is_part_of_the_live_draft(plugin, monkeypatch):
+    parts = ["first dictated words", "first dictated words and typed words"]
+    index = [0]
+
+    def posts(path, timeout=None):
+        if path != "/draft-snapshot":
+            return {}
+        i = min(index[0], len(parts) - 1)
+        index[0] += 1
+        return {"text": parts[i]}
+
+    session, _delivered, _notices, _watch = _session(plugin, monkeypatch, posts=posts)
+    with dictation_origin.user_action("hotkey"):
+        session.start()
+    session._poll_live_text()
+    session._poll_live_text()
+    assert session._live_snapshot == parts[-1]
 
 
 def test_snapshot_never_written_to_disk(plugin, monkeypatch, tmp_path):
