@@ -38,7 +38,11 @@ def prewarm_optional_at_startup(app: object) -> None:
                 log.debug("[LIFECYCLE] %s applicability check failed", kind, exc_info=True)
                 continue
             if not memory.memory_fits(policy):
-                reason = "memory unavailable" if memory.available_physical_bytes() is None else "insufficient memory"
+                try:
+                    readable = memory.available_physical_bytes() is not None
+                except Exception:
+                    readable = False
+                reason = "insufficient memory" if readable else "memory unavailable"
                 log.info("[LIFECYCLE] %s startup preload skipped (%s)", kind, reason)
                 continue
             loading.load_one(policy, config)

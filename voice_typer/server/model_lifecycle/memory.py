@@ -70,7 +70,13 @@ def available_physical_bytes() -> int | None:
 
 
 def memory_fits(policy: Any) -> bool:
-    available = available_physical_bytes()
+    try:
+        available = available_physical_bytes()
+    except Exception:
+        # A guard that cannot read memory must fail closed, never raise on a
+        # startup thread (D3).
+        log.debug("[LIFECYCLE] physical memory read failed; skipping preload", exc_info=True)
+        return False
     if available is None or available <= 0:
         return False
     try:
