@@ -51,6 +51,31 @@ of about 96 groups at 480 s were revised by later audio, and on a CPU-only
 machine translation takes roughly 11-14 s per paragraph. A reconciliation pass
 and an owner decision are still needed before that design changes.
 
+## Live verification pointer (dated 2026-11-27, Round 7)
+
+Plain English: the "plugins stay lazy-load" note in the 2026-11-26 proposal is
+now history — Round 7 proved the reversal live. With the translator kind
+registered, readiness came at **18:04:51, 15 s before the 18:05:06 stop**; the
+old 17:47 replay loaded the translator 49.6 s *after* stop. Commit `996fd214e`
+registers the kind before the first press and before the startup gate, and the
+post-fix startup preload was ready in 2.1 s at 18:21:24. Full evidence and
+repeat commands: `docs/design/model-lifecycle.md`, section "Live verification
+(dated 2026-11-27)".
+
+Two more live facts relevant here:
+- Bounded GROUP chunking (Option 2) was exercised through the real translation
+  service with real text and the real GGUF: 735 and 9,800 characters stayed in
+  **one call**; 14,700 characters produced **2 groups / 2 POSTs** with **0
+  double spaces** at the join. No setting or bound changed.
+- The no-model refusal now works at **every** start entry, not just the hotkey.
+  Commit `74b7043ee` added a pre-mic gate at
+  `voice_typer/server/recording_lifecycle_start.py:59-71`; at 18:53:39 a
+  no-model press logged `[DICTATION] no active engine; dictation not started`,
+  opened no mic and loaded no translator.
+
+No ADR change was needed: Round 7 verified existing owner decisions, it did not
+make a new one.
+
 Read first: `docs/design/translation-audit.md` (what exists today),
 `docs/adr/0021-transcription-translation-split.md` (Stage A / Stage B contract),
 `docs/adr/0030-one-asr-model-and-text-translator.md` (one ASR + one text model).

@@ -152,3 +152,274 @@ terminal color; `[TTS]` and every other domain's color are unchanged.
 - Per-chunk translation DURING recording remains NOT SHIPPED. Round 4 measured a small gain on the best combination (480 s CPU-ASR + GPU translator: 31.5 s -> 12.8 s wait) but 3 of 5 groups at 30/120 s and 29 of about 96 groups at 480 s were revised after translation; CPU translation costs ~1.6-2.0 s per group (~11-14 s per paragraph), so a CPU-only machine is slow. A reconciliation pass and an owner decision are still required.
 - Translator readiness delay explained (MEASURED 2026-11-27): a timed cold read of the 1.31 GB GGUF took 15.47 s (81 MB/s) versus 0.15 s warm; spawn-to-healthy was 13.78 s cold and 2.06-2.70 s warm; the health poll adds at most 0.5 s; mmap/mlock/flash-attention/context flags gave no cold-load win. It is the FILE SIZE plus a cold OS cache, not the runtime settings. Hence the shared record-start preload is useful only when there is speaking time before stop.
 - The `0x80010108` COM message is NOT a Round 4 regression: the same class was documented in git history on 2026-08-06 with an existing atexit mitigation; the 2026-11-27 event was a handled first-chance exception printed by faulthandler (app kept working). The exact faulting frame is UNVERIFIED; capture dev sidecar stderr during a repro before changing clipboard/COM code.
+
+---
+
+## Live verification (dated 2026-11-27)
+
+Plain English first. Everything above this line is code reading; this section is
+live evidence. Round 7 drove the real IPC entry on a running app and on scratch
+backends built from current source. The result: the Round 5 lifecycle works
+live **once the translator kind is registered**, and the cold-app case that
+still failed was fixed and re-proven. Three real bugs were found and fixed.
+Some things still cannot be proven on this machine; they are listed as
+UNVERIFIED, not assumed. No locked product rule was rewritten, so no ADR change
+was needed in Round 7.
+
+Evidence sources (harness temp folder): `r7-s1-report.md` (17:40–18:10),
+`r7-s2-report.md` (18:13–18:40 plus its 18:53 re-run) and `r7-s3-report.md`
+(18:10–18:24). Commits: `996fd214e` (18:17:47, register translator before the
+first press + single gate decision), `8349953c9` (17:41:29, GPU-switch
+tooltip), `74b7043ee` (18:52:11, refuse no-model starts before the mic opens)
+and `7444e820b` (19:05:08, keep the touched tests hermetic). Log excerpts below
+are trimmed: no personal paths, no dictated/clipboard text, no keys.
+
+### How to repeat (exact command shape; scratch paths are ephemeral)
+
+The production entry is the sidecar's own WS `toggle_dictation` frame, which
+sets origin `button`. No OS key was injected (C-HOOK-1). Start a scratch backend
+from the repo venv with current source, its own token/port and only already
+present model/runtime files:
+
+```powershell
+$env:VOICE_TYPER_CONFIG_DIR  = "<scratch>\cfgN"              # own config + logs
+$env:VT_PACK_ROOT            = "<scratch>\pack"              # minimal local pack marker
+$env:LAUSU_TRANSLATION_RUNTIME = "%APPDATA%\lausu\translation"  # existing runtime
+$env:TRANSCRIBE_LIBRARY      = "<existing transcribe.dll>"
+$env:PARAKEET_MODEL_PATH     = "<existing local snapshot>"
+python -m voice_typer.server.ipc_server --ws
+```
+
+Drive it over its own socket, then read `<scratch>\cfgN\logs\lausu.log`:
+
+```
+{"type":"auth","token":<sidecar token>,"protocol_version":1}
+{"type":"toggle_dictation"}   # start; same frame again after the hold = stop
+```
+
+Steps for the non-default cases:
+- **GPU switch:** `set_config {"translation_gpu_enabled": false}` (then `true`),
+  each followed by a start press; read the child command line from WMI
+  (`CreationDate`, `CommandLine`, `ParentProcessId`), not from the config.
+- **Delete while loaded / loading:** point `HF_HUB_CACHE` at a scratch hub on
+  the same volume as the real cache and put a **hard link** to the GGUF there;
+  leave `LAUSU_TRANSLATION_MODEL` unset; call `delete_model` over IPC. Never
+  delete the real hub. Real GGUF stayed at 1,312,164,352 bytes throughout.
+- **Focus change:** two text windows in separate processes; hold focus on A at
+  stop, focus B 1.0 s later, then dump both windows and check the clipboard
+  retention line. No window text is reproduced here.
+- **Grouping:** call `translate_text()` with the real GGUF/runtime and a POST
+  counter at `_complete`; feed 735 / 9,800 / 14,700 characters.
+- **No-model:** `model_size=""`, `asr_backend="parakeet"` (empty is rejected by
+  the validator), `translation_enabled=true`, `fast_startup=true`; drive the
+  same `toggle_dictation` frame and count absence of mic/translator lines.
+
+### What was PROVEN live
+
+| Claim | Live fact | Source run |
+| --- | --- | --- |
+| Translator ready **before** stop when the kind is registered | start 18:04:36 → ready 18:04:51 (14.7 s) → stop 18:05:06; child created 18:04:36, i.e. at start | S1 cfg4, current source |
+| `[TRANSLATE]` log tag | readiness line carries `[TRANSLATE]`; `[TTS]` untouched | S1/S2, many runs |
+| Translator memory | 1,804.4 MB private / 1,403.5 MB working set at 18:05:47; `-ngl 0` 584 MB, `-ngl 99` 1,806–1,807 MB | S1 cfg4, S2 WMI |
+| Fast Startup OFF | `[LIFECYCLE] optional startup preload skipped (fast_startup off)`; no translator | S1 cfg5, 18:06:25 |
+| Translation OFF | no `[TRANSLATE]`, no new translator process, ASR still loads | S1 cfg7 18:08:08; S2 s2g 18:53:10 |
+| Startup preload + guard | ready 2.1 s; free 2,470.1 MB vs 2,312 MB threshold (1,800 estimate + 512 MiB headroom, `model_lifecycle/memory.py:75-91`); no skip line | S1 cfg6 18:06:53–18:06:55; post-fix S2 s2b 18:21:24 |
+| Per-kind ASR idle clock | unload 17:57:46, reload on next press 17:58:44 at `model_idle_unload_minutes=1` | S1 cfg2 |
+| Translator "Always" never unloads (`=0`) | ready 18:06:55, still alive at 18:07:58 (63 s), no unload line | S1 cfg6 |
+| Quit with translator loaded | quit 18:08:41 → shutdown complete 18:08:42 (0.7 s) → no scratch processes left at 18:08:52 (11 s later) | S1 cfg8 |
+| GPU switch applies on **next load** | `set_config` alone does not stop the old process; next load's `get_service(config)` compares `_service_key()` (`translation/service.py:424-445`) and retires it | S2 s2a, WMI command lines |
+| Delete while loaded / loading | one success result, no crash, no orphan, no later reload; real GGUF intact | S2 s2a |
+| Rapid input | two presses 0.12 s apart = one recording + one stop; one `ignore-burst`; 0.6 s take accepted | S2 s2b 18:22:00 / 18:22:20 |
+| Stop-time paste destination | focus changed after stop → paste aborted, text kept on clipboard, no refocus | S2 shared app 18:32:16 |
+| Real translation service, grouped | 735/9,800 chars → 1 call; 14,700 chars → 2 groups / 2 POSTs; 0 double spaces | S2 s2c2 |
+| No-model refusal | 18:53:39 `[DICTATION] no active engine; dictation not started`; mic never opened; no translator | S2 s2g after `74b7043ee` |
+
+Trimmed excerpts:
+
+```text
+18:04:36  INFO  [DICTATION] start requested (cycle=#2, origin=button)
+18:04:51  INFO  [TRANSLATE] translation ready on http://127.0.0.1:<port> in 14.7s
+18:05:06  INFO  [DICTATION] Stopping recording... (cycle=#3)
+```
+
+```text
+18:06:25  INFO  [ASR_REGISTRY] loaded backend: parakeet
+18:06:25  DEBUG [LIFECYCLE] optional startup preload skipped (fast_startup off)
+18:06:26  INFO  [UPDATE] no pack manifest published yet, nothing to download
+```
+
+```text
+17:57:46  INFO  [MODEL] idle-unload: unloading active backend 'parakeet' after idle period
+17:57:46  INFO  [ASR_REGISTRY] unloaded backend: parakeet
+17:57:46  DEBUG [GPU] release_gpu_memory() is a no-op for ONNX Runtime
+17:57:46  INFO  [VAD] Silero VAD model unloaded
+17:58:44  INFO  [DICTATION] start requested (cycle=#1, origin=button)
+17:58:44  INFO  [ASR_REGISTRY] loaded active backend: parakeet
+```
+
+```text
+BEFORE_QUIT 18:08:40: translator PID 13228, working set 1464.4 MB
+18:08:41  AUTH first=ready -> quit_app dispatched
+18:08:42  INFO  [SHUTDOWN] Shutdown complete, exiting successfully 0.7s
+AFTER_QUIT 18:08:52 (11 s later): no scratch sidecar / translator PIDs
+```
+
+GPU switch, from real WMI command lines: `set_config false` at 18:17:06, press
+18:18:11 → ready 18:18:13 (2.5 s), child created 18:18:10 ending `-ngl 0`
+(no `-fa on`); `set_config true` at 18:18:32, press 18:18:33 → ready 18:18:35
+(1.5 s), child created 18:18:34 ending `-ngl 99 -fa on`. Commit `8349953c9`
+gave the switch a plain-language tooltip in all 8 locales
+(`i18n/translations/en.json:820`, `translationGpuInfo`): it now says the
+processor path is about 10 times slower in the tests, without the old
+"adds time after you speak" wording.
+
+Delete while loaded (18:18:58–18:18:59) and while loading (18:20:10–18:20:12):
+the 2-second response gap on the loading case is the service lock waiting for
+the in-flight load before stopping it. Rapid input: `start requested` at
+18:22:00, `ignore-burst (generation=2)` on the second press 0.12 s later, one
+stop at 18:22:02; a 0.6 s take at 18:22:20 was accepted and the load continued
+without a crash.
+
+Focus change, with the translation wait deliberately lengthened:
+
+```text
+18:32:16  INFO  [CLIPBOARD-AUDIT] Copied 78 chars to clipboard (seq=179, snapshot=captured)
+18:32:16  WARN  [CLIPBOARD] Foreground window changed since dictation stop
+          (stop_hwnd=330278 -> dispatch_hwnd=3213776), aborting paste ...
+18:32:16  INFO  [CLIPBOARD] Paste delivery unconfirmed; keeping dictated text
+          in clipboard for manual paste
+```
+
+`stop_hwnd=330278` is the window focused at stop, `dispatch_hwnd=3213776` the
+one focused at delivery; both window dumps were unchanged. This matches
+`tests/test_dictation_destination_stop_time.py`. An earlier run where focus
+changed in the same second as the stop was a driving race (the stop snapshot
+was already the new window), not a contradiction.
+
+Grouping probe (real service, real text, no mocks of the service):
+
+```text
+735 chars   est_tokens=150   budget=2176  groups=1  posts=1  2.3s
+9800 chars  est_tokens=1997  budget=2176  groups=1  posts=1  9.0s
+14700 chars est_tokens=2994  budget=2176  groups=2  posts=2 10.6s
+double-spaces: 0
+```
+
+The 2-group output had no missing separator and no added space, so the shipped
+bounded group join preserves source whitespace end-to-end at the service
+boundary.
+
+### What FAILED and was FIXED
+
+1. **Cold first dictation loaded the translator after stop.** Before the fix,
+   the real app at 17:47:55 stopped, then at 17:48:46 logged
+   `[TRANSLATE] translation ready ... in 49.6s` — the exact owner report.
+   Cause: the policy module registers at import, and its only production
+   importers were the first **post-stop** stage and the translation service, so
+   the record-start hook (`dictation_gate.py:80-84`) could not see the kind on a
+   cold process. Fix `996fd214e`: `ensure_kinds_registered()` at
+   `model_lifecycle/registry.py:35`, called from the gate hook
+   (`dictation_gate.py:88`) and at startup before the first press
+   (`startup_sequence/_phases_late.py:495-503`). After: readiness 15 s before
+   stop (18:04:51 vs 18:05:06), and post-fix startup preload at 18:21:24
+   needed no scratch-only registration hack.
+
+2. **Plugin hook with no plugin selected swallowed every local toggle.** Before
+   the fix, each press produced `[DICTATION-GATE] ignore-burst (generation=1/2/3)`
+   at 17:56:26 / 17:56:46 / 17:58:44 and no recording. Cause: the no-plugin
+   branch decided the gate at `internal_plugin_hook.py:351`, then called the
+   original toggle, which decided again at `app_dictation.py:25` inside the
+   0.5 s debounce. Fix `996fd214e`: the no-session branch now releases any old
+   owner, calls `orig_toggle()` and returns without a second decision
+   (`internal_plugin_hook.py:355-363`); the one decision stays in the local
+   entry. After: 18:21:35 `start requested`, `Recording started OK`, no
+   ignore-burst.
+
+3. **A no-model press opened the mic.** Before the fix (18:37:42):
+   `start requested`, `Recording started OK`, then a generic transcription
+   failure — the no-model notice never appeared. The old guard lived only on
+   the hotkey path, so button/tray/plugin starts bypassed it. Fix `74b7043ee`:
+   shared `no_active_engine()` / `notify_no_active_engine()` at
+   `hotkey_dispatch.py:21,33`, plus the pre-mic refusal at
+   `recording_lifecycle_start.py:59-71` for every start entry. After (18:53:39):
+
+   ```text
+   18:53:39  INFO  [DICTATION] start requested (cycle=#1, origin=button)
+   18:53:39  INFO  [DICTATION] no active engine; dictation not started
+   18:53:39  -> notification "No model selected. Go to the models page to select a model."
+   ```
+
+   Absence counts at/after that timestamp: `Recording started OK` 0,
+   `Using device` 0, `Starting recording...` 0, `Audio stopped` 0,
+   `[TRANSLATE]` 0, `no active engine` 1; no translator process appeared.
+   A `DEBUG no-engine notification failed` line is only the headless scratch
+   sidecar's tray call; the in-app notification was published.
+
+### What stays UNVERIFIED, and why
+
+- **End-to-end hotkey → bubble and a real local-ASR decode.** Scratch had no
+  worker relay (`[WORKER-PATH] gate off: no worker port`), so
+  `[TRANSCRIBE] Transcription FAILED` on every cycle; driving OS keys is also
+  barred by C-HOOK-1. Presses were real WS frames with origin `button`, not
+  hardware keystrokes.
+- **Cloud ASR.** No provider configured (`asr_provider=local`, empty URL and
+  model); no key was read, printed or used; no provider call was made.
+- **TTS per-kind idle.** TTS was disabled in scratch to isolate translation;
+  only the app's dedicated TTS prewarm was observed, not the shared clock.
+- **Terminal color.** File logs intentionally strip ANSI (C-LOG-1) and no TTY
+  was captured, so the `[TRANSLATE]` **tag** is verified but its color is not.
+- **Press during a live translation POST.** Only a press during an in-flight
+  *load* was exercised; no Stage-B POST was ever in flight without a worker.
+- **Real Parakeet weight load / RSS and per-process VRAM.** No worker attached,
+  so no weights were loaded. The whole-GPU sample at 18:07:25
+  (4,411 MiB / 8,151 MiB) includes other processes and is not per-app or peak.
+- **Sequential vs parallel ASR+translator loading.** No real ASR load to
+  compare; the conservative sequential-by-need order stays as designed.
+- **Sleep/resume.** Not driven in this round.
+- **`0x80010108`.** Not reproduced in 6 plugin dictations (3 with translation
+  on, 18:33:46–18:34:45; 3 off, 18:35:29–18:36:17) with STDERR captured:
+  grep for `80010108|Fatal Python error|Current thread|Thread 0x|0x800` gave 0
+  matches. The only COM-ish line is the known, logged caret probe. This adds no
+  evidence to the note at `docs/design/model-lifecycle.md:154`; changing
+  clipboard/COM code on suspicion is not justified.
+
+### Deferred-load origin gap: real in code, unreachable live
+
+The code hole is real: `model_manager/_loading.py:272-279` puts a pending press
+on a zero-delay timer with no origin, and `app_dictation.py:36-38` calls
+`recording.start()` without re-checking `dictation_origin.authorize(...)`
+(`recording_lifecycle_start.py:193-265` checks state, consent, language and
+permission but not origin). The only production writer of `_pending_dictation`
+is the busy-rejection branch at `_loading.py:505-506`.
+
+Both live attempts to reach it failed for the same reason:
+- Immediate press on a cold sidecar (18:20:07 press → 18:20:10 mic): the load
+  finished 3 s before the press landed; `Pending dictation` 0,
+  `Recording started OK` 1.
+- Press during a media job (18:17:19 press → mic in the same second): media
+  calls the backend directly (`media_ingest/engine_loop.py:285`), bypassing the
+  registry busy flag; no queuing line, and a later model switch at 18:17:27
+  produced no deferred start. The app gate also refuses presses while busy
+  (`recording_lifecycle_start.py:54-57`).
+
+So the branch is effectively dead code on this machine today, but it remains a
+C-START-USER-1 landmine: a timer thread with `dictation_origin.current() == ""`
+could open the mic if a Timer/concurrency change armed it. Per the owner rule,
+this is documented here and **the code was left unchanged** in Round 7; a fix
+would need to carry the press-time origin through the existing 60 s wait
+(`MODEL_WAIT_FOR_READY_SECONDS`, `_loading.py:35`) with a real-entry test.
+
+### Stale-app caveat
+
+The shared app was launched at 15:23:59/15:24:00 on HEAD `76cc13081`
+(15:01:32). Round 5 commits landed at 15:33:12 / 15:39:36 / 15:43:12; the
+verification fixes landed at 18:17:47 (`996fd214e`), 18:52:11 (`74b7043ee`)
+and 19:05:08 (`7444e820b`). That process cannot contain those commits, so its
+logs are **stale-code evidence only**. Final-code checks were therefore made on
+scratch sidecars spawned after 17:55 from current source (S1 cfg4 onward; S2
+s2b 18:21:20, s2d 18:33:26, s2e 18:35:11, s2f 18:37:19, s2g 18:53:09; S3
+18:20:05). A "real app PASS" without checking the process start time against
+commit times is not evidence of final code. The shared app was never stopped or
+killed by this work; S2 briefly changed `translation_gpu_enabled` for the GPU
+test and restored it, leaving that process's translator on its old flag until
+its next dictation.
