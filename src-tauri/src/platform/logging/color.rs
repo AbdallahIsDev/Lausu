@@ -54,6 +54,7 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("RECORDING", "38;5;79"),
     ("AUDIO_QUALITY", "38;5;215"),
     ("DICTATION", "38;5;215"),
+    ("DICTATION-GATE", "38;5;80"),
     ("TRANSCRIBE", "38;5;120"),
     ("VOLUME", "38;5;111"),
     ("VAD", "38;5;245"),
