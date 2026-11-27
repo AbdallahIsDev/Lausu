@@ -130,3 +130,32 @@ permissions, rejected). Recovery for Gemini is therefore not implemented.
   no-disk leakage; `test_critical_notices.py` still pins one OS + one in-app
   notice; `test_dev_fake_audio_harness.py` pins harness gating and that the
   production launcher and packaging scripts contain no fake-audio flags.
+
+## 2026-11-27 follow-up — Claude hidden span, stale drafts, quiet polling
+
+### Claude hidden-span capture (root cause of "recovery does not save")
+
+Live Claude dictation DOM (real app, fake-audio harness, dir=ltr here):
+`<div data-testid="chat-input" contenteditable="false" aria-readonly="true"><p dir="auto"><span data-dictation=""><span data-dictation-words="hidden" class="hidden">TEXT</span></span><span data-dictation-words="end" contenteditable="false" class="ProseMirror-widget"></span><img class="ProseMirror-separator"><br></p></div>`
+Measured once per second while a real dictation ran:
+
+| extraction | result |
+|---|---|
+| outer `innerText` | `"\n"` (truthy, empty after trim) |
+| outer `textContent` | grows 17 → 32 → 54 → 69 chars, cumulative |
+| `span[data-dictation]` `innerText` | `""` |
+| `span[data-dictation]` `textContent` | same cumulative text |
+| `span[data-dictation-words="hidden"]` `textContent` | same cumulative text |
+| `span[data-dictation-words="end"]` | empty |
+| `selectors/claude.json` old `liveTextSelector` + `innerText` | empty → daemon `/draft-snapshot` returned `{"text":"","source":"none"}` |
+
+Root cause: `content.js:244-260` (commit `349326d99`) read `box.innerText || box.textContent`; Claude’s outer box returns a newline for `innerText`, so `textContent` was never used; the fallback `composerText()` requires `contenteditable="true"` and finds nothing while Claude is read-only. Earlier capture (31→569 chars) worked because the composer was still editable and text lived in a normal paragraph; the later redesign moved live text into hidden spans. Fix: `selectors/claude.json` declares `liveText` = `span[data-dictation-words]` + `textContent` + DOM-order concatenation; no `dir` attribute is used (tests cover rtl, ltr and absent, English/Arabic/mixed/emoji/long). ChatGPT keeps its verified extraction unchanged.
+
+### Stale-draft investigation (hypothesis B proven)
+
+Real order with a typed 21-word draft before start (Claude, `20:15:10`):
+`start requested` → `draft snapshot read (21 words, source=live-selector)` → `recording started` → browser-lost with no usable snapshot. ChatGPT with a persisted 50-word draft (`20:16:43`): first read saw 50 words before `recording started` (`20:16:46`), then reads saw 7→9→13→17 dictated words and recovery delivered 17 words — no old text. Code order: `session.py:800` baseline read happens before `/start` (`:814`); `content.js:550` `ensureCleanComposer()` clears before the verified click (`:580`); watcher starts after `recording started` (`session.py:871`). Hypothesis B (a pre-clear read) is real, but the baseline gate means old text never enters the recovered partial. Decision: no baseline correctness code added; the pre-start read is now silent so the log cannot be misread.
+
+### Quiet polling decision (measured)
+
+MutationObserver attached to the live composer fired 1 mutation for an inserted phrase and 0 during 5 s of silence; 1 Hz polling does 5 reads in the same silence. Observer would need a new page→Python event channel (no such wire exists), so the chosen policy is adaptive polling: 1 s while text changes, 3 s after 3 unchanged reads, back to 1 s on change (30 s silence: ~10 reads instead of 30). Status polling stays 1 s for death detection. Logs are DEBUG only, counts only, at most one line per 5 s per kind; one `draft snapshot summary (cycle=#N): reads=R, changes=C, final=W words` per cycle. Item 4: the watcher never starts before `recording started`; refused/cancelled cycles cannot leak a snapshot (tests pin this).
