@@ -355,3 +355,112 @@ All from `C:\Users\11\voice-typer`, serial, using `C:\Users\11\voice-typer\.venv
 & .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_idle_summary.py
 & .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_text.py
 ```
+
+
+---
+
+## Startup logs, translator preload and Rust/other levers (dated note 2026-11-28)
+
+Plain English first. The owner's two real launches (2026-11-27 22:29 and 22:47,
+internal-plugin profile) reach `Startup complete` in **3.1 s** and **2.3 s**.
+The Rust host had already spent 2.0 / 1.8 s booting and Python spent 1.4 /
+1.0 s importing before the first backend log. Nothing inside the Python startup
+phases takes half a second; the only >=0.5 s steps are the native host boot,
+Python import, the optional translator runtime load (12.1 / 15.3 s), and
+plugin-only Chrome/WMI work that a normal end user never sees.
+
+The translator's 12-15 s is **not** a new regression. The 1.31 GB GGUF was cold
+in the OS file cache: Round 5 measured a cold read at 15.47 s (81 MB/s) versus
+0.15 s warm, and spawn-to-health at 13.78 s cold versus 2.06-2.70 s warm. The
+live `llama-server.log` for the 15.3 s launch shows `loading model` at +0.244 s,
+tensor warnings at +1.028 s, the next line at +14.689 s and `model loaded` at
++14.858 s. The exact split between disk read and Vulkan upload inside that gap
+is UNVERIFIED; no shader-cache file was found. The request asks for `-fa on`,
+but this Vulkan device logs that flash attention is unsupported and disables it.
+
+The owner's second launch had plugin activation 19.7 s with about 14 s outside
+the instrumented stages, and `translation ready` landed in that same second.
+That is correlation, not causation: the first launch had the same preload
+(12.1 s) but only 2.6 s outside stages; the second launch's translator was only
+3.2 s slower yet the gap grew by 11.4 s. The plugin activation thread and the
+translator loader share no lock, and a live probe measured the plugin's
+PowerShell WMI call at ~0.33 s both idle and with a translator load in flight.
+The unaccounted time stays inside a chain of up to three
+`Get-CimInstance Win32_Process` calls with 10 s timeouts in the dev-only plugin
+path. Its exact content in launch B is UNVERIFIED.
+
+### Startup timeline (owner logs, t0 = first backend log)
+
+| Step | Launch A 22:29 | Launch B 22:47 | Class |
+| --- | --- | --- | --- |
+| Rust host boot -> backend first log | 2.0 s | 1.8 s | Rust host + native/disk |
+| Backend spawn -> first log | 1.4 s | 1.0 s | Python import + disk |
+| Banner / WS bind / auth / ready | <1 s | <1 s | Python CPU |
+| VAD / GTCRN / DPDFNET load | 0.1 / 0.0 / 0.4 s | 0.1 / 0.0 / 0.6 s | native ONNX |
+| History DB, native hotkeys, mic enumeration | <0.5 s each | <0.5 s each | C / native child |
+| `Startup complete` | **3.1 s** | **2.3 s** | end of Python phases |
+| Pack manifest / update 404 checks | background | background | network wait |
+| Plugin profile prepared / Chrome launch | +5 s / +7 s | +17 s / +18 s | dev-only plugin |
+| Plugin activation stages (daemon/status/prepare/total) | 3.2 / 0.0 / 2.8 / **8.6 s** | 3.1 / 0.0 / 2.6 / **19.7 s** | dev-only plugin |
+| Translator spawn -> health | **12.1 s** | **15.3 s** | native child + disk/Vulkan |
+
+Critical path for a normal end user (no plugin): host boot 1.8-2.0 s -> backend
+import 1.0-1.4 s -> Python phases to `Startup complete` 2.3-3.1 s. A translator
+load runs on a daemon thread after that marker; with Fast Startup on it is
+ready about 2-3 s warm or 10-15 s cold later, and with Fast Startup off the wait
+moves to the first user press. For the plugin profile, plugin usable was about
+10.6 s (A) and 21.5 s (B) from Rust host start; in B the translator was ready
+before the plugin, so plugin activation was the critical path.
+
+### Translator preload A/B (real model, real runtime, serial)
+
+Six arms were measured with scratch profiles/ports and the real 1.31 GB GGUF;
+`Startup complete` was unchanged in every arm. Free RAM was low because other
+sessions were active, so some arms needed a scratch-only guard bypass; those
+are labelled *forced-guard* and measure load cost, not end-user guard behavior.
+
+| Arm | Median `translation ready` | p95 / max | Notes |
+| --- | ---: | ---: | --- |
+| preload ON, guard passed (n=3) | **2.1 s** | 4.1 / 4.1 s | startup unchanged |
+| preload OFF (n=4) | never loads | n/a | first dictation would pay the load |
+| delayed 20 s, guard passed (n=2) | 2.6 s | 3.1 / 3.1 s | ready wall 24-25 s |
+| delayed, forced-guard (n=3) | 16.7 s | 27.8 / 27.8 s | RAM pressure dominates |
+| low priority, guard passed (n=2) | 2.35 s | 2.6 / 2.6 s | no plugin gain measured |
+| low priority, forced-guard (n=3) | 2.6 s | 4.1 / 4.1 s | same |
+
+Verdict: **no code change shipped.** Delaying or disabling the preload only
+moves a 2-15 s load into the first dictation, which Round 7 proved loses the
+translation when it happens after stop. Lowering priority slowed loading and
+did not improve plugin activation. True cold-cache A/B, exact Vulkan share and
+the plugin gap content remain UNVERIFIED.
+
+### Rust / other levers for installer size, startup and loading
+
+The Windows installer measured in CI (2026-11-22, before the migration) is
+163.63 MB NSIS / 177.02 MB MSI. It contains a 128.23 MiB `ffmpeg.exe` and a
+~119 MB frozen sidecar; the "worker 0.00 MB" gate row is a 63-byte local stub,
+not the 117.82 MiB worker artifact from a separate job. The authoritative
+onefile extraction measured 264.59 MiB of payload, of which SciPy 65.36 MiB,
+retired Python media-decode libraries 64.91 MiB (stale in that build; already
+gone from current source), ONNX Runtime 35.16 MiB, NumPy 26.07 MiB, and the
+Python runtime + CRT + SSL/SQLite support 24.72 MiB.
+
+| Lever | Expected saving | Verdict |
+| --- | --- | --- |
+| Rewrite some Python modules in Rust | **0 MB** - CPython stays in both onefiles | NOT WORTH IT |
+| Retired Python media-decode dependency removal | ~25-35 MiB installer ESTIMATE; already in source | DO (verify with a real build) |
+| Audio-only upstream ffmpeg build | ~45-75 MiB installer ESTIMATE vs 128.23 MiB measured | LATER (owner decision on build ownership) |
+| Move ffmpeg/media deps to the runtime pack | ~55-75 MiB installer ESTIMATE | LATER (blocked: pack is not published) |
+| Drop ONNX Runtime before a GGUF noise backend exists | ~16-21 MiB installer ESTIMATE, breaks default denoiser | NOT WORTH IT now |
+| Deduplicate sidecar/worker frozen runtimes | 0 MB installer (worker not shipped); ~15-25 MiB on-disk ESTIMATE | LATER, not for installer |
+| NSIS/MSI compression knobs | ~0 MB (NSIS already LZMA; WiX schema has no key) | NOT WORTH IT |
+| Exclude unused stdlib/tests from freeze | <~2 MiB ESTIMATE, import risk in frozen build | NOT WORTH IT |
+| Rewriting config/IPC/text/resampler in Rust | microseconds to 0.37% core, already fixed in Python | NOT WORTH IT |
+| Native Win32 process enumeration instead of PowerShell WMI | ~0.3 s per call measured; up to 10 s timeout each, dev-only profile | LATER |
+
+Installer savings are derived from a measured 0.45-0.59 raw-payload-to-installer
+ratio; no installer was built in this round, and the CI sizes predate
+ADR-0031 Phase 1, so a current-code build size is UNVERIFIED. The honest answer
+to "would Rust help installer size or startup?" is **no** while any Python
+remains: the bytes and the waits are native code, model files, disk and child
+processes, not Python functions.
