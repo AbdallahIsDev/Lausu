@@ -162,11 +162,6 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "translation_target_language": (str, _make_enum_validator(_ALLOWED_TRANSLATION_TARGETS)),
     "translation_glossary": (str, _make_str_validator(max_len=4000)),
     "translation_gpu_enabled": (bool, _bool_validator),
-    # Warm-up / idle unload only change WHEN the already-installed translator
-    # process runs. They carry no path, endpoint, secret or new egress; 0
-    # disables the idle timer and the int validator clamps it to one day.
-    "translation_warm_on_record": (bool, _bool_validator),
-    "translation_idle_unload_seconds": (int, _make_int_validator(lo=0, hi=86400)),
     "translation_model_path": (str, _VALIDATOR_LOCAL_DIR),
     "translation_runtime_path": (str, _VALIDATOR_LOCAL_DIR),
     # ADR-0031: the native runner advertises cpu/vulkan/cuda; `cuda` is

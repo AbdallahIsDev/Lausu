@@ -70,14 +70,6 @@ class _ConfigSchema:
     # The bundled llama.cpp Vulkan runtime needs no CUDA bundle. Off means
     # explicit CPU inference on the same GGUF.
     translation_gpu_enabled: bool = True
-    # Background translator load on a genuine user recording start. Never
-    # triggers a download and never runs on the hotkey thread. Default on:
-    # an installed translator is warmed while the user is still speaking.
-    translation_warm_on_record: bool = True
-    # Stop the idle llama-server after this many seconds with no translation
-    # request. 0 disables idle unload (the runtime stays loaded until a
-    # config-key change or shutdown). The next recording re-warms it.
-    translation_idle_unload_seconds: int = 600
     # Advanced overrides for a locally installed runtime/model. Empty means
     # resolve from the app data dir or the LAUSU_TRANSLATION_* env vars.
     translation_model_path: str = ""

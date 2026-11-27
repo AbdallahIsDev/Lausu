@@ -2726,6 +2726,7 @@ fn test_expected_topic_colours_are_pinned() {
         ("YTDLP", "38;5;110"),
         ("DPDFNET", "38;5;69"),
         ("TTS", "38;5;213"),
+        ("TRANSLATE", "38;5;80"),
     ] {
         assert_eq!(topic_color_for(topic), Some(color), "topic {topic}");
     }

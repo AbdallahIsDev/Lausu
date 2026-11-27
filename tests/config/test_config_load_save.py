@@ -584,6 +584,29 @@ class TestDeprecatedFieldsScrubbedOnLoad:
         for field in self.REMOVED_FIELDS:
             assert not hasattr(c, field), f"Removed field {field!r} should NOT be on the Config instance"
 
+    def test_translator_warm_and_idle_keys_are_dropped_on_load(self, tmp_path, tmp_config_dir):
+        """Old config.json carrying both removed keys loads clean and loses them."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "schema_version": 3,
+                    "hotkey": "<f9>",
+                    "translation_enabled": True,
+                    "translation_warm_on_record": False,
+                    "translation_idle_unload_seconds": 120,
+                }
+            )
+        )
+
+        c = Config.load()
+
+        assert c.hotkey == "<f9>"
+        assert c.translation_enabled is True
+        for field in ("translation_warm_on_record", "translation_idle_unload_seconds"):
+            assert not hasattr(c, field), f"Removed field {field!r} must not survive on Config"
+            assert field not in json.loads(config_file.read_text())
+
     def test_config_with_deprecated_fields_at_schema_v3_loads(self, tmp_path, tmp_config_dir):
         """A ``config.json`` at schema_version=3 with the deprecated fields"""
         config_file = tmp_path / "config.json"

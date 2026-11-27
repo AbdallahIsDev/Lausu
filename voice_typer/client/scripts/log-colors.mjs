@@ -70,6 +70,9 @@ export const BUBBLE_CLR = esc("38;5;39");
 /** Bright yellow for `[MAIN renderer]` tags. */
 export const RENDERER_CLR = esc("38;5;227");
 
+/** Teal for `[TRANSLATE]` tags; matches the Python/Rust topic palette. */
+export const TRANSLATE_CLR = esc("38;5;80");
+
 /**
  * Bright cyan for the structured `log` logger's `[INFO]` prefix.
  * Intentionally matches `BUBBLE_CLR`, INFO is the "happy" level and

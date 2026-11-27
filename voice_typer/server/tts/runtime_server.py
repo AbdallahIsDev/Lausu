@@ -49,6 +49,8 @@ class RuntimeSpec:
     log_path: Path
     #: Runtime health route; audio.cpp and NeMo-Speech.cpp both expose /health.
     health_path: str = "/health"
+    #: Log tag owned by the caller; non-audio runtimes set their own domain.
+    log_tag: str = "TTS"
 
 
 @dataclass
@@ -92,7 +94,7 @@ class RuntimeServer:
             server.stop()
             raise
         server.startup_s = time.perf_counter() - started
-        log.info("[TTS] %s ready on %s in %.1fs", spec.name, server.base_url, server.startup_s)
+        log.info("[%s] %s ready on %s in %.1fs", spec.log_tag, spec.name, server.base_url, server.startup_s)
         return server
 
     def _wait_healthy(self, timeout_s: float) -> None:
@@ -133,7 +135,7 @@ class RuntimeServer:
         try:
             process.wait(timeout=grace_s)
         except subprocess.TimeoutExpired:
-            log.warning("[TTS] %s ignored terminate, killing", self.spec.name)
+            log.warning("[%s] %s ignored terminate, killing", self.spec.log_tag, self.spec.name)
             process.kill()
             process.wait(timeout=grace_s)
 

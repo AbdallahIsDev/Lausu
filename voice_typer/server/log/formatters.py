@@ -69,6 +69,7 @@ _TOPIC_COLOR: dict[str, str] = {
     "CONFIG": "38;5;102",
     "TRAY": "38;5;102",
     "TTS": "38;5;213",
+    "TRANSLATE": "38;5;80",
     "LLM_POLISH": "38;5;140",
     "ASR_REGISTRY": "38;5;141",
     "ASR_SETUP": "38;5;102",

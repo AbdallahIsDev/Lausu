@@ -157,6 +157,7 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("TIMEOUT-UTILS", "38;5;110"),
     ("TIMER", "38;5;102"),
     ("TTS", "38;5;213"),
+    ("TRANSLATE", "38;5;80"),
     ("UNDO", "38;5;120"),
     ("UNINSTALL", "38;5;95"),
     ("UPDATE", "38;5;110"),

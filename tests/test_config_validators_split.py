@@ -135,9 +135,7 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "theme_preset",
         "translation_enabled",
         "translation_glossary",
-        "translation_warm_on_record",
         "translation_gpu_enabled",
-        "translation_idle_unload_seconds",
         "translation_model",
         "translation_model_path",
         "translation_runtime_path",
@@ -271,17 +269,16 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 176 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 176, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 176, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 174 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 174, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 174, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
-            "Latest growth 174 → 176 (2026-11-27): `translation_warm_on_record` "
-            "(bool) and `translation_idle_unload_seconds` (int clamped 0..86400) "
-            "only change WHEN the already-installed loopback translator process "
-            "runs. They add no path, endpoint, secret or egress; the warm path "
-            "never downloads and the 600 s default keeps today's lifecycle "
-            "unchanged for users who do not set them. "
+            "Latest shrink 176 → 174 (2026-11-27): `translation_warm_on_record` "
+            "and `translation_idle_unload_seconds` were removed with the "
+            "translator-specific warm/idle system they drove. Residency now "
+            "comes from the shared model lifecycle; old config.json keys are "
+            "dropped on load. Neither key addressed a device, endpoint or secret. "
             "Prior growth 172 → 174 (2026-11-21): `plugin_visible` and "
             "`plugin_notify`, the two shared settings for the unified plugin "
             "system. Both are bool-validated and carry no secret, endpoint or "

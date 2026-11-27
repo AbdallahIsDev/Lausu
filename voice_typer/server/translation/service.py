@@ -17,7 +17,6 @@ import contextlib
 import json
 import logging
 import threading
-import time
 import weakref
 from pathlib import Path
 from typing import Any
@@ -50,16 +49,6 @@ log = logging.getLogger(__name__)
 
 _ALIAS = "lausu-translate"
 _REQUEST_TIMEOUT_S = 120.0
-_IDLE_UNLOAD_DEFAULT_S = 600
-_IDLE_UNLOAD_MAX_S = 86_400
-
-# A translate-at-end waits at most this long for the warm load started at
-# recording time. Measured cold llama-server launch: 15.4 s with a warm OS file
-# cache, 33.9 s cold; first complete response 16.2 / 34.5 s
-# (docs/design/translation-chunking.md §11a). 45 s covers the worst measured
-# cold start with headroom without hanging dictation forever. The background
-# load itself is NOT cancelled at this deadline; it finishes and is reused.
-_WARM_JOIN_TIMEOUT_S = 45.0
 
 
 class TranslationError(RuntimeError):
@@ -117,7 +106,7 @@ def _publish_notice(message: str, app: Any | None) -> None:
                 app.tray.notify(APP_NAME, message)
 
 
-def _notify_translation_failure(app: Any | None = None) -> None:
+def notify_translation_failure(app: Any | None = None) -> None:
     """Surface one generic-failure notice per broken episode; never raise."""
     global _translation_failed_notified
     with _translation_failed_lock:
@@ -146,12 +135,11 @@ def _model_is_installed(config: Any) -> bool:
         return False
 
 
-def _idle_seconds(config: Any) -> int:
-    """Read the idle-unload setting; absent/invalid values get today's default."""
-    raw = getattr(config, "translation_idle_unload_seconds", _IDLE_UNLOAD_DEFAULT_S)
-    if isinstance(raw, bool) or not isinstance(raw, int):
-        return _IDLE_UNLOAD_DEFAULT_S
-    return max(0, min(raw, _IDLE_UNLOAD_MAX_S))
+def note_use() -> None:
+    """Record a successful POST with the shared model lifecycle."""
+    from voice_typer.server.translation.lifecycle import note_use as shared_note_use
+
+    shared_note_use()
 
 
 def work_dir() -> Path:
@@ -211,13 +199,6 @@ class TranslationService:
         # kill the runtime under urlopen, or stop() could miss a runtime that a
         # concurrent thread had not yet assigned to self._runtime (process leak).
         self._lock = threading.RLock()
-        # Idle unload is a separate lock so the timer never blocks a POST.
-        self._idle_seconds = _idle_seconds(config)
-        self._idle_lock = threading.Lock()
-        self._idle_activity = threading.Event()
-        self._idle_stop = threading.Event()
-        self._idle_deadline: float | None = None
-        self._idle_thread: threading.Thread | None = None
 
     def _spec(self) -> RuntimeSpec:
         root = work_dir()
@@ -248,13 +229,12 @@ class TranslationService:
             argv.extend(["-ngl", "99", "-fa", "on"])
         else:
             argv.extend(["-ngl", "0"])
-        return RuntimeSpec(name="translation", argv=argv, log_path=root / "llama-server.log")
+        return RuntimeSpec(name="translation", argv=argv, log_path=root / "llama-server.log", log_tag="TRANSLATE")
 
     def _ensure_runtime(self) -> RuntimeServer:
         with self._lock:
             if self._runtime is None or not self._runtime.running:
                 self._runtime = RuntimeServer.start(self._spec(), timeout_s=180.0)
-            self.note_activity()
             return self._runtime
 
     def _complete(self, prompt: str, *, cancel_event: threading.Event | None = None) -> str:
@@ -310,70 +290,24 @@ class TranslationService:
             raise TranslationError("translation response had no message content") from exc
         if not isinstance(content, str):
             raise TranslationError("translation response content was not text")
+        note_use()
         return content.strip()
 
     def ensure_runtime(self) -> None:
         """Start (or reuse) the single model process without translating."""
         self._ensure_runtime()
 
-    def note_activity(self) -> None:
-        """Restart the idle countdown after a warm load or a successful POST."""
-        if self._idle_seconds <= 0:
-            return
-        with self._idle_lock:
-            self._idle_deadline = time.monotonic() + self._idle_seconds
-            self._idle_activity.set()
+    def runtime_running(self) -> bool:
+        """Whether this service still owns a live llama-server process."""
+        runtime = self._runtime
+        return runtime is not None and runtime.running
 
-    def start_idle_monitor(self) -> None:
-        """Start the one idle-unload watcher for this cached service."""
-        if self._idle_seconds <= 0:
-            return
-        with self._idle_lock:
-            if self._idle_thread is not None:
-                return
-            thread = threading.Thread(
-                target=self._idle_loop,
-                name="translation-idle-unload",
-                daemon=True,  # RACE-008: idle cleanup must never delay process exit
-            )
-            self._idle_thread = thread
-            self._idle_activity.set()
-            thread.start()
-
-    def _idle_loop(self) -> None:
-        while not self._idle_stop.is_set():
-            with self._idle_lock:
-                deadline = self._idle_deadline
-            if deadline is None:
-                self._idle_activity.wait(timeout=1.0)
-                self._idle_activity.clear()
-                continue
-            remaining = deadline - time.monotonic()
-            if remaining > 0:
-                if self._idle_stop.wait(timeout=min(remaining, 1.0)):
-                    return
-                continue
-            if self._try_idle_stop():
-                with self._idle_lock:
-                    self._idle_deadline = None
-            else:
-                # A request or warm load owns the runtime. Never tear it down
-                # under a POST: push the deadline out by a full idle window.
-                self.note_activity()
-
-    def _try_idle_stop(self) -> bool:
-        """Stop the runtime only when no request or warm load holds its lock."""
+    def is_busy(self) -> bool:
+        """Whether a POST or runtime start currently holds the request lock."""
         if not self._lock.acquire(blocking=False):
-            return False
-        try:
-            if self._runtime is None or not self._runtime.running:
-                return False
-            self._runtime.stop()
-            self._runtime = None
-            log.info("[TRANSLATE] idle unload stopped the translation runtime")
             return True
-        finally:
-            self._lock.release()
+        self._lock.release()
+        return False
 
     def _translate_groups(
         self,
@@ -399,8 +333,6 @@ class TranslationService:
             if not translated:
                 raise TranslationError("translation chunk response was empty")
             results.append(restore_spans(translated, group_spans))
-            # Keep the idle unload from tearing the runtime down between chunks.
-            self.note_activity()
         return join_translations(groups, results)
 
     def translate(
@@ -443,16 +375,15 @@ class TranslationService:
             raise
         except TranslationError as exc:
             log.warning("[TRANSLATE] %s; keeping original text", exc)
-            _notify_translation_failure(_app_ref)
+            notify_translation_failure(_app_ref)
             return text
         except Exception:
             log.exception("[TRANSLATE] unexpected failure; keeping original text")
-            _notify_translation_failure(_app_ref)
+            notify_translation_failure(_app_ref)
             return text
         with _translation_failed_lock:
             _translation_failed_notified = False
             _translation_model_missing_notified = False
-        self.note_activity()
         return result
 
     def translate_batch(
@@ -473,13 +404,11 @@ class TranslationService:
         return [self.translate(text, target_code, cancel_event=cancel_event) for text in texts]
 
     def stop(self) -> None:
-        """Stop the owned runtime and its idle watcher; safe to call twice.
+        """Stop the owned runtime; safe to call twice.
 
         Waits for any in-flight request: terminating the process mid-POST would
         turn a healthy translation into a spurious failure.
         """
-        self._idle_stop.set()
-        self._idle_activity.set()
         with self._lock:
             runtime = self._runtime
             if runtime is not None:
@@ -493,13 +422,13 @@ _SERVICE_LOCK = threading.Lock()
 
 
 def _service_key(config: Any) -> tuple[object, ...]:
+    """The GPU flag is part of the key: a toggle retires the old process."""
     return (
         str(getattr(config, "translation_model", "") or ""),
         str(getattr(config, "translation_model_path", "") or ""),
         str(getattr(config, "translation_runtime_path", "") or ""),
         bool(getattr(config, "translation_gpu_enabled", True)),
         str(getattr(config, "translation_glossary", "") or ""),
-        _idle_seconds(config),
     )
 
 
@@ -513,102 +442,45 @@ def get_service(config: Any) -> TranslationService:
                 _SERVICE.stop()
             _SERVICE = TranslationService(config)
             _SERVICE_KEY = key
-        _SERVICE.start_idle_monitor()
         return _SERVICE
 
 
+def is_loaded(config: Any) -> bool:
+    """True only when the cached runtime is live for THESE exact settings."""
+    with _SERVICE_LOCK:
+        return _SERVICE is not None and _service_key(config) == _SERVICE_KEY and _SERVICE.runtime_running()
+
+
+def service_is_busy() -> bool:
+    """True while a POST or runtime start holds the service request lock."""
+    with _SERVICE_LOCK:
+        service = _SERVICE
+    return service is not None and service.is_busy()
+
+
+def stop_cached_service() -> None:
+    """Unload the runtime, keeping the service and its settings key intact."""
+    with _SERVICE_LOCK:
+        if _SERVICE is not None:
+            _SERVICE.stop()
+
+
 def prewarm(config: Any) -> bool:
-    """Start the cached translator ahead of the first dictation, if enabled.
+    """Explicit best-effort load via the shared lifecycle; never downloads."""
+    from voice_typer.server import model_lifecycle
+    from voice_typer.server.translation import lifecycle
 
-    Explicit and best-effort: startup never blocks on a missing model and no
-    user-facing notice is raised here. A later translate() still lazy-loads the
-    runtime when this was not called.
-    """
-    if not bool(getattr(config, "translation_enabled", False)):
+    if not bool(getattr(config, "translation_enabled", False)) or not _model_is_installed(config):
         return False
-    if not _model_is_installed(config):
-        # A missing model is never installed here: prewarm must not download,
-        # load or block on a translator the user has not installed.
+    lifecycle.register()
+    policy = model_lifecycle.get(lifecycle.KIND)
+    if policy is None:
         return False
     try:
-        get_service(config).ensure_runtime()
-        return True
+        return bool(policy.is_loaded(config) or policy.load(config))
     except Exception:
-        log.warning("[TRANSLATE] prewarm failed; first translation starts the runtime on demand", exc_info=True)
+        log.warning("[TRANSLATE] explicit load failed; Stage B stays lazy", exc_info=True)
         return False
-
-
-# Single-flight warm load. The service cache + its RLock already guarantee one
-# process; these globals coalesce the THREADS so a burst of recordings does not
-# spawn a warm worker per press.
-_warm_lock = threading.Lock()
-_warm_thread: threading.Thread | None = None
-_warm_done = threading.Event()
-_warm_key: tuple[object, ...] | None = None
-
-
-def _warm_worker(config: Any) -> None:
-    try:
-        prewarm(config)
-    except Exception:
-        log.warning("[TRANSLATE] background warm failed; Stage B stays lazy", exc_info=True)
-    finally:
-        _warm_done.set()
-
-
-def warm_on_user_record(config: Any) -> bool:
-    """Queue a translator load when a USER starts recording.
-
-    Called from the genuine recording-start entry, after the mic is open. All
-    checks and the process start run on ONE daemon thread; the caller never
-    waits on a model load. A second press while a load is in flight is
-    coalesced. Returns True only when a new warm thread was started.
-    """
-    try:
-        from voice_typer.server import dictation_origin
-
-        if dictation_origin.current() not in dictation_origin.USER_ORIGINS:
-            return False
-    except Exception:
-        # Older tree without the origin guard: the recording-start entry is
-        # already user-gated (C-START-USER-1), so trust it.
-        pass
-    if not bool(getattr(config, "translation_warm_on_record", True)):
-        return False
-    # No local ASR model and no cloud backend means no Stage A text can ever
-    # reach Stage B, so there is nothing to warm.
-    if not str(getattr(config, "model_size", "") or "") and str(getattr(config, "asr_backend", "") or "") != "cloud":
-        return False
-    global _warm_thread, _warm_key
-    key = _service_key(config)
-    with _warm_lock:
-        if _warm_thread is not None and _warm_thread.is_alive():
-            return False
-        _warm_done.clear()
-        _warm_key = key
-        thread = threading.Thread(
-            target=_warm_worker,
-            args=(config,),
-            name="translation-warm",
-            daemon=True,  # RACE-008: best-effort warm must never delay exit
-        )
-        _warm_thread = thread
-        thread.start()
-    return True
-
-
-def _wait_for_inflight_warm(config: Any) -> None:
-    """Let a warm load from recording start finish before Stage B begins."""
-    with _warm_lock:
-        thread, key, done = _warm_thread, _warm_key, _warm_done
-    if thread is None or not thread.is_alive() or key != _service_key(config):
-        return
-    done.wait(_WARM_JOIN_TIMEOUT_S)
-    if thread.is_alive():
-        # The load is still running (slow cold cache). The service RLock still
-        # serializes it with Stage B, so there is no second process; Stage B
-        # simply proceeds with its own lazy path after this budget.
-        log.warning("[TRANSLATE] warm load still in flight after %.0fs", _WARM_JOIN_TIMEOUT_S)
 
 
 def translate_text(
@@ -634,7 +506,7 @@ def translate_text(
         return text
     if target and target not in TRANSLATION_TARGETS:
         log.warning("[TRANSLATE] unsupported target %r; keeping original text", target)
-        _notify_translation_failure(app)
+        notify_translation_failure(app)
         return text
     if not needs_translation(text, target, spoken):
         return text
@@ -647,35 +519,28 @@ def translate_text(
         log.warning("[TRANSLATE] %s not installed; keeping original text", spec.label)
         _notify_translation_model_missing(app)
         return text
-    _wait_for_inflight_warm(config)
     try:
         return get_service(config).translate(text, target, cancel_event=cancel_event)
     except TranslationCancelledError:
         raise
     except TranslationError as exc:
         log.warning("[TRANSLATE] %s; keeping original text", exc)
-        _notify_translation_failure(app)
+        notify_translation_failure(app)
         return text
     except Exception:
         log.exception("[TRANSLATE] unexpected failure; keeping original text")
-        _notify_translation_failure(app)
+        notify_translation_failure(app)
         return text
 
 
 def shutdown() -> None:
-    """Stop the cached runtime and its idle watcher at process exit."""
+    """Stop the cached runtime at process exit."""
     global _SERVICE, _SERVICE_KEY, _translation_failed_notified, _translation_model_missing_notified
-    global _warm_thread, _warm_key
     with _SERVICE_LOCK:
         if _SERVICE is not None:
             _SERVICE.stop()
         _SERVICE = None
         _SERVICE_KEY = None
-    with _warm_lock:
-        if _warm_thread is None or not _warm_thread.is_alive():
-            _warm_thread = None
-            _warm_key = None
-        _warm_done.set()
     with _translation_failed_lock:
         _translation_failed_notified = False
         _translation_model_missing_notified = False

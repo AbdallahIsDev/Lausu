@@ -42,6 +42,7 @@ type Palette = {
 	RESET: string;
 	BUBBLE_CLR: string;
 	RENDERER_CLR: string;
+	TRANSLATE_CLR: string;
 	INFO_CLR: string;
 	WARN_CLR: string;
 	ERROR_CLR: string;
@@ -67,6 +68,7 @@ describe("restored palette resolves to empty strings when output is redirected",
 		expect(p.RESET).toBe("");
 		expect(p.BUBBLE_CLR).toBe("");
 		expect(p.RENDERER_CLR).toBe("");
+		expect(p.TRANSLATE_CLR).toBe("");
 		expect(p.INFO_CLR).toBe("");
 		expect(p.WARN_CLR).toBe("");
 		expect(p.ERROR_CLR).toBe("");
@@ -92,6 +94,7 @@ describe("restored palette emits the original codes", () => {
 		expect(p.RESET).toBe("\x1b[0m");
 		expect(p.BUBBLE_CLR).toBe("\x1b[38;5;39m");
 		expect(p.RENDERER_CLR).toBe("\x1b[38;5;227m");
+		expect(p.TRANSLATE_CLR).toBe("\x1b[38;5;80m");
 		expect(p.INFO_CLR).toBe("\x1b[38;5;39m");
 		// WARN stays yellow (38;5;226), never the orange 38;5;214 that
 		// quantized to bright-red on Windows conhost.
