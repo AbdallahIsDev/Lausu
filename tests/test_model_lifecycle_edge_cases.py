@@ -217,12 +217,12 @@ class TestShutdownEdge:
 
 
 EDGE_CASES_COVERED_ELSEWHERE = {
-    "app start with Fast Startup on/off": "tests/test_model_lifecycle.py::TestStartupPrewarm",
-    "translation enable/GPU tooltips and GPU switch while loaded": "tests/translation/test_translation_lifecycle.py::TestGpuSwitch",
-    "load failure keeps original text + one notice": "tests/translation/test_translation_lifecycle.py (wait tests)",
-    "per-kind clocks / busy-at-deadline / Always / runtime setting change": "tests/test_model_lifecycle.py::TestIdle",
-    "focus change during the long wait aborts paste": "tests/test_dictation_destination_stop_time.py (E1 code trace, read-only)",
-    "same-language skip makes no translator call": "tests/test_translation.py (skip rule)",
-    "plugin session user origin": "dictation_origin guard + tests/plugins (other session, read-only)",
-    "sleep/resume with a dead runtime": "UNVERIFIED — needs a live app; lifecycle ensure_loaded re-checks is_loaded before reuse",
+    "app start with Fast Startup on/off": "test_model_lifecycle.py::TestStartupPrewarm",
+    "translation tooltips / GPU switch while loaded": "test_translation_lifecycle.py::TestGpuSwitch",
+    "load failure keeps original text + one notice": "test_translation_lifecycle.py (wait tests)",
+    "per-kind clocks / Always / runtime change": "test_model_lifecycle.py::TestIdle",
+    "focus change during the long wait aborts paste": "test_dictation_destination_stop_time.py (E1)",
+    "same-language skip makes no translator call": "test_translation.py (skip rule)",
+    "plugin session user origin": "dictation_origin guard (other session, read-only)",
+    "sleep/resume with a dead runtime": ("UNVERIFIED — ensure_loaded re-checks is_loaded before reuse"),
 }

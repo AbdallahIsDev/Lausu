@@ -48,9 +48,12 @@ def _windows_available_bytes() -> int | None:
 
 
 def _posix_available_bytes() -> int | None:
+    sysconf = getattr(os, "sysconf", None)  # resolved dynamically: absent on Windows
+    if sysconf is None:
+        return None
     try:
-        pages = int(os.sysconf("SC_AVPHYS_PAGES"))
-        page_size = int(os.sysconf("SC_PAGE_SIZE"))
+        pages = int(sysconf("SC_AVPHYS_PAGES"))
+        page_size = int(sysconf("SC_PAGE_SIZE"))
     except (ValueError, OSError, AttributeError):
         return None
     if pages < 0 or page_size <= 0:
