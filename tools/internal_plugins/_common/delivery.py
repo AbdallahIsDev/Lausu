@@ -22,6 +22,7 @@ def deliver_transcription(
     model_label: str,
     log: logging.Logger,
     target_snapshot: Any = None,
+    method: str | None = None,
 ) -> None:
     """Paste the padded text, store the decoded text, publish the events."""
     # Per-phase timings: delivery was seen taking 0.3s on one dictation and
@@ -97,6 +98,7 @@ def deliver_transcription(
             device=getattr(app.config, "device", ""),
             language=getattr(app.config, "language", ""),
             kind="dictation",
+            method=method,
             # No plugin-side timing signal reaches this helper today, so
             # processing_seconds stays NULL rather than being fabricated.
             original_text=original_text,
@@ -112,8 +114,7 @@ def deliver_transcription(
         log.exception("[PLUGIN] history store failed")
     t_history = time.perf_counter()
     log.debug(
-        "[PLUGIN] delivery phases: translate_ms=%.0f caret_ms=%.0f copy_paste_ms=%.0f "
-        "history_ms=%.0f total_ms=%.0f",
+        "[PLUGIN] delivery phases: translate_ms=%.0f caret_ms=%.0f copy_paste_ms=%.0f history_ms=%.0f total_ms=%.0f",
         (t_translate - t0) * 1000,
         (t_caret - t_translate) * 1000,
         (t_paste - t_caret) * 1000,

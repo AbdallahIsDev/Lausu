@@ -11,6 +11,7 @@
   "recordingIndicator": "the mic is replaced by one toggle: button[data-dictation-button=\"dictating\"] labelled 'Stop dictation'",
   "stopButton": "button[data-dictation-button=\"dictating\"] -- the live COMMIT/stop toggle; no separate discard control exists, so cancelSelector is empty",
   "promptBox": "textbox \"Message ChatGPT\"",
+  "liveTextSelector": "div[aria-label=\"Ask ChatGPT\"][contenteditable=\"true\"], form[data-chatgpt-composer] [contenteditable=\"true\"][role=\"textbox\"]",
   "newChatNames": [
     "New chat"
   ]

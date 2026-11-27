@@ -11,5 +11,6 @@
   "recordingIndicator": "button \"Finish dictation\" (commit) plus \"Cancel dictation\" (discard) while recording",
   "stopButton": "button \"Finish dictation\" -- the COMMIT control; clicking the sibling \"Cancel dictation\" discards the transcript",
   "promptBox": "textbox \"Reply to Claude...\"",
+  "liveTextSelector": "[data-testid=\"chat-input\"].ProseMirror, div.ProseMirror[contenteditable=\"true\"]",
   "newChatNames": ["New chat", "Start new chat"]
 }

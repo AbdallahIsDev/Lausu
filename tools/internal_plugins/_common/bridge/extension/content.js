@@ -20,6 +20,9 @@
   const SEL = (CFG.platforms && CFG.platforms[PLATFORM]) || {};
   const IDLE_SLOT = SEL.idleSlot || '';
   const COMPOSER = SEL.composer || '';
+  // Live dictation streams into the composer on both tested platforms; the
+  // selector is a per-platform anchor, never a generic page-wide search.
+  const LIVE_TEXT_SELECTOR = SEL.liveTextSelector || '';
   const MIC_SELECTOR = SEL.micSelector || '';
   const STOP_SELECTOR = SEL.stopSelector || '';
   // The COMMIT and DISCARD controls are siblings while recording: "Finish
@@ -233,6 +236,27 @@
     } catch (_) {
       return '';
     }
+  }
+
+  // Read-only snapshot of the text already visible on the page. The composer
+  // is cumulative on ChatGPT and Claude (measured 2026-11-27); the interim
+  // word chip is deliberately NOT used because it is rewritten every tick.
+  function draftSnapshot() {
+    for (const candidate of splitSelectors(LIVE_TEXT_SELECTOR)) {
+      let box = null;
+      try {
+        box = Array.from(document.querySelectorAll(candidate)).find((el) => !isHiddenElement(el)) || null;
+      } catch (_) {
+        continue;
+      }
+      if (!box) continue;
+      const text = isValueBacked(box) ? String(box.value || '').trim() : (box.innerText || box.textContent || '').trim();
+      if (text) {
+        return { text, source: 'live-selector', kind: isValueBacked(box) ? 'input' : 'contenteditable' };
+      }
+    }
+    const text = composerText();
+    return { text, source: text ? 'composer' : 'none', kind: 'composer' };
   }
 
   // Claude keeps the Dictate slot inert while the box has text. `inert` blocks
@@ -970,6 +994,8 @@
         return clearComposer();
       case 'probe':
         return probe();
+      case 'draft-snapshot':
+        return draftSnapshot();
       case 'diagnostics-draft-set':
       case 'diagnostics-draft-read': {
         // Dev-only diagnostics (CFG.diagnostics) — never shipped in a frozen

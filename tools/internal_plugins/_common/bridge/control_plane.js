@@ -292,6 +292,17 @@ async function handle(relay, method, pathname) {
     }
   }
 
+  // Read-only live-text snapshot while a user cycle is active. The caller
+  // gates polling on its own recording state; this route never starts or
+  // stops a capture and never writes text anywhere.
+  if (method === 'POST' && pathname === '/draft-snapshot') {
+    try {
+      return { status: 200, body: await relay.request('draft-snapshot', scoped()) };
+    } catch (err) {
+      return failure(err);
+    }
+  }
+
   if (method === 'POST' && pathname === '/shutdown') {
     return { status: 200, body: { ok: true }, shutdown: true };
   }
