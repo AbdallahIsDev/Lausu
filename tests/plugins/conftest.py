@@ -10,6 +10,11 @@ import pytest
 from tools.internal_plugins._common.bridge import chrome_profile, profile_state
 
 
+def control_posts(posts):
+    """Read-only draft snapshots are not control commands."""
+    return [p for p in posts if p != "/draft-snapshot"]
+
+
 def ready_snapshot(**changes):
     """A fully hydrated extension snapshot for fake-layer tests."""
     status = {

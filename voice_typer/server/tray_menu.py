@@ -257,10 +257,17 @@ def build_menu_for_tray(tray) -> tuple:
         from voice_typer.server.tray_types import AppState
 
         dictation_key = "stop_dictation" if tray._state == AppState.RECORDING else "toggle_dictation"
+
+        def _toggle_from_tray() -> None:
+            from voice_typer.server import dictation_origin
+
+            with dictation_origin.user_action("tray"):
+                tray._controller.toggle_dictation()
+
         items.append(
             pystray.MenuItem(
                 f"{_(dictation_key)} ({hotkey_label})",
-                wrap_callback(tray._controller.toggle_dictation),
+                wrap_callback(_toggle_from_tray),
             )
         )
         # Force Cancel Stuck Transcription, only rendered while
@@ -450,7 +457,13 @@ def dispatch_tray_action(tray, item_id: str) -> bool:
     if callback is None:
         return False
     try:
-        callback()
+        if item_id == "toggle_dictation":
+            from voice_typer.server import dictation_origin
+
+            with dictation_origin.user_action("tray"):
+                callback()
+        else:
+            callback()
     except Exception:
         log.warning(
             "[TRAY] dispatch_tray_action callback raised for item_id=%r",

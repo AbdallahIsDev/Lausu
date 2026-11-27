@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from tests.plugins.conftest import control_posts
 
 _PATH = Path(__file__).resolve().parents[2] / "tools" / "internal_plugins" / "anthropic_stt" / "plugin.py"
 
@@ -64,7 +65,7 @@ def test_stop_with_a_missing_tab_never_posts_and_logs_one_warning(plugin, monkey
 
     session.stop()
 
-    assert posts == [], "no /stop POST into a tab that does not exist"
+    assert control_posts(posts) == [], "no /stop POST into a tab that does not exist"
     warns = [r for r in caplog.records if r.levelno == logging.WARNING and "stop lost the browser" in r.getMessage()]
     assert len(warns) == 1
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]

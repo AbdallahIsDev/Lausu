@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from voice_typer.server import internal_plugin_hook as hook
+from voice_typer.server import dictation_origin, internal_plugin_hook as hook
 from voice_typer.server.config_validators import IPC_CONFIG_ALLOWLIST
 from voice_typer.server.ipc.registry import _COMMAND_REGISTRY, _READONLY_COMMANDS
 from voice_typer.server.plugins import discover, get_plugin, registry
@@ -484,13 +484,15 @@ class TestPluginModuleRouting:
         # Already wrapped: a second install must not nest the wrappers.
         assert hook.install(app) is False
 
-        app.toggle_dictation()
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()
         assert calls == ["beta_stt"]
 
         # Switching mid-recording cancels the old owner before starting the
         # newly selected plugin on the very next press.
         app.config.active_plugin = "alpha_stt"
-        app.toggle_dictation()
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()
         assert calls == ["beta_stt", "beta_stt:cancel", "alpha_stt"]
 
         # Stop routes to the session that owns the in-flight cycle.
@@ -499,5 +501,6 @@ class TestPluginModuleRouting:
 
         # Clearing the selection restores the local model immediately.
         app.config.active_plugin = ""
-        app.toggle_dictation()
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()
         assert calls[-2:] == ["alpha_stt:stop", "local:toggle"]

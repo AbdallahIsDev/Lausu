@@ -236,7 +236,7 @@ def _ensure_browser(
     *,
     force: bool = False,
     budget=None,
-    caller: str = "hotkey-start",
+    caller: str | None = None,
 ) -> bool:
     """Open the dictation profile if needed, and wait until its page answers.
 
@@ -245,6 +245,11 @@ def _ensure_browser(
     """
     # Never reveal or activate a window on the dictation path: doing so steals
     # focus from the target field and can reveal a hidden helper window.
+    if caller is None:
+        from voice_typer.server import dictation_origin
+
+        origin = dictation_origin.current()
+        caller = f"{origin}-start" if origin else "hotkey-start"
     return session.ensure_browser(
         status_fn=_daemon_status,
         launch_fn=lambda **kwargs: _launch_profile_if_due(caller=caller, **kwargs),

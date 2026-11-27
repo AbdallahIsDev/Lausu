@@ -16,6 +16,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from tests.plugins.conftest import control_posts
 
 _PLUGIN_PATH = Path(__file__).resolve().parents[2] / "tools" / "internal_plugins" / "anthropic_stt" / "plugin.py"
 
@@ -160,7 +161,7 @@ class TestStartResolvesTheTargetTab:
 
         session.start()
 
-        assert posts == ["/ensure-tab", "/start"], posts
+        assert control_posts(posts) == ["/ensure-tab", "/start"], posts
 
     def test_one_ensure_tab_round_trip_on_the_hotkey_path(self, plugin, monkeypatch, caplog):
         """The extension resolves the tab once before the mic gate and /start."""
@@ -192,5 +193,5 @@ class TestStartResolvesTheTargetTab:
 
         session.start()
 
-        assert posts == ["/ensure-tab", "/start"], posts
+        assert control_posts(posts) == ["/ensure-tab", "/start"], posts
         assert "Traceback" not in caplog.text

@@ -1,9 +1,10 @@
 """Dev-only command channel into the REAL dictation entry points.
 
-Never present in a frozen/frozen-install build and never staged into the
+Never active in a frozen/frozen-install build and never staged into the
 packaged plugin bundle: the workspace marker is gitignored and the stager
 skips it. Commands call the same wrapped methods the hotkey calls; no OS key
-injection is involved (C-HOOK-1).
+injection is involved (C-HOOK-1). A command written before this process
+started is stale and is never executed.
 """
 
 from __future__ import annotations
@@ -13,10 +14,15 @@ import logging
 import os
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
 log = logging.getLogger(__name__)
+
+_START_COMMANDS = frozenset({"toggle", "hotkey", "button", "tray", "start"})
+_OTHER_COMMANDS = frozenset({"stop", "cancel", "status"})
+_ORIGIN_FOR_COMMAND = {"hotkey": "hotkey", "button": "button", "tray": "tray"}
 
 
 def enabled(app: Any) -> bool:
@@ -48,7 +54,15 @@ def command_dir(app: Any) -> Path:
 def _write_atomic(path: Path, payload: dict) -> None:
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     tmp.write_text(json.dumps(payload), encoding="utf-8")
-    os.replace(tmp, path)
+    # Two overlapping dev processes can replace the same result file; a short
+    # bounded retry keeps a dev-only watcher from crashing the host thread.
+    for attempt in range(5):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            time.sleep(0.05 * (attempt + 1))
+    tmp.unlink(missing_ok=True)
 
 
 def _read_json(path: Path) -> dict | None:
@@ -59,28 +73,62 @@ def _read_json(path: Path) -> dict | None:
         return None
 
 
-def run_watcher(app: Any, stop_event: threading.Event) -> None:
-    """One command per poll; fakes only at OS boundary in tests."""
+def _claim(directory: Path, started_at: float, last_seq: int) -> tuple[Path, dict, int] | None:
+    """Take ownership of one fresh command before it can be overwritten."""
+    source = directory / "command.json"
+    try:
+        if source.stat().st_mtime < started_at:
+            # A command from a previous process is never a request in THIS one.
+            source.unlink(missing_ok=True)
+            return None
+    except OSError:
+        return None
+    command = _read_json(source)
+    seq = command.get("seq") if command else None
+    if not command or not isinstance(seq, int) or seq <= last_seq:
+        return None
+    if command.get("cmd") not in _START_COMMANDS | _OTHER_COMMANDS:
+        return None
+    claimed = directory / f"command.json.{seq}.claimed"
+    try:
+        os.replace(source, claimed)
+    except OSError:
+        return None
+    return claimed, command, seq
+
+
+def run_watcher(app: Any, stop_event: threading.Event, started_at: float | None = None) -> None:
+    """One fresh command per poll; fakes only at OS boundary in tests."""
+    if not enabled(app):
+        return
+    if started_at is None:
+        started_at = time.time()
     last_seq = 0
     while not stop_event.is_set():
-        if not enabled(app):
-            return
         directory = command_dir(app)
-        command = _read_json(directory / "command.json")
-        seq = command.get("seq") if command else None
-        if command and isinstance(seq, int) and seq > last_seq:
+        claim = _claim(directory, started_at, last_seq)
+        if claim is not None:
+            claimed, command, seq = claim
             last_seq = seq
-            result = _execute(app, command)
-            result["seq"] = seq
-            _write_atomic(directory / "result.json", result)
+            try:
+                result = _execute(app, command)
+                result["seq"] = seq
+                _write_atomic(directory / "result.json", result)
+            finally:
+                # Consumed commands never survive to the next app launch.
+                claimed.unlink(missing_ok=True)
         stop_event.wait(0.05)
 
 
 def _execute(app: Any, command: dict) -> dict:
+    from voice_typer.server import dictation_origin
+
     name = command.get("cmd")
+    origin = _ORIGIN_FOR_COMMAND.get(name, "dev-driver") if name in _START_COMMANDS else ""
     try:
-        if name == "toggle":
-            app.toggle_dictation()
+        if name in _START_COMMANDS:
+            with dictation_origin.user_action(origin):
+                app.toggle_dictation()
         elif name == "stop":
             app._stop_dictation()
         elif name == "cancel":
@@ -109,7 +157,7 @@ def start_watcher(app: Any) -> threading.Event | None:
     registry.spawn_and_register(
         name="dev-command-watcher",
         target=run_watcher,
-        args=(app, stop_event),
+        args=(app, stop_event, time.time()),
         stop_event=stop_event,
         join_timeout=1.0,
     )

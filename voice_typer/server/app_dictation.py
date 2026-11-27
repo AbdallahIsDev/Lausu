@@ -16,10 +16,21 @@ class AppDictation:
 
     def toggle_dictation(self):
         """Delegate to RecordingController.toggle() after the app-wide gate."""
-        from voice_typer.server.dictation_gate import decide_toggle
+        from voice_typer.server import dictation_origin
+        from voice_typer.server.dictation_gate import decide_toggle, gate_for
 
-        if decide_toggle(self).startswith("ignore"):
+        origin = dictation_origin.authorize("app.toggle_dictation")
+        if not origin:
             return
+        action = decide_toggle(self)
+        if action.startswith("ignore"):
+            return
+        if action == "start" and getattr(self, "_internal_plugin_active_session", None) is None:
+            log.info(
+                "[DICTATION] start requested (cycle=#%d, origin=%s)",
+                gate_for(self).generation,
+                origin,
+            )
         self.recording.toggle()
 
     def _start_dictation(self):

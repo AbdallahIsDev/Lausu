@@ -18,7 +18,10 @@ class DictationHandlersMixin(HandlerBase):
             _, error = _validate_dict_payload(data, {})
             if error:
                 return error
-            self.service.toggle_dictation()
+            from voice_typer.server import dictation_origin
+
+            with dictation_origin.user_action("button"):
+                self.service.toggle_dictation()
             resp["type"] = "ack"
         except Exception as exc:
             # generic WS-path envelope (no ``str(exc)`` leak).

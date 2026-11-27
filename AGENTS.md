@@ -1849,6 +1849,17 @@ Rationale: Under `TAURI_SIDECAR=1` the IPC heartbeat watchdog is skipped because
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+## Category: Dictation Start Origin
+
+```
+C-START-USER-1
+Rule: USER-INITIATED-START RULE: A microphone recording may only be started by an explicit user action. App start, activation, recovery, relaunch, reconnect, page-ready or any background event must never start a recording. Every recording start must carry its origin and be logged with it; starts without a user origin are rejected at the single start entry.
+Rationale: A leftover dev-driver command file from a previous process was replayed on app start and opened the microphone with no hotkey press (owner report 2026-11-27); "first hotkey press waits for it" must stay a promise about the window, never a deferred start.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
 ## Git workflow for all agents
 
 All agents work on `main` in the single shared checkout; never create, switch or delete branches and never merge, rebase, reset, stash or clean without explicit owner instruction in the prompt. Before committing run `git fetch` and `git status -sb`; if `main` is behind or diverged from `origin/main`, STOP and ask. Commit only your own files with explicit `git add -- <paths>` (never `git add .` or `-A`), and describe each commit by its purpose. Never commit another session's files, runtime state files, build outputs or binaries. Commit small and often so the tree stays clean. If the tree contains changes you did not make, leave them and mention them in your report. Pushes to `main` are allowed only when the prompt says so.

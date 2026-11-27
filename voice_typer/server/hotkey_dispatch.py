@@ -67,7 +67,10 @@ class HotkeyDispatchMixin:
             if getattr(self._app.config, "recording_mode", "toggle") == "push_to_talk":
                 self._start_ptt_safety_timer()
             self._force_caps_lock_off_before_dictation()
-            self._app.toggle_dictation()
+            from voice_typer.server import dictation_origin
+
+            with dictation_origin.user_action("hotkey"):
+                self._app.toggle_dictation()
 
         return _dictation_callback
 

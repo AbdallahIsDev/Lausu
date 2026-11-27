@@ -12,6 +12,7 @@ import sys
 from unittest.mock import MagicMock
 
 import pytest
+from tests.plugins.conftest import control_posts
 from tools.internal_plugins._common.bridge.daemon_client import DaemonClient
 
 _PLUGIN_PATH = (
@@ -129,7 +130,7 @@ class TestStartWaitsForARealMic:
         session.start()
 
         assert session.active is True
-        assert posts == ["/ensure-tab", "/start"], posts
+        assert control_posts(posts) == ["/ensure-tab", "/start"], posts
 
     def test_start_refuses_when_the_page_never_becomes_ready(self, plugin, monkeypatch):
         session = self._session(plugin, monkeypatch)
@@ -148,5 +149,5 @@ class TestStartWaitsForARealMic:
         session.start()
 
         assert session.active is False
-        assert posts == ["/ensure-tab"], posts
+        assert control_posts(posts) == ["/ensure-tab"], posts
         assert notes, "a clear error must be reported"

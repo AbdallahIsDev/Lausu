@@ -347,14 +347,18 @@ class TestAppStateTransitions:
         app.models.transcriber = recovered
         app.recorder.recording = False
 
+        from voice_typer.server import dictation_origin
+
         clock.monotonic.return_value = 101.0
-        app.toggle_dictation()  # F2 → start recording
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()  # F2 → start recording
         app.recorder.start.assert_called_once()
 
         app.recorder.recording = True
         app.tray._recording_started_at = 101.0
         clock.monotonic.return_value = 102.0
-        app.toggle_dictation()  # F2 → stop recording, transcribe
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()  # F2 → stop recording, transcribe
         wait_for_busy_clear(app)
 
         assert app._busy_event.is_set()

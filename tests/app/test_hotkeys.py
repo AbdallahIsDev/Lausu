@@ -231,10 +231,12 @@ class TestHotkeyCallbackChain:
         app.models.transcriber.is_loaded = True
 
         # Simulate what GlobalHotKeys does: call the registered callback directly
+        # The callback stored in the hotkey mapping IS app.toggle_dictation
+        from voice_typer.server import dictation_origin
         from voice_typer.server.tray import AppState
 
-        # The callback stored in the hotkey mapping IS app.toggle_dictation
-        app.toggle_dictation()
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()
 
         app.recorder.start.assert_called_once()
         app.tray.set_state.assert_called_once()

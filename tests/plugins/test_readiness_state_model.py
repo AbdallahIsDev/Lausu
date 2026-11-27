@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from tests.plugins.conftest import control_posts
 from tools.internal_plugins._common.bridge.daemon_client import DaemonClient
 
 _PLUGIN_PATH = Path(__file__).resolve().parents[2] / "tools" / "internal_plugins" / "anthropic_stt" / "plugin.py"
@@ -121,7 +122,7 @@ def test_closed_tab_is_repaired_by_one_ensure_then_ready(plugin, monkeypatch):
     harness.session.start()
 
     assert harness.session.active is True
-    assert harness.posts == ["/ensure-tab", "/start"]
+    assert control_posts(harness.posts) == ["/ensure-tab", "/start"]
 
 
 def test_signed_out_fails_fast_with_a_real_message(plugin, monkeypatch):

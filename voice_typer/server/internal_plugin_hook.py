@@ -341,8 +341,13 @@ def install(app: Any) -> bool:
     orig_cancel = app._cancel_dictation
 
     def toggle_dictation() -> None:
+        from voice_typer.server import dictation_origin
         from voice_typer.server.dictation_gate import decide_toggle
 
+        # C-START-USER-1: no origin, no start. Activation, relaunch recovery,
+        # reconnect and the dev driver's stale commands reach this same entry.
+        if not dictation_origin.authorize("internal_plugin_hook.toggle_dictation"):
+            return
         if decide_toggle(app).startswith("ignore"):
             return
         session = _selected_session(app)

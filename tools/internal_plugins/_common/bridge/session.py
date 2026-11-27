@@ -34,6 +34,7 @@ _START_RETRY_PAUSE_S = 0.4
 _ACTIVATION_PREPARE_TIMEOUT_S = 5.0
 _PAGE_READY_TIMEOUT_S = 12.0
 _PAGE_READY_POLL_S = 0.1
+_RECOVERY_MARK = "recovered (partial)"
 _START_RETRY_KINDS = frozenset({"browser-not-open", "browser-closed", "wrong-platform"})
 # Failures whose cause is invisible when the browser window is hidden: these
 # bypass the user's notify preference through one named mechanism (CRITICAL-NOTICE).
@@ -551,6 +552,11 @@ class PluginSession:
         # Live microphone levels for the pill (the browser owns the capture).
         self._meter: LevelMeter | None = None
         self._cycle = 0
+        # Live draft snapshot for a browser death mid-dictation. RAM only:
+        # never written to a file and never logged as text (C-TRANS-2).
+        self._live_snapshot = ""
+        self._snapshot_baseline = ""
+        self._recovered_cycle: int | None = None
 
     def _host(self, name: str, default: Any) -> Any:
         return getattr(self._entry, name, default) if self._entry is not None else default
@@ -668,7 +674,7 @@ class PluginSession:
             hint = f"{hint} {install_hint()}"
         self._notify(hint)
 
-    def _report_stop_failure(self, exc: Exception, cycle: int) -> None:
+    def _report_stop_failure(self, exc: Exception, cycle: int, *, notify: bool = True) -> None:
         """Expected browser/bridge losses get one line and plain copy."""
         kind = getattr(exc, "kind", "") or "bridge-error"
         expected = kind in ("browser-not-open", "page-not-ready", "bridge-timeout", "not-recording")
@@ -686,6 +692,8 @@ class PluginSession:
         hint = hints.get(kind, self._copy.STOP_FAILURE_FALLBACK)
         if not expected:
             hint = self._copy.STOP_FAILURE_FALLBACK
+        if not notify:
+            return  # the recovery path owns the user message for a lost cycle
         if expected and kind in _CRITICAL_STOP_KINDS:
             self._critical_notify(hint, "stop-lost")
         else:
@@ -712,6 +720,7 @@ class PluginSession:
                 self._stop_and_deliver(target_snapshot=pending_snapshot)
 
     def _start(self) -> None:
+        from voice_typer.server import dictation_origin
 
         with self._lock:
             self._cycle += 1
@@ -719,9 +728,10 @@ class PluginSession:
             generation = self._start_generation
             self._restart_requested = False
             self._critical_notices.clear()
+        origin = dictation_origin.current() or "unknown"
         # Per-step lines, same shape as the local dictation path: every stage
         # the user waits through is attributable from lausu.log alone.
-        self._log.info("[PLUGIN] start requested (cycle=#%d)", cycle)
+        self._log.info("[PLUGIN] start requested (cycle=#%d, origin=%s)", cycle, origin)
         t_press = time.monotonic()
         daemon_ok = self._ensure_daemon()
         if not daemon_ok:
@@ -779,6 +789,11 @@ class PluginSession:
                 cycle,
                 self._copy.duration(time.monotonic() - t_target),
             )
+            # Baseline BEFORE the platform starts streaming: a draft the user
+            # typed earlier is not part of this dictation and must not be
+            # recovered as one.
+            self._snapshot_baseline = self._read_draft()
+            self._live_snapshot = ""
             click_attempts = 0
             transient_retry = False
             for click in range(1, _START_CLICK_ATTEMPTS + 1):
@@ -891,6 +906,89 @@ class PluginSession:
         self._stop_and_deliver(target_snapshot=stop_snapshot)
         return True
 
+    def _read_draft(self, timeout: float = 2.0) -> str:
+        """One read-only page snapshot; empty on any bridge failure."""
+        try:
+            result = self._post("/draft-snapshot", timeout=timeout)
+        except Exception:
+            return ""
+        if not isinstance(result, dict):
+            return ""
+        text = str(result.get("text", "") or "").strip()
+        if text:
+            self._log.debug(
+                "[PLUGIN] draft snapshot read (%d words, source=%s)",
+                len(text.split()),
+                result.get("source") or "unknown",
+            )
+        return text
+
+    def _poll_live_text(self) -> None:
+        """Keep the latest cumulative page text in RAM while a cycle is live."""
+        text = self._read_draft()
+        if not text:
+            return
+        baseline = self._snapshot_baseline
+        if baseline and not text.startswith(baseline):
+            # The page replaced the box (new chat/navigation): rebase instead
+            # of treating someone else's text as this cycle's capture.
+            self._snapshot_baseline = text
+            return
+        if len(text) > len(self._live_snapshot):
+            self._live_snapshot = text
+            self._log.debug(
+                "[PLUGIN] live draft snapshot (%d words, %d chars)",
+                len(text.split()),
+                len(text),
+            )
+
+    def _recover_lost_cycle(self, *, trigger: str) -> None:
+        """Deliver the text already visible before the browser/bridge died."""
+        with self._lock:
+            if not self._active or self._recovered_cycle == self._cycle:
+                return
+            self._active = False
+            self._recovered_cycle = self._cycle
+            captured = time.monotonic() - self._t0 if self._t0 else 0.0
+        self._stop_meter()
+        self._restore_volume()
+        self._session_events(start=False)
+        # Page alive but bridge dropped: prefer the FULL current text over the
+        # older snapshot; a dead page leaves only the last in-RAM snapshot.
+        text = self._read_draft(timeout=3.0) or self._live_snapshot
+        if not text:
+            self._log.warning(
+                "[PLUGIN] browser lost mid-dictation (cycle=#%d, trigger=%s, captured=%s); nothing was pasted",
+                self._cycle,
+                trigger,
+                self._copy.duration(captured),
+            )
+            self._critical_notify(
+                "The browser closed while dictating; nothing was captured. Press the hotkey to try again.",
+                "recording-lost",
+            )
+            return
+        words = len(text.split())
+        self._log.warning(
+            "[PLUGIN] browser lost mid-dictation (cycle=#%d, trigger=%s, recovered=%d words, %d chars, captured=%s)",
+            self._cycle,
+            trigger,
+            words,
+            len(text),
+            self._copy.duration(captured),
+        )
+        target = _capture_target_snapshot()
+        kwargs = {"target_snapshot": target, "method": _RECOVERY_MARK}
+        if _accepts_kwarg(self._deliver, "method"):
+            self._deliver(text, captured, **kwargs)
+        else:
+            self._deliver(text, captured, target_snapshot=target)
+        self._critical_notify(
+            f"The browser closed while dictating; recovered the text captured so far ({words} words). "
+            "Press the hotkey to try again.",
+            "recording-lost",
+        )
+
     def _stop_and_deliver(
         self,
         *,
@@ -913,18 +1011,16 @@ class PluginSession:
             # POST into a tab that does not exist: report the real cause once.
             state = DaemonClient.readiness_state(self._status())
             if state["browser"] == "down" or state["tab"] == "missing":
-                self._report_stop_failure(BridgeError("the target tab is not open", "browser-not-open"), cycle)
-                with self._lock:
-                    self._active = False
-                self._session_events(start=False)
+                self._report_stop_failure(
+                    BridgeError("the target tab is not open", "browser-not-open"), cycle, notify=False
+                )
+                self._recover_lost_cycle(trigger="tab-missing")
                 return
             try:
                 res = self._post("/stop", timeout=75.0)
             except Exception as exc:
-                self._report_stop_failure(exc, cycle)
-                with self._lock:
-                    self._active = False
-                self._session_events(start=False)
+                self._report_stop_failure(exc, cycle, notify=False)
+                self._recover_lost_cycle(trigger="bridge-dropped")
                 return
             finally:
                 self._restore_volume()
@@ -971,6 +1067,8 @@ class PluginSession:
         target_snapshot: Any = None,
     ) -> None:
         """Deliver a completed stop response (text, history, paste, cleanup)."""
+        # A successful final stop wins: the RAM snapshot is discarded here.
+        self._live_snapshot = ""
         text = str(res.get("text", "")).strip()
         duration = float(res.get("duration_s", 0.0) or (time.monotonic() - self._t0))
         with self._lock:
@@ -1049,31 +1147,16 @@ class PluginSession:
             state = str((status or {}).get("state") or "")
             if state == "recording":
                 idle_reads = 0
+                self._poll_live_text()
             elif state in ("idle", "no-page", "unknown"):
                 idle_reads += 1
                 if idle_reads >= 2:
                     captured = self._copy.duration(time.monotonic() - self._t0) if self._t0 else " 0.0s"
                     browser = str((status or {}).get("browser") or "")
                     if browser == "disconnected" or state == "no-page":
-                        # The browser is gone: /stop cannot answer and there is
-                        # no page left to scrape. Cancel cleanly; do NOT post a
-                        # command that can only return not-recording.
-                        with self._lock:
-                            self._active = False
-                        self._stop_meter()
-                        self._restore_volume()
-                        self._session_events(start=False)
-                        self._log.warning(
-                            "[PLUGIN] the dictation window closed mid-capture "
-                            "(cycle=#%d, state=%s, captured=%s); nothing was pasted",
-                            self._cycle,
-                            state,
-                            captured,
-                        )
-                        self._critical_notify(
-                            "The browser closed while dictating; nothing was captured. Press the hotkey to try again.",
-                            "recording-lost",
-                        )
+                        # The browser is gone: /stop cannot answer, so deliver
+                        # the last in-RAM snapshot instead of losing the cycle.
+                        self._recover_lost_cycle(trigger="browser-lost")
                         return
                     # Not "the platform stopped the dictation": what we KNOW is
                     # that the page left the recording state without the hotkey
@@ -1103,6 +1186,7 @@ class PluginSession:
                 return False
             self._active = False
             self._pending_stop_snapshot = None
+            self._live_snapshot = ""
         self._log.info(
             "[PLUGIN] cycle cancelled (ESC, cycle=#%d, captured=%s)",
             self._cycle,
@@ -1138,18 +1222,14 @@ class PluginSession:
         duration: float,
         *,
         target_snapshot: Any = None,
+        method: str | None = None,
     ) -> None:
+        kwargs = {}
         if target_snapshot is not None and _accepts_kwarg(deliver_transcription, "target_snapshot"):
-            deliver_transcription(
-                self._app,
-                text,
-                duration,
-                self._copy.MODEL_LABEL,
-                log,
-                target_snapshot=target_snapshot,
-            )
-        else:
-            deliver_transcription(self._app, text, duration, self._copy.MODEL_LABEL, log)
+            kwargs["target_snapshot"] = target_snapshot
+        if method is not None and _accepts_kwarg(deliver_transcription, "method"):
+            kwargs["method"] = method
+        deliver_transcription(self._app, text, duration, self._copy.MODEL_LABEL, log, **kwargs)
 
     def _session_events(self, *, start: bool) -> None:
         from voice_typer.server import event_bus

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
+from voice_typer.server import dictation_origin
 
 from tests.fixtures.wait_helpers import wait_for_busy_clear
 
@@ -32,7 +33,8 @@ class TestToggleDictationDispatch:
 
         app._stop_dictation = tracked_stop
 
-        app.toggle_dictation()
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()
 
         assert len(start_called) == 1, "toggle_dictation should call _start_dictation when not recording"
         assert len(stop_called) == 0, "toggle_dictation should NOT call _stop_dictation when not recording"
@@ -56,7 +58,8 @@ class TestToggleDictationDispatch:
 
         app._stop_dictation = tracked_stop
 
-        app.toggle_dictation()
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()
 
         assert len(stop_called) == 1, "toggle_dictation should call _stop_dictation when recording"
         assert len(start_called) == 0, "toggle_dictation should NOT call _start_dictation when recording"
@@ -70,7 +73,8 @@ class TestToggleDictationDispatch:
         app._start_dictation = MagicMock()
         app._stop_dictation = MagicMock()
 
-        app.toggle_dictation()
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()
 
         app._start_dictation.assert_not_called()
         app._stop_dictation.assert_not_called()
@@ -112,9 +116,7 @@ class TestStreamingIntegration:
         # Streaming is fixed ON: no config attribute is required or read.
         # Use a config stand-in with the legacy key genuinely absent (a
         # dataclass class-level default would still resolve it).
-        app.config = SimpleNamespace(
-            **{k: v for k, v in vars(app.config).items() if k != "streaming_transcription"}
-        )
+        app.config = SimpleNamespace(**{k: v for k, v in vars(app.config).items() if k != "streaming_transcription"})
         app.recorder = MagicMock()
         app.recorder.recording = False
 
@@ -236,7 +238,8 @@ class TestModelLoadingQueue:
         app._start_dictation = MagicMock()
         app._stop_dictation = MagicMock()
 
-        app.toggle_dictation()
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()
 
         assert app.models._pending_dictation is False
         app._start_dictation.assert_called_once()
@@ -257,7 +260,8 @@ class TestModelLoadingQueue:
         app._start_dictation = lambda: started.append(True)
         app._stop_dictation = MagicMock()
 
-        app.toggle_dictation()
+        with dictation_origin.user_action("hotkey"):
+            app.toggle_dictation()
 
         assert app.models._pending_dictation is False
         assert len(started) == 1
@@ -280,7 +284,8 @@ class TestModelLoadingQueue:
         app.models._model_load_thread = loader
 
         try:
-            app.toggle_dictation()
+            with dictation_origin.user_action("hotkey"):
+                app.toggle_dictation()
         except AttributeError as exc:
             pytest.fail(f"toggle_dictation crashed on race: {exc}")
 

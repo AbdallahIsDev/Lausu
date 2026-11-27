@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from tests.plugins.conftest import control_posts
 
 _PLUGIN_PATH = Path(__file__).resolve().parents[2] / "tools" / "internal_plugins" / "anthropic_stt" / "plugin.py"
 
@@ -57,7 +58,7 @@ class TestBrowserClosedMidCapture:
 
         session._watch_platform()
 
-        assert posts == [], "a closed browser cannot answer /stop"
+        assert control_posts(posts) == [], "a closed browser cannot answer /stop"
         assert restored, "volume ducked at start must be restored on abort"
         assert any("closed" in str(call.args[-1]).lower() for call in session._app.tray.notify.call_args_list)
         assert session.active is False
@@ -122,7 +123,7 @@ class TestStartAfterBrowserDisconnect:
         assert session.active is True
         assert len(browsers) == 2, "the profile must be reopened before retrying"
         assert posts.count("/start") == 2
-        assert posts == ["/ensure-tab", "/start", "/ensure-tab", "/start"]
+        assert control_posts(posts) == ["/ensure-tab", "/start", "/ensure-tab", "/start"]
 
 
 class TestExpectedStartFailures:
