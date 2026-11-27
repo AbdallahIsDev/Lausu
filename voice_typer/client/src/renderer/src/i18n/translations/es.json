@@ -810,7 +810,7 @@
 		"translationTargetInfo": "Traduce el texto a este idioma. «Igual que el hablado» conserva el texto original.",
 		"translationSameAsSpoken": "Igual que el hablado",
 		"translationGpu": "Usar GPU para traducir",
-		"translationGpuInfo": "La traducción añade tiempo después de que termines de hablar y, en un ordenador sin tarjeta gráfica, puede ser mucho más lenta —en nuestras mediciones, unas 10 veces más lenta, unos 10 segundos o más por párrafo—, así que desactívala para una dictación lo más rápida posible.",
+		"translationGpuInfo": "Ejecuta la traducción en la tarjeta gráfica. Si lo desactivas, la traducción usa solo el procesador, que en nuestras pruebas es unas 10 veces más lento.",
 		"translationGlossary": "Terminología",
 		"translationGlossaryInfo": "Un término por línea como origen => traducción. Los nombres de producto y UI se mantienen.",
 		"translationDownload": "Descargar modelo de traducción (1,31 GB)",

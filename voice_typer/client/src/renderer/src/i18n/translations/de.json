@@ -809,7 +809,7 @@
 		"translationTargetInfo": "Text in diese Sprache übersetzen. „Wie gesprochen“ behält den Originaltext.",
 		"translationSameAsSpoken": "Wie gesprochen",
 		"translationGpu": "GPU für Übersetzung verwenden",
-		"translationGpuInfo": "Die Übersetzung fügt nach dem Sprechen zusätzliche Zeit hinzu, und auf einem Computer ohne Grafikkarte kann sie viel langsamer sein — in unseren Messungen etwa 10-mal langsamer, rund 10+ Sekunden pro Absatz — schalte sie daher für das schnellste Diktat aus.",
+		"translationGpuInfo": "Führt die Übersetzung auf der Grafikkarte aus. Wenn du dies ausschaltest, verwendet die Übersetzung nur den Prozessor, der in unseren Tests etwa 10-mal langsamer ist.",
 		"translationGlossary": "Terminologie",
 		"translationGlossaryInfo": "Ein Begriff pro Zeile als Quelle => Übersetzung. Produkt- und UI-Namen bleiben unverändert.",
 		"translationDownload": "Übersetzungsmodell herunterladen (1,31 GB)",

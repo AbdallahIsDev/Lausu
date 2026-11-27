@@ -803,7 +803,7 @@
 		"translationTargetInfo": "将文本翻译成该语言。选择“与原语言相同”会保留原文。",
 		"translationSameAsSpoken": "与原语言相同",
 		"translationGpu": "使用 GPU 翻译",
-		"translationGpuInfo": "翻译会在你说完话后增加额外时间；在没有显卡的电脑上可能慢得多——我们测量约比其他电脑慢 10 倍，每段大约 10 秒以上——想要最快的听写请将其关闭。",
+		"translationGpuInfo": "在显卡上运行翻译。关闭此选项后，翻译将仅使用处理器，在我们的测试中大约慢 10 倍。",
 		"translationGlossary": "术语表",
 		"translationGlossaryInfo": "每行一个术语，格式为 来源 => 译文。产品和界面名称保持原样。",
 		"translationDownload": "下载翻译模型（1.31 GB）",

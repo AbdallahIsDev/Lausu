@@ -204,7 +204,7 @@
 		"translationTargetInfo": "Traduire le texte dans cette langue. « Comme parlé » conserve le texte d’origine.",
 		"translationSameAsSpoken": "Comme parlé",
 		"translationGpu": "Utiliser le GPU pour la traduction",
-		"translationGpuInfo": "La traduction ajoute du temps après que vous avez parlé, et sur un ordinateur sans carte graphique elle peut être beaucoup plus lente — environ 10 fois plus lente selon nos mesures, soit environ 10 secondes ou plus par paragraphe — désactivez-la donc pour une dictée la plus rapide.",
+		"translationGpuInfo": "Exécute la traduction sur la carte graphique. Si vous désactivez cette option, la traduction utilise uniquement le processeur, qui est environ 10 fois plus lent dans nos tests.",
 		"translationGlossary": "Terminologie",
 		"translationGlossaryInfo": "Un terme par ligne au format source => traduction. Les noms de produits et d’interface restent inchangés.",
 		"translationDownload": "Télécharger le modèle de traduction (1,31 Go)",

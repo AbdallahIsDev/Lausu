@@ -817,7 +817,7 @@
 		"translationTargetInfo": "Translate text into this language. Same as spoken keeps the original text.",
 		"translationSameAsSpoken": "Same as spoken",
 		"translationGpu": "Use GPU for Translation",
-		"translationGpuInfo": "Translation adds time after you speak, and on a computer without a graphics card it can be much slower — about 10 times slower in our measurements, roughly 10+ seconds per paragraph — so turn it off for the fastest dictation.",
+		"translationGpuInfo": "Runs translation on your graphics card. If you turn this off, translation uses the processor only, which is about 10 times slower in our tests.",
 		"translationGlossary": "Terminology",
 		"translationGlossaryInfo": "One pinned term per line as source => translation. Product and UI names stay verbatim.",
 		"translationDownload": "Download translation model (1.31 GB)",
