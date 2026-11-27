@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import re
 import statistics
 import sys
 import time
@@ -216,6 +217,27 @@ def _timed_translate(service: Any, text: str, target: str) -> tuple[str, float]:
     return output, round((time.perf_counter() - started) * 1000, 3)
 
 
+def join_chunk_outputs(chunks: list[str], outputs: list[str]) -> str:
+    """Join translated chunks with the exact whitespace the source had between them.
+
+    ``bounded_chunks`` preserves every source character, so the separator lives at
+    the tail of the preceding chunk and the head of the following one. The model
+    strips its responses, so re-inserting that separator is the only way to keep
+    a space (or to avoid inventing one for scripts that do not use spaces).
+    """
+    if len(chunks) != len(outputs):
+        raise ValueError("chunk and output counts differ")
+    if not outputs:
+        return ""
+    parts = [outputs[0].strip()]
+    for index, output in enumerate(outputs[1:], start=1):
+        tail = re.search(r"\s*$", chunks[index - 1]).group(0)
+        head = re.search(r"^\s*", chunks[index]).group(0)
+        parts.append(tail + head)
+        parts.append(output.strip())
+    return "".join(parts)
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
     config = _config(args)
     assets = _check_assets(config)
@@ -348,7 +370,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     wall_seconds = sum(paragraph) / 1000
     decode_ms = token_stats["decode_ms"] or 0.0
     whole_output = whole_outputs[-1]
-    joined_chunks = "".join(detail["output"] for detail in chunk_details)
+    joined_chunks = join_chunk_outputs(chunks, [detail["output"] for detail in chunk_details])
+    legacy_join = "".join(detail["output"] for detail in chunk_details)
     chunk_ms = [detail["latency_ms"] for detail in chunk_details]
     sentence_ms = [detail["latency_ms"] for detail in sentence_details]
     ratios = [row["slowdown"] for row in simulation["per_chunk"] if row["slowdown"] is not None]
@@ -395,10 +418,19 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "note": "bench numbers are peak RSS on Windows; runtime child numbers are sampled RSS",
         },
         "comparison": {
+            "join_rule": "exact source whitespace between chunks; no invented space",
             "whole_output": whole_output,
             "chunk_joined_output": joined_chunks,
             "identical": whole_output == joined_chunks,
-            "diff": make_diff(whole_output, joined_chunks, before_name="whole text", after_name="chunk joined"),
+            "diff": make_diff(
+                whole_output,
+                joined_chunks,
+                before_name="whole text",
+                after_name="chunk joined (whitespace preserved)",
+            ),
+            "legacy_join_output": legacy_join,
+            "legacy_join_label": "LEGACY (dropped inter-chunk whitespace — kept only as evidence)",
+            "legacy_join_identical": whole_output == legacy_join,
         },
         "cache_prompt": {
             "explanation": CACHE_PROMPT_EXPLANATION,
@@ -446,6 +478,12 @@ def _self_test() -> int:
     sample = "The cache stores the prompt. A repeated request reuses it. The answer can vary."
     if "".join(bounded_chunks(sample, 32)) != sample:
         raise AssertionError("bounded_chunks changed the source text")
+    spaced = ["first sentence. ", "second sentence."]
+    if join_chunk_outputs(spaced, ["A", "B"]) != "A B":
+        raise AssertionError("source whitespace between chunks was lost")
+    unspaced = ["句一。", "句二。"]
+    if join_chunk_outputs(unspaced, ["甲", "乙"]) != "甲乙":
+        raise AssertionError("a space was invented for a no-space script")
     diff = make_diff("one\ntwo\n", "one\nthree\n", before_name="a", after_name="b")
     if "--- a" not in diff or "+++ b" not in diff:
         raise AssertionError("unified diff header missing")

@@ -1,0 +1,7 @@
+When a session starts, the app opens the microphone and sets the capture level. The microphone sends samples to a small loop that keeps them in memory. A separate worker reads those samples, measures the level, and passes them to the engine.
+
+The engine divides the recording into overlapping windows. The first window starts at zero and lasts twelve seconds. Each later window begins five seconds after the previous one and keeps three seconds of overlap. The overlap keeps words at a boundary inside at least one window.
+
+An assembler collects the words from the windows and removes repeated text at the edges. The last words stay pending until the assembler is sure they are stable. When recording stops, the app translates the final text and places it on the clipboard.
+
+Some settings use a local model while others use a cloud service. In both cases the original text stays in history. The user can resend the text later without recording again.

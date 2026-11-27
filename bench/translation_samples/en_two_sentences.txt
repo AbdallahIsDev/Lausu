@@ -1,0 +1,1 @@
+The microphone opens when the shortcut is pressed. The recording stops when the same shortcut is pressed again.
