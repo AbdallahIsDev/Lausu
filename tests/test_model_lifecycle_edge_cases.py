@@ -35,9 +35,7 @@ def isolated_lifecycle(monkeypatch: pytest.MonkeyPatch) -> Any:
 
 
 def _app(**config: Any) -> SimpleNamespace:
-    return SimpleNamespace(
-        config=SimpleNamespace(model_idle_unload_minutes=0, fast_startup=True, **config)
-    )
+    return SimpleNamespace(config=SimpleNamespace(model_idle_unload_minutes=0, fast_startup=True, **config))
 
 
 def _fake(name: str, **overrides: Any) -> CallablePolicy:
@@ -119,7 +117,10 @@ class TestSharedStartHook:
         assert policy.state["calls"] == 0  # type: ignore[attr-defined]
 
     def test_no_model_state_skips_optional_kinds(self) -> None:
-        policy = _fake("translation", applicable=lambda config: bool(getattr(config, "model_size", "")) or config.asr_backend == "cloud")
+        policy = _fake(
+            "translation",
+            applicable=lambda config: bool(getattr(config, "model_size", "")) or config.asr_backend == "cloud",
+        )
         ml.register("translation", policy)
         app = _app(model_size="", asr_backend="")
         app.tray = SimpleNamespace(_state=SimpleNamespace(value="idle"))
