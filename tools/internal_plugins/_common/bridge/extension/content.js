@@ -23,6 +23,9 @@
   // Live dictation streams into the composer on both tested platforms; the
   // selector is a per-platform anchor, never a generic page-wide search.
   const LIVE_TEXT_SELECTOR = SEL.liveTextSelector || '';
+  // Claude streams live words into hidden spans; a platform can declare the
+  // exact structure and extraction method instead of relying on innerText.
+  const LIVE_TEXT = SEL.liveText || null;
   const MIC_SELECTOR = SEL.micSelector || '';
   const STOP_SELECTOR = SEL.stopSelector || '';
   // The COMMIT and DISCARD controls are siblings while recording: "Finish
@@ -242,6 +245,27 @@
   // is cumulative on ChatGPT and Claude (measured 2026-11-27); the interim
   // word chip is deliberately NOT used because it is rewritten every tick.
   function draftSnapshot() {
+    if (LIVE_TEXT && LIVE_TEXT.selector) {
+      const parts = [];
+      for (const candidate of splitSelectors(LIVE_TEXT.selector)) {
+        let nodes = [];
+        try {
+          nodes = Array.from(document.querySelectorAll(candidate));
+        } catch (_) {
+          continue;
+        }
+        for (const node of nodes) {
+          let text = '';
+          if (LIVE_TEXT.method === 'value') text = typeof node.value === 'string' ? node.value : '';
+          else text = node.textContent || '';
+          if (text.trim()) parts.push(text); // keep logical text (spaces, RTL order, emoji) intact
+        }
+        if (parts.length) break;
+      }
+      if (parts.length) {
+        return { text: parts.join('').trim(), source: 'live-selector', kind: LIVE_TEXT.kind || 'structured' };
+      }
+    }
     for (const candidate of splitSelectors(LIVE_TEXT_SELECTOR)) {
       let box = null;
       try {

@@ -1,6 +1,6 @@
 {
   "locale": "en",
-  "note": "Claude web composer (2026-11): the trailing area stacks [data-cds-part=send-slot] and [data-cds-part=idle-slot]; the idle slot holds the Dictate split button and goes inert while the box has text, so the box must be clean before clicking. Dictation streams into the ProseMirror composer while you speak; the toggle label flips to Stop and the placeholder reads Listening (help center). Fix here after a Claude redesign, then run tools/build-extension.js; probe.js re-verifies every entry.",
+  "note": "Claude web composer (2026-11): the trailing area stacks [data-cds-part=send-slot] and [data-cds-part=idle-slot]; the idle slot holds the Dictate split button and goes inert while the box has text, so the box must be clean before clicking. Dictation streams into the ProseMirror composer while you speak; the toggle label flips to Stop and the placeholder reads Listening (help center). During recording the composer is read-only and the live words live in span[data-dictation] > span[data-dictation-words] inside it; innerText on the outer box is empty, so liveText declares textContent of those spans in DOM order (dir=rtl/ltr is irrelevant). Fix here after a Claude redesign, then run tools/build-extension.js; probe.js re-verifies every entry.",
   "claudeUrl": "https://claude.ai/new",
   "idleSlot": "[data-cds-part=\"idle-slot\"]",
   "composer": "div.ProseMirror[contenteditable=\"true\"], [data-testid=\"composer-input\"], div[contenteditable=\"true\"][data-placeholder], div[contenteditable=\"true\"][aria-label*=\"Claude\" i]",
@@ -12,5 +12,11 @@
   "stopButton": "button \"Finish dictation\" -- the COMMIT control; clicking the sibling \"Cancel dictation\" discards the transcript",
   "promptBox": "textbox \"Reply to Claude...\"",
   "liveTextSelector": "[data-testid=\"chat-input\"].ProseMirror, div.ProseMirror[contenteditable=\"true\"]",
+  "liveText": {
+    "selector": "[data-testid=\"chat-input\"] span[data-dictation-words]",
+    "method": "textContent",
+    "combine": "dom-order",
+    "kind": "structured"
+  },
   "newChatNames": ["New chat", "Start new chat"]
 }
