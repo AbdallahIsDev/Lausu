@@ -67,10 +67,16 @@ class _StreamingResampler:
         # Polyphase banks: bank[p] holds every up-th tap starting at p.
         # Output sample at upsampled index m uses bank[m % up] dotted
         # against the input window ending at input sample (m - m%up)/up.
-        self._banks: list[np.ndarray] = [
-            np.ascontiguousarray(self._h[p :: self._up]) for p in range(self._up)
-        ]
+        self._banks: list[np.ndarray] = [np.ascontiguousarray(self._h[p :: self._up]) for p in range(self._up)]
         self._max_bank_len: int = max(len(b) for b in self._banks)
+
+        # Left-pad the phase banks to one width: a single gather plus a
+        # row-wise reduction then computes every output, while the left
+        # padding keeps each bank's tap alignment against the signal.
+        self._bank_matrix = np.zeros((self._up, self._max_bank_len), dtype=np.float32)
+        for p, bank in enumerate(self._banks):
+            self._bank_matrix[p, self._max_bank_len - bank.size :] = bank
+        self._tap_offsets = np.arange(self._max_bank_len, dtype=np.int64)
 
         # Input history tail (zero-initial = zero filter state, same as
         # the old lfilter zi=0). Length covers the longest bank window.
@@ -104,12 +110,18 @@ class _StreamingResampler:
         ext = np.concatenate([hist, x32])
         base = hist.size  # ext index of x32[0]
 
-        for j in range(count):
-            m = self._phase + j * down
-            bank = self._banks[m % up]
-            s = (m - (m % up)) // up + base
-            lo = s - len(bank) + 1
-            out[j] = float(np.dot(bank, ext[lo : s + 1]))
+        if count:
+            m = self._phase + np.arange(count, dtype=np.int64) * down
+            bank_index = m % up
+            starts = (m - bank_index) // up + base - self._max_bank_len + 1
+            windows = ext[starts[:, None] + self._tap_offsets]
+            np.einsum(
+                "ij,ij->i",
+                windows,
+                self._bank_matrix[bank_index],
+                out=out,
+                optimize=False,
+            )
 
         # Carry the tail forward for the next chunk.
         tail = ext[-self._hist_len :] if ext.size >= self._hist_len else ext
