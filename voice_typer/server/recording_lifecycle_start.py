@@ -56,6 +56,19 @@ class RecordingLifecycleStartMixin:
             self._surface_busy_refusal(app)
             return
 
+        # No model, cloud backend or plugin can turn audio into text: refuse
+        # BEFORE the microphone opens. Button/tray/plugin-origin starts bypass
+        # the hotkey guard, so this must live at the shared start entry too
+        # (live evidence 2026-11-27 18:37: a no-model press opened the mic).
+        try:
+            from voice_typer.server.hotkey_dispatch import no_active_engine, notify_no_active_engine
+
+            if no_active_engine(app):
+                notify_no_active_engine(app, caller="DICTATION")
+                return
+        except Exception:
+            log.debug("[DICTATION] no-engine precheck failed; continuing", exc_info=True)
+
         # Record-while-loading: an in-flight loader is no reason to
         # refuse the hotkey. Recording starts immediately; the
         # DictationStart worker joins the load via

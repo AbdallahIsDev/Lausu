@@ -229,6 +229,9 @@ class TestHotkeyCallbackChain:
         app._busy_event.set()  # not busy
         app.models.transcriber = MagicMock()
         app.models.transcriber.is_loaded = True
+        # This chain tests a WORKING engine; the no-model refusal is a
+        # different contract (config is the only no-model truth).
+        app.config.model_size = "large-v3-turbo"
 
         # Simulate what GlobalHotKeys does: call the registered callback directly
         # The callback stored in the hotkey mapping IS app.toggle_dictation

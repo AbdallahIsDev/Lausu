@@ -18,6 +18,48 @@ from voice_typer.server.keyboard_ownership import keyboard_ownership
 log = logging.getLogger("voice_typer.server.hotkey_dispatcher")
 
 
+def no_active_engine(app: Any) -> bool:
+    """True when no local model, cloud backend or browser plugin can transcribe."""
+    from voice_typer.server import internal_plugin_hook
+
+    cfg = getattr(app, "config", None)
+    if cfg is None:
+        return False
+    if internal_plugin_hook.plugin_display_name(app):
+        return False
+    if getattr(cfg, "model_size", "") or getattr(cfg, "asr_backend", "") == "cloud":
+        return False
+    return True
+
+
+def notify_no_active_engine(app: Any, caller: str = "HOTKEY") -> None:
+    """One localized notice for every user-facing start entry."""
+    from voice_typer.server import event_bus
+    from voice_typer.server.branding import APP_NAME
+    from voice_typer.server.i18n import t
+
+    message = t("notify.model_manager.no_model_selected")
+    log.info("[%s] no active engine; dictation not started", caller)
+    try:
+        event_bus.publish(
+            {
+                "type": "notification",
+                "data": {
+                    "title": APP_NAME,
+                    "message": message,
+                    "duration_ms": 0,
+                    "critical": False,
+                },
+            }
+        )
+    except Exception:
+        log.debug("[%s] in-app no-engine notification failed", caller, exc_info=True)
+    try:
+        app.tray.notify(message)
+    except Exception:
+        log.debug("[%s] no-engine notification failed", caller, exc_info=True)
+
+
 class HotkeyDispatchMixin:
     """Backend-event to app-action dispatch.
 
@@ -76,40 +118,10 @@ class HotkeyDispatchMixin:
 
     def _no_active_engine(self) -> bool:
         """Refuse the hotkey when neither a model nor a plugin owns dictation."""
-        from voice_typer.server import internal_plugin_hook
-        from voice_typer.server.i18n import t
-
-        cfg = getattr(self._app, "config", None)
-        if cfg is None:
-            return False
-        if internal_plugin_hook.plugin_display_name(self._app):
-            return False
-        if getattr(cfg, "model_size", "") or getattr(cfg, "asr_backend", "") == "cloud":
-            return False
-        from voice_typer.server import event_bus
-        from voice_typer.server.branding import APP_NAME
-
-        message = t("notify.model_manager.no_model_selected")
-        log.info("[HOTKEY] no active engine; dictation not started")
-        try:
-            event_bus.publish(
-                {
-                    "type": "notification",
-                    "data": {
-                        "title": APP_NAME,
-                        "message": message,
-                        "duration_ms": 0,
-                        "critical": False,
-                    },
-                }
-            )
-        except Exception:
-            log.debug("[HOTKEY] in-app no-engine notification failed", exc_info=True)
-        try:
-            self._app.tray.notify(message)
-        except Exception:
-            log.debug("[HOTKEY] no-engine notification failed", exc_info=True)
-        return True
+        if no_active_engine(self._app):
+            notify_no_active_engine(self._app)
+            return True
+        return False
 
     def _force_caps_lock_off_before_dictation(self) -> None:
         """Clear a leftover Caps Lock ON state before a dictation starts.

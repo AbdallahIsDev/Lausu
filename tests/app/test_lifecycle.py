@@ -340,6 +340,9 @@ class TestAppStateTransitions:
         assert app._busy_event.is_set(), "_busy_event must be set after failed transcription"
 
         # Recovered engine goes through the same registry seam production uses.
+        # This test exercises a WORKING engine; no-model refusal has its own
+        # real-entry test (config is the only no-model truth).
+        app.config.model_size = "large-v3-turbo"
         recovered = MagicMock()
         recovered.is_loaded = True
         recovered.device_info = "cpu (int8)"
