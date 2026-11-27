@@ -1,0 +1,221 @@
+# Real performance measurements on Windows (verification of the cloud audit)
+
+Measured 2026-11-27 by Worker S1 Part A on this machine. The cloud audit in
+`docs/design/rust-migration-audit.md` was written in a sandbox with no Windows,
+no numpy/scipy and no running app. This document replaces its guesses with
+measurements from the real process paths where possible. `MEASURED` means the
+numbers came from the code on this machine; `UNVERIFIED` means the asset or
+entry point was not available and no number is claimed.
+
+## Plain English
+
+The audit's big picture survives, but two of its numbers were wrong by a lot on
+this machine:
+
+- The Python text path is tiny. Config load is ~1 ms, a feature-flag read is
+  ~21 ns, one bubble publish is ~3-4 microseconds. Rewriting those in Rust
+  cannot buy anything a user can feel.
+- Startup import is **200 ms**, not 96-115 ms. About half of that is CPython's
+  own standard library. The rest is mostly one-time config/security setup.
+  This is real but still small next to native startup, which the logs put at
+  1.6 s warm / 3.0 s spaced-out (up to 8 s) before the Python app even says
+  hello.
+- The whole-buffer copy the audit called the one real defect is real, but this
+  Windows machine copies 30 MB in **1.9 s of CPU over an 8-minute take**, not
+  5.7 s, and stalls other threads up to **38 ms**, not 25 ms. Also important:
+  the path is **dormant in this profile** — the offline pack is missing and a
+  browser plugin owns dictation, so no worker-backed local engine is active.
+- The resampler is the one place where the cloud estimate was too _low_. With
+  real numpy/scipy the 16 kHz → 48 kHz → 16 kHz pair burns **~8.6% of one core**
+  while a suppressor runs, not 0.8%. At 44.1 kHz the audit's exact shape costs
+  ~22 ms CPU per audio-second, about 2.7x its proxy.
+- The 5 ms / 300 ms teardown poll is correctly described in the source, but on
+  a real audio device it added **0 ms** in normal stops. It adds the full 300 ms
+  only when a callback flag never clears. A real 1-second take stopped in
+  **17 ms** median.
+- The overlay bubble's Python half is microseconds. The missing end-to-end
+  "hotkey → bubble visible" measurement is what would justify a renderer
+  change; there is no measured Python bottleneck to remove there.
+
+## Audit claim → measured on Windows → verdict
+
+| Audit claim | Measured on Windows | Verdict |
+| --- | --- | --- |
+| Whole Python text path <1 ms | `clean_transcribed_text` 0.0525 ms for a 93-char sentence (p95 0.061), 0.372 ms at 631 chars (p95 0.607); `Config.load()` 1.03 ms; 17 flags at 21.5 ns each; one bubble publish 3.4 µs | Confirmed |
+| Startup import ~96-115 ms, ~47% stdlib | `-X importtime` total **200.38 ms** median (9 runs, 199.55-225.64); owner split ~119 ms our code / ~98 ms stdlib (duplicate module names make the split approximate) | **Corrected**: same shape, ~2x larger on Windows |
+| Whole-buffer copy 5.7 s CPU per 480 s take, GIL stalls to 25 ms | 480 s: **1909.7 ms** median whole copy (max 2592), 166 ms push encode, delta-only 19 ms; 1 ms timer max lateness **37.7 ms** (baseline 0.93) | **Corrected** magnitude; defect and GIL effect confirmed; path dormant in this profile |
+| Stream teardown poll 5 ms / 300 ms budget | Constants confirmed at `recording/stream_lifecycle.py:601,615` and `_audio_constants.py:77-78`; real stop+close 56 ms, callback clearing after 10 ms adds 0 ms, never-clearing adds 300 ms (357 ms total); real 1 s take stop 17 ms | Confirmed as worst-case bound, not normal cost |
+| Resampler ~8 ms CPU per audio-second (proxy) | 16→48 upsampler 2.044 ms per 32 ms chunk = 63.9 ms/s; 48→16 downsampler 21.7 ms/s; pair **85.6 ms/s (8.6% core)**; audit's 44.1 kHz shape 0.254 ms/chunk = 21.9 ms/s | **Corrected upward**, ~3-10x; still not felt latency, but a real CPU-safety cost |
+| Bubble publish ~8.6 µs | Single real publish + real IPC send: 3.4 µs (p95 3.8); loopback round trip 4.4 µs | Confirmed order of magnitude; not a bottleneck |
+| Idle thread count/RAM unknown | Sidecar 49 threads / 31.7 MiB RSS / 0.6% CPU; host 22 threads / 29.5 MiB / ~0% | Corrected with real values; Python-level thread names still UNVERIFIED |
+| "Check whether user enabled X" is a startup cost | 1.03 ms for the whole config load; 21.5 ns per flag read; module imports, not flag reads, dominate | Refuted as stated; the cost is importing gated modules |
+
+## Machine, load, method
+
+- Windows 11 build 10.0.26200; AMD Ryzen 5 7600, 6 cores / 12 threads, 16 GB RAM; CPython 3.13.7 from `C:\Users\11\voice-typer\.venv` with numpy 2.5.2, scipy 1.18.0, psutil 7.2.2, sounddevice 0.5.6 and onnxruntime 1.29.0.
+- 406 processes at session start; Chrome, the running app, and other agents were active. Machine CPU during the 5-minute idle sample ranged 3.9-34.3% (median 11.05%). No processes were killed and no heavy work was started during timing runs. Every timing ran serially, 5+ repetitions unless noted; median, p95 and max are reported. A p95/max spike is machine noise, not a second result.
+- Live profile at measurement time: `active_plugin=anthropic_stt`, `waveform_bubble=false`, `audio_preset=off`, `noise_suppression_method=none`, `noise_filter_enabled=false`, `model_size=parakeet`, `asr_backend=parakeet`. The local model is not loaded at startup and the app log says a plugin serves dictation. The in-repo native runtime bundle is a placeholder; the DLL exists only outside the app bundle. Frozen-build startup is therefore UNVERIFIED.
+
+Text path, measured on this machine with 7 runs of 200 calls each:
+`clean_transcribed_text` (real function, auto-punctuation on) is 0.0051 ms at 11
+characters, **0.0525 ms** at ~93 characters (p95 0.061, max 0.107), and 0.372
+ms at 631 characters (p95 0.607, max 0.698). The whole measured Python text
+work per dictation stays under 1 ms.
+
+## A1 — startup timeline
+
+Real log evidence (`lausu.log`, 73 launches on 2026-11-27):
+
+| Window | host boot → backend first log | backend spawn → first log | spawn → `Startup complete` |
+| --- | --- | --- | --- |
+| all 73 (median / p95 / max) | 1.6 / 3.9 / 8.0 s | 1.2 / 3.0 / 7.4 s | 2.1 / 7.0 / 9.9 s |
+| 61 warm boots (<120 s apart) | 1.6 / 1.9 / 4.7 s | 1.2 / 1.4 / 3.3 s | 2.1 / 2.3 / 7.9 s |
+| 12 spaced/cold boots (≥2 min gap) | 3.0 / 6.3 / 8.0 s | 2.15 / 4.1 / 7.4 s | 3.35 / 7.2 / 9.9 s |
+
+The coldest case was a 12-hour gap: host boot 8.0 s, backend init 7.4 s, complete 9.9 s. The warmest burst ran every ~12 s: host boot 1.4-1.7 s, complete 2.0-2.1 s. Log resolution is 0.1 s; the durations come from the app's own `format_duration()` lines.
+
+`python -X importtime -c "import voice_typer.server.app"`, 9 fresh serial processes: total median **200.38 ms** (199.55-225.64), 344 modules, wall including interpreter launch 257 ms; bare interpreter 46 ms. Self-time owner split (median per module): `voice_typer` **118.85 ms**, standard library **97.6 ms** (small overlap from repeated module names). Top self-time sites: `config._schema` 8.56 ms, `config` 8.28, `_ssl` 4.30, `translation.prompt` 2.49, `site` 2.26, `typing` 2.24, `gguf_model_registry` 2.08, `security.secret_patterns` 1.76. Top cumulative sites: `app` 200, `app_construction` 98.8, `config` 78.0, `config._lifecycle` 66.2, `_security_attributes` 60.7, `security.http_safety` 34.4, `win32_dacl` 31.0.
+
+15 heaviest startup steps and their class:
+
+| Phase | Windows measurement | Class |
+| --- | --- | --- |
+| Browser-plugin activation | 3.1 s median, 10.3 s at last boot (prepare 4.3 s) | wait / child process |
+| Speech-synthesis server prewarm | 3.2 s median, 1.6 s at last boot | native launch / wait |
+| Host boot → backend first log | 1.6 s warm, 3.0-8.0 s spaced | native + disk |
+| Backend init → first log | 1.2 s warm, 2.15-7.4 s spaced | Python import + disk |
+| Worker process spawn | 0.6 s median (0.4 s last boot; p95 22.8 s under load) | native process wait |
+| Worker warm-import pass | 0.2-2.3 s (1.7 s at last boot) | disk read |
+| scipy file warm | 0.5 s median (1.5 s at last boot) | disk |
+| Config import graph | 78 ms cumulative | Python CPU |
+| Security / TLS import graph | 60.7 ms cumulative | Python CPU + stdlib |
+| Native denoiser preload | 0.4 s median | ONNX native load |
+| VAD preload | 0.1 s median | ONNX native load |
+| second denoiser preload | ≤0.1 s | ONNX native load |
+| Worker socket connect | ≤0.1 s at last boot | wait |
+| History database init | <0.1 s | SQLite C |
+| `Config.load()` / flag reads | 1.03 ms / 21.5 ns per read | disk+JSON / Python CPU |
+
+The owner's "check whether the user enabled X" suspicion does not hold: 17 flags × 200k iterations of real `getattr` cost 21.5 ns per read, ~0.37 µs for the whole set. The expensive part is importing the modules those flags gate (~130 ms cumulative of the 200 ms import).
+
+Frozen-build startup: UNVERIFIED. No built executable exists in the release install paths; `AppData\Local\lausu\onefile-tmp` contains only unpacked runtime files, not a frozen app.
+
+## A2 — hotkey → bubble visible, stop → text pasted
+
+UNVERIFIED end-to-end. The live profile routes dictation to a browser plugin, has the overlay bubble disabled, and has no local engine loaded; driving the real Caps Lock hotkey and paste path would disturb other sessions here. The native runtime DLL sits outside the app bundle, so a real local-engine take cannot be driven through the shipped entry point in this checkout.
+
+Measured pieces (real components): real `event_bus.publish` → real IPC `_send` into a StringIO sink: `bubble_show` 3.4 µs median (p95 3.8, max 49.1), `bubble_set_state` 3.6 µs, `bubble_level` 3.5 µs; loopback socket round trip 4.4 µs. Real `WaveformBubble.apply_visibility("recording")` → two publishes → two IPC sends: **7.9 µs** median (p95 8.9, max 87.8) — the cloud's 8.6 µs is confirmed on this machine.
+
+To reproduce the missing number: run `npm run tauri:dev` with a scratch profile that sets `waveform_bubble=true` and a local engine, press Caps Lock, and timestamp `[HOTKEY] dictation`, the bubble publish, host WS frame arrival, renderer first paint, `[RECORDING] Audio stopped`, and paste dispatch.
+
+Verdict: no evidence supports a Rust rewrite for this step. GPUI would replace the renderer half, but the Python half is microseconds and the WebView/host paint cost has not been measured on Windows; the GPUI decision needs that measurement, not a rewrite.
+
+## A3 — whole-buffer copy
+
+The worker streaming session starts only when the active transcriber reports `worker_backed=True` **and** the offline pack is present. Real gate result on this machine: `worker_path_for_backend(...) == (False, "offline_pack_missing")`. The code path is dormant in this profile but real for worker-backed local engines.
+
+`_to_f32_bytes()` and `_push_bytes()` from `worker_streaming.py` were run with the real numpy code and a fake transport (only the outbound socket boundary is faked), 16 kHz float32, 0.5 s polls, 5 serial runs:
+
+| Take | Whole-buffer copy | Delta-only copy | Push encode | Wall | Bytes copied |
+| --- | --- | --- | --- | --- | --- |
+| 30 s | 10.08 ms (p95 10.70 / max 11.18) | 0.152 ms | 7.34 ms | 17.7 ms | 55.8 MiB |
+| 120 s | 148.08 ms (150.78 / 154.27) | 0.761 ms | 29.68 ms | 178.7 ms | 882.6 MiB |
+| 480 s | **1909.7 ms** (1918 / 2592) | 19.18 ms | 166.5 ms | 2096.9 ms | 14,077 MiB |
+
+GIL probe: a thread copying 30 MB in a loop while a 1 ms timer thread measured lateness, 2 s, repeated: median lateness 15.56 ms, p95 30.05 ms, max **37.72 ms**, 112/112 samples over 5 ms. Idle baseline: median 0.52 ms, max 0.93 ms, 0/1317 samples over 5 ms.
+
+Other whole-buffer / quadratic patterns found:
+
+| Location | What it does | Hot? |
+| --- | --- | --- |
+| `recording/recording_buffer.py:400` (`view()`) | `np.concatenate` of the whole take once the ring wraps | Per snapshot only after wrap; otherwise a view |
+| `recording/recording_buffer.py:218`, `:361` | wrap-span and relocation copies | Bounded / one-off |
+| `recording/recording_buffer.py:416` (`export_copy()`) | one owning copy at stop | Once |
+| `recording/filter_divergence.py:255` | bounded pitch-buffer concatenate | Per chunk, bounded |
+| `recording/session_state.py:304`, `recording/buffer.py:68` | `list(buffer)` | Legacy fallbacks only |
+| `worker_streaming.py:43` | whole take to bytes at finalize | Once |
+| `streaming.py:226` | recorder snapshot per window | Zero-copy view; bounded window |
+
+## A4 — teardown wait
+
+Real `Recorder.start()` → 1 s capture → `stop()` with a real audio device (the WASAPI candidate failed with `-9999` in this process, the MME device worked), 5 serial runs: stop wall median **17.3 ms** (p95 17.5, max 46.9). The app's own stop line reports stream 16 ms (max 46), concat 0 ms, resample 0-1 ms, total 17 ms. Start itself was 51.9 ms median (max 78.3).
+
+Isolated real `StreamLifecycle.teardown_stream_body()` with a real `sd.InputStream` and a forced in-flight callback flag, 5 runs each: no callback in flight **55.97 ms** (real stop+close), callback clears after 10 ms **56.02 ms** (poll hidden inside stop+close), callback never clears **356.95 ms** (the 300 ms budget is added). Constants confirmed at `recording/stream_lifecycle.py:601,615` and `_audio_constants.py:77-78`.
+
+The audit's "0.3 s + up to 2 s drain" is a worst-case bound. Normal Windows stops here pay no poll wait; the cost is PortAudio `stop()`/`close()`.
+
+## A5 — resampler and noise gate
+
+Real numpy/scipy, 5 runs × 62 chunks per shape, per-chunk wall (single-threaded; `thread_time` has 0 resolution on Windows, so wall is the CPU proxy):
+
+| Shape | Per chunk | p99 | CPU per audio-second |
+| --- | --- | --- | --- |
+| 16→48 kHz upsampler (3/1), 512→1536 | 2.044 ms | 2.67 ms | 63.9 ms |
+| 48→16 kHz downsampler (1/3), 1536→512 | 0.694 ms | 1.02 ms | 21.7 ms |
+| Full 16→48→16 pair | 2.74 ms | 3.74 ms | 85.6 ms = **8.6% of one core** |
+| 44.1 kHz pair (160/147 + 147/160) | 1.46 ms | 2.04 ms | 45.7 ms |
+| Audit's exact 44.1→16 shape (160/441), 512→185 | 0.254 ms | 0.35 ms | 21.9 ms |
+
+Resampler construction is 0.116 ms for the 16 kHz pair and 0.49 ms for 44.1 kHz. No speech WAVs ship in this repo (only scipy's own test files), so the gate frequency used synthesized numpy speech-like and chattery chunks; it is a real code-path measurement, not a real-recording measurement. The two denoiser models used by this path are on disk; the live profile has no suppressor enabled, so this cost applies when a neural suppressor is active, not in the current session.
+
+Noise-gate scalar fallback with real `NoiseGate.process()`, 160 chunks per scenario: speech-like audio 0/160, chattery audio 0/160. The peak-hold level estimator smooths the input so a 512-sample chunk never exceeds the vector path's `max(4, n//32)` = 16 state runs. Calling `_state_machine_vector` directly with an alternating level array does delegate to the scalar loop once, so the fallback is reachable but not on ordinary `process()` input.
+
+## A6 — idle
+
+The 5-minute sample covered 60 five-second intervals. Listener PIDs were
+confirmed from the sockets: port 56846 → PID 696 (sidecar), port 59792 → PID
+26932 (worker). PIDs 18680 and 28484 are 2-thread parent shims, not the
+listeners.
+
+| Process | PID | Threads (median / max) | RSS MiB (median / max) | CPU % per 5 s interval (median / p95 / max) |
+| --- | --- | --- | --- | --- |
+| Tauri host | 9428 | 22 / 23 | 29.5 / 29.5 | 0.0 / 0.3 / 0.9 |
+| Sidecar (listener) | 696 | **49 / 51** | 31.7 / 32.0 | 0.6 / 3.0 / 4.2 |
+| Sidecar parent shim | 18680 | 2 / 2 | 1.1 / 1.1 | 0.0 / 0.0 / 0.0 |
+| Worker (listener) | 26932 | 3 / 3 | 4.8 / 4.8 | 0.0 / 0.3 / 0.3 |
+| Worker parent shim | 28484 | 2 / 2 | 1.1 / 1.1 | 0.0 / 0.0 / 0.0 |
+
+Whole-machine CPU over the same window: median 11.05%, p95 23.1%, max 34.3%
+(Chrome, other agents). The app itself is event/timer driven at rest, near zero
+CPU. Sidecar RSS 31.7 MiB matches the cloud's 27.4 MiB import-only baseline;
+there is no large Python heap at rest. The cloud's 20-35 thread estimate was
+low: the real sidecar has 49.
+
+Thread **names** are only partly observable: `GetThreadDescription` returned no
+OS-level names for these processes, and Python's `threading.Thread.name` is not
+readable from another process without in-process instrumentation. Per-thread
+Python names are UNVERIFIED; thread counts are MEASURED.
+
+## What the numbers justify
+
+- No Rust rewrite of the text path, pipeline dispatch, IPC/event bus, history DB, config schema, startup imports or bubble publish. Their measured costs are microseconds to low milliseconds.
+- Python work worth doing first: the worker whole-buffer copy (1.9 s CPU per 8-minute take when the path is active), and lazy imports for the ~130 ms config/security import share. The teardown poll only matters if a stuck callback is actually observed.
+- The resampler inner loop is the only candidate with a real CPU share (8.6% of one core while a suppressor runs). A small native function could help, but it adds a build artifact to the frozen sidecar; measure the audio-thread p99 before deciding.
+- The GPUI bubble is orthogonal to Python performance. The missing number is WebView/host paint latency on Windows, not backend time.
+
+## UNVERIFIED
+
+1. End-to-end hotkey → bubble visible and stop → text pasted (plugin-owned profile, bubble disabled, no local runtime bundle in the app path).
+2. Real local-engine dictation timing for 5 s and 2-3 min takes; only the recorder/streaming path was driven with synthetic/real device audio.
+3. Frozen-build startup (no built executable found).
+4. WebView/host paint cost and therefore the GPUI decision.
+5. Template-file matching with real templates was not re-measured here.
+6. Per-thread Python names at rest (OS thread descriptions are empty; Python-level names need in-process instrumentation).
+
+## Exact commands
+
+All from `C:\Users\11\voice-typer`, serial, using `C:\Users\11\voice-typer\.venv\Scripts\python.exe`:
+
+```
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_imports.py
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_copy.py
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_audio.py
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_audio2.py
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_misc.py
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_teardown.py
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_startlogs.py
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_idle.py > C:\Users\11\AppData\Local\Temp\opencode\r6_idle.jsonl
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_idle2.py > C:\Users\11\AppData\Local\Temp\opencode\r6_idle2.jsonl
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_idle_summary.py
+& .\.venv\Scripts\python.exe C:\Users\11\AppData\Local\Temp\opencode\r6_text.py
+```
