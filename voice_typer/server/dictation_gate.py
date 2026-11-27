@@ -85,8 +85,9 @@ def decide_toggle(app: Any) -> str:
         # Shared for local, cloud and plugin starts. The lifecycle hook checks
         # the user origin itself and never blocks dictation.
         try:
-            from voice_typer.server.model_lifecycle import on_dictation_start
+            from voice_typer.server.model_lifecycle import ensure_kinds_registered, on_dictation_start
 
+            ensure_kinds_registered()
             on_dictation_start(app)
         except Exception:
             log.debug("[DICTATION-GATE] model lifecycle start hook failed", exc_info=True)

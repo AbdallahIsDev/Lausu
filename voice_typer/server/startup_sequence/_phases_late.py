@@ -492,6 +492,15 @@ class LatePhases:
 
             start_prewarm(app)
 
+        # Register lazily-imported optional kinds BEFORE the first user press:
+        # on a cold app the translator policy used to appear only at the first
+        # post-stop stage, so startup prewarm and the first record-start hook
+        # could not see it (live evidence 2026-11-27 17:47/18:04).
+        with contextlib.suppress(Exception):
+            from voice_typer.server.model_lifecycle import ensure_kinds_registered
+
+            ensure_kinds_registered()
+
         # Optional kinds without a dedicated hook (translation, future kinds)
         # share the Fast Startup gate + private-memory guard. The unconditional
         # local ASR load above is deliberately untouched.

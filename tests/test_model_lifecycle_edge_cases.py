@@ -85,6 +85,17 @@ def _settle(policy: CallablePolicy, expected: int = 1, timeout: float = 3.0) -> 
 
 
 class TestSharedStartHook:
+    def test_first_cold_press_sees_the_translator_kind(self) -> None:
+        # Live bug: on a cold app the translator policy was imported only by
+        # the first post-stop stage, so the record-start hook could not see it
+        # and the first dictation still paid a cold load after stop.
+        assert registry.kinds() == ()
+        app = _app(translation_enabled=True)
+        app.tray = SimpleNamespace(_state=SimpleNamespace(value="idle"))
+        with dictation_origin.user_action("hotkey"):
+            dictation_gate.decide_toggle(app)
+        assert ml.get("translation") is not None
+
     def test_local_and_plugin_starts_use_one_shared_hook(self) -> None:
         from unittest.mock import MagicMock
 

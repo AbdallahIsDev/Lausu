@@ -32,6 +32,26 @@ def kinds() -> tuple[str, ...]:
         return tuple(_policies)
 
 
+def ensure_kinds_registered() -> None:
+    """Register kinds whose policy module is imported lazily.
+
+    The translator policy registers at import, but its old import site was the
+    first post-stop pipeline stage. Without this call a cold app's first press
+    reached the record-start hook before the kind existed, so the translator
+    still loaded after stop (live evidence 2026-11-27 17:47).
+    """
+    if get("translation") is not None:
+        return
+    try:
+        from importlib import import_module
+
+        import_module("voice_typer.server.translation.lifecycle").register()
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).debug("[LIFECYCLE] translator registration failed", exc_info=True)
+
+
 def bind_app(app: Any) -> None:
     """Record the app once; policies with no app parameter read it from here."""
     global _app
@@ -64,4 +84,4 @@ def _reset_for_tests() -> None:
         _app = None
 
 
-__all__ = ["bind_app", "current_app", "get", "kinds", "ordered_kinds", "register"]
+__all__ = ["bind_app", "current_app", "ensure_kinds_registered", "get", "kinds", "ordered_kinds", "register"]

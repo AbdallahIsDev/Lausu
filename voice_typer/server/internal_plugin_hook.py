@@ -348,24 +348,32 @@ def install(app: Any) -> bool:
         # reconnect and the dev driver's stale commands reach this same entry.
         if not dictation_origin.authorize("internal_plugin_hook.toggle_dictation"):
             return
-        if decide_toggle(app).startswith("ignore"):
-            return
         session = _selected_session(app)
         previous = getattr(app, "_internal_plugin_active_session", None)
         plugin_id = requested_plugin_id(app) if session is not None else ""
-        if session is previous and session is not None:
+        if session is None:
+            # No plugin selected: the local entry decides ONCE. Deciding here
+            # as well made the second call inside PRESS_DEBOUNCE_S an
+            # ignore-burst, so every local toggle was swallowed (live evidence
+            # 2026-11-27 17:56). Release the old owner first if one existed.
+            if previous is not None:
+                _switch_away(app, previous, "")
+                app._internal_plugin_active_session = None
+                app._internal_plugin_active_id = ""
+            orig_toggle()
+            return
+        if decide_toggle(app).startswith("ignore"):
+            return
+        if session is previous:
             session.toggle()
             return
-        # Selection changed (or was cleared) since the last press: stop the
-        # old owner first so two sessions can never run at once.
+        # Selection changed since the last press: stop the old owner first so
+        # two sessions can never run at once.
         if previous is not None:
             _switch_away(app, previous, plugin_id)
         app._internal_plugin_active_session = session
         app._internal_plugin_active_id = plugin_id
-        if session is None:
-            orig_toggle()
-        else:
-            session.toggle()
+        session.toggle()
 
     def stop_dictation() -> None:
         # Route to the session that OWNS the in-flight cycle, not to the

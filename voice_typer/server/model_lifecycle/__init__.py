@@ -12,7 +12,7 @@ from .idle import apply_idle_setting
 from .loading import ensure_loaded, load_in_background, on_dictation_start
 from .memory import memory_fits
 from .policy import CallablePolicy, ModelPolicy
-from .registry import get, kinds, register
+from .registry import ensure_kinds_registered, get, kinds, register
 from .shutdown import shutdown_all
 from .startup import prewarm_optional_at_startup
 
@@ -23,6 +23,7 @@ __all__ = [
     "ModelPolicy",
     "apply_idle_setting",
     "ensure_loaded",
+    "ensure_kinds_registered",
     "get",
     "kinds",
     "load_in_background",
