@@ -1860,6 +1860,17 @@ Applies to: All agents, all modes, all sub-agents.
 
 ---
 
+## Category: Local Model Lifecycle
+
+```
+C-MODEL-1
+Rule: Do NOT implement private load/unload/idle logic for a local model kind. Every kind (speech recognition, speech synthesis, translation, future text models) registers a small policy with `voice_typer/server/model_lifecycle/` and inherits its start hook, memory guard, wait rule, per-kind idle clock and shutdown.
+Rationale: Round 4 gave the translator a parallel warm/idle system, so browser-plugin dictations never warmed it, its readiness log inherited the wrong label, and two extra settings aged into the config. One registry with per-kind policies keeps every recording path and every kind on the same contract (owner decision 2026-11-27).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
 ## Git workflow for all agents
 
 All agents work on `main` in the single shared checkout; never create, switch or delete branches and never merge, rebase, reset, stash or clean without explicit owner instruction in the prompt. Before committing run `git fetch` and `git status -sb`; if `main` is behind or diverged from `origin/main`, STOP and ask. Commit only your own files with explicit `git add -- <paths>` (never `git add .` or `-A`), and describe each commit by its purpose. Never commit another session's files, runtime state files, build outputs or binaries. Commit small and often so the tree stays clean. If the tree contains changes you did not make, leave them and mention them in your report. Pushes to `main` are allowed only when the prompt says so.

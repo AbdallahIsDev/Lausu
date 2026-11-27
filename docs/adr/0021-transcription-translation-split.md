@@ -189,3 +189,31 @@ second warm-up hook.
 **(c) Live per-chunk translation DURING recording is NOT shipped.** It remains a
 proposal pending an owner decision. Nothing in this note authorizes live
 partial text or a second translator runtime.
+
+## 11. Dated implementation note (2026-11-27) — Round 5 lifecycle unification
+
+This note records implementation decisions only. It does not amend any locked
+rule above (§1, §5.2, §5.3, §6) or the Stage A / Stage B split. §10(b) described
+the Round 4 shipped lifecycle; that lifecycle is now REPLACED by the shared
+component described here. §10(a) (bounded group chunking) and §10(c) (live
+per-chunk translation not shipped) remain in force.
+
+- **One lifecycle for all local model kinds** (`voice_typer/server/model_lifecycle/`).
+  ASR, text-to-speech and translation register a small policy (residency class,
+  applicability, estimated private memory, load/unload/is_loaded/is_busy/wait/use)
+  and inherit the same record-start hook, startup gate, wait rule, per-kind idle
+  clock and shutdown. New kinds must register rather than build private
+  lifecycle logic (AGENTS.md C-MODEL-1).
+- **Translation now loads at every user recording start**, including browser
+  plugins, through `dictation_gate.decide_toggle` on a user `start` decision.
+  The Round 4 "plugins stay lazy-load" decision in §10(b) is REVERSED because a
+  real plugin dictation waited 16.3 s after stop for a cold translator.
+- **The two Round 4 translator settings are removed** (`translation_warm_on_record`,
+  `translation_idle_unload_seconds`). Old configs containing them load cleanly
+  and the keys are dropped. The shared idle duration remains the existing
+  `model_idle_unload_minutes`; it now drives a separate clock per kind from
+  that kind's last use. "Always" never unloads.
+- **Ready-state logging is per kind:** translator readiness reads `[TRANSLATE]`;
+  text-to-speech keeps `[TTS]`. Delayed readiness is explained by measured cold
+  file-cache reads (15.47 s for the 1.31 GB GGUF vs 0.15 s warm), not by runtime
+  flags. Preloading on user intent, not at app start, remains the owner's rule.

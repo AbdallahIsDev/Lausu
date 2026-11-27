@@ -11,6 +11,46 @@ GPU lock/queue (Option 5) are still PROPOSALS, not shipped. The dated
 "Decisions and evidence" section immediately below is the current state; older
 sections still describe the 2026-11-26 design only.
 
+**Round 5 (2026-11-27) supersedes part of that status:** the translator no
+longer has its own warm/idle system or two settings, and browser plugins now
+load it at record start through the shared lifecycle hook. See the short
+"Round 5 note" immediately below and `docs/design/model-lifecycle.md` for the
+current model-lifecycle design. The group-chunking contract in §10 of ADR-0021
+is unchanged.
+
+## Round 5 note (2026-11-27) — plugin warm restored, private lifecycle removed
+
+Plain English: the owner tested a real browser-plugin dictation with
+translation on. The translator did not start loading until he pressed stop, so
+he waited 16.3 s before the text pasted, and the readiness line was labelled
+`[TTS]`. This was exactly the gap created by Round 4's decision to keep plugins
+lazy and give the translator a private warm/idle system.
+
+Decided and shipped in Round 5:
+- **Reversed:** plugins now trigger the same record-start load as local and
+  cloud dictation. The hook is `dictation_gate.decide_toggle` on a user `start`
+  decision (`voice_typer/server/dictation_gate.py:80-84`), which both the local
+  app and the plugin wrapper call; it respects the user-origin guard and never
+  fires from app start/recovery.
+- **Removed:** the translator's private warm thread, idle thread, 45 s join and
+  two settings (`translation_warm_on_record`, `translation_idle_unload_seconds`).
+  It now registers a few lines of policy with the shared component. Old configs
+  containing the keys load cleanly and the keys are dropped.
+- **Logs:** translator readiness now reads `[TRANSLATE] translation ready ...`
+  with its own terminal color; `[TTS]` and other domains are untouched.
+- The shared idle duration is the existing "Keep Models in Memory" setting
+  (`model_idle_unload_minutes`); the UI label was pluralised and both
+  translation tooltips now say plainly that translation adds time after you
+  speak and is about 10x slower without a graphics card (roughly 10+ s per
+  paragraph). Static text only — no hardware detection.
+
+Per-chunk translation DURING recording is still **NOT shipped**. The best
+combination (CPU speech recognition + GPU translator) cut the wait for an
+8-minute dictation from 31.5 s to 12.8 s, but 3 of 5 groups at 30/120 s and 29
+of about 96 groups at 480 s were revised by later audio, and on a CPU-only
+machine translation takes roughly 11-14 s per paragraph. A reconciliation pass
+and an owner decision are still needed before that design changes.
+
 Read first: `docs/design/translation-audit.md` (what exists today),
 `docs/adr/0021-transcription-translation-split.md` (Stage A / Stage B contract),
 `docs/adr/0030-one-asr-model-and-text-translator.md` (one ASR + one text model).
