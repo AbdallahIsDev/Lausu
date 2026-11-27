@@ -32,6 +32,14 @@ def isolated_lifecycle(monkeypatch: pytest.MonkeyPatch) -> Any:
     registry._reset_for_tests()
     for kind, policy in saved.items():
         registry.register(kind, policy)
+    # Production registers the translator at startup; restore that global
+    # fact so later test modules that rely on the real policy are unaffected.
+    try:
+        from voice_typer.server.translation import lifecycle as _translation_lifecycle
+
+        _translation_lifecycle.register()
+    except Exception:
+        pass
 
 
 def _app(**config: Any) -> SimpleNamespace:

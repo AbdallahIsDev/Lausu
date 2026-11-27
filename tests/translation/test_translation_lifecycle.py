@@ -65,6 +65,13 @@ def _config(*, gpu: bool = True, enabled: bool = True) -> SimpleNamespace:
 @pytest.fixture(autouse=True)
 def _isolate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Any:
     svc.shutdown()
+    # The policy is registered at startup in the app; re-register here so a
+    # previous test module's fake registry state cannot leak into this one.
+    lifecycle.register()
+    # An app-shutdown test may have left the shared load-cancel flag set.
+    from voice_typer.server.model_lifecycle import loading
+
+    loading._reset_for_tests()
     monkeypatch.setattr(lifecycle, "_last_attempt_key", None)
     monkeypatch.setattr(svc, "work_dir", lambda: tmp_path)
     monkeypatch.setattr(svc, "resolve_runtime_path", lambda _cfg: tmp_path / "llama-server.exe")

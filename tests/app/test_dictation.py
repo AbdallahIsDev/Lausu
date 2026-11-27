@@ -10,6 +10,12 @@ from voice_typer.server import dictation_origin
 from tests.fixtures.wait_helpers import wait_for_busy_clear
 
 
+@pytest.fixture(autouse=True)
+def _working_engine(app):
+    """These tests exercise a working engine; no-model refusal has its own test."""
+    app.config.model_size = "large-v3-turbo"
+
+
 class TestToggleDictationDispatch:
     """Verify toggle_dictation correctly dispatches to start/stop."""
 
