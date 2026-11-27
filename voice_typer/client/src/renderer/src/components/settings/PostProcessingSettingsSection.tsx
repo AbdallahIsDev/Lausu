@@ -70,7 +70,7 @@ export const PostProcessingSettingsSection = memo(
 			},
 			{
 				label: t("settings.translationEnable"),
-				info: t("settings.translationTargetInfo"),
+				info: t("settings.translationEnableInfo"),
 			},
 			{
 				label: t("settings.translationTarget"),
@@ -147,12 +147,12 @@ export const PostProcessingSettingsSection = memo(
 
 						{isVisible(
 							t("settings.translationEnable"),
-							t("settings.translationTargetInfo"),
+							t("settings.translationEnableInfo"),
 							postProcessingTitle,
 						) && (
 							<SettingRow
 								label={t("settings.translationEnable")}
-								info={t("settings.translationTargetInfo")}
+								info={t("settings.translationEnableInfo")}
 							>
 								<Switch
 									checked={cfg.translation_enabled ?? false}
