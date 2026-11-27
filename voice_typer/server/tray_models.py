@@ -89,11 +89,9 @@ def tooltip_model_label(config) -> str:
         plugin_name = ""
     from voice_typer.server.dictation_provider import for_config
 
-    provider = for_config(config, plugin_name=plugin_name)
-    if provider.kind == "plugin":
-        return provider.name
-    if provider.kind == "remote":
-        return provider.name
+    owner = for_config(config, plugin_name=plugin_name)
+    if owner.kind in ("plugin", "remote"):
+        return owner.name
 
     backend = getattr(config, "asr_backend", "whisper") or "whisper"
     if backend in ("qwen", "parakeet"):
