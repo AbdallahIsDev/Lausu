@@ -6,6 +6,8 @@ service cache, the policy and the dictation stage are the production objects.
 
 from __future__ import annotations
 
+import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -128,6 +130,37 @@ class TestSkippedKindRecovery:
         assert lifecycle.ensure_translation_loaded(config, timeout_s=1.0) is True
         assert lifecycle.ensure_translation_loaded(config, timeout_s=1.0) is True
         assert len(specs) == 1  # no second process for the same settings
+
+    def test_skipped_kind_loads_off_thread_and_waits_only_one_budget(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from voice_typer.server.model_lifecycle.loading import join_loaders
+
+        gate = threading.Event()
+        started = threading.Event()
+        threads: list[str] = []
+
+        def _blocking_start(spec: Any, timeout_s: float) -> _Runtime:
+            threads.append(threading.current_thread().name)
+            started.set()
+            gate.wait(5.0)
+            return _Runtime(spec)
+
+        monkeypatch.setattr(svc.RuntimeServer, "start", _blocking_start)
+        config = _config()
+        caller = threading.current_thread().name
+        timeout_s = 0.2
+
+        began = time.monotonic()
+        result = lifecycle.ensure_translation_loaded(config, timeout_s=timeout_s)
+        elapsed = time.monotonic() - began
+
+        assert result is False
+        assert started.wait(2.0)
+        assert threads == ["model-lifecycle-load-translation"]
+        assert threads[0] != caller  # no synchronous load on the calling thread
+        assert not gate.is_set()  # loader is still blocked when the caller returns
+        assert timeout_s <= elapsed < timeout_s + 1.0  # one bounded wait, not two
+        gate.set()
+        join_loaders(5.0)
 
     def test_failed_load_is_not_retried_by_the_next_wait(self, monkeypatch: pytest.MonkeyPatch) -> None:
         attempts: list[int] = []

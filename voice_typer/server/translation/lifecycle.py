@@ -44,7 +44,7 @@ def _load(config: Any) -> bool:
     global _last_attempt_key
     key = _service._service_key(config)
     if not _load_lock.acquire(blocking=False):
-        _wait(TRANSLATION_LOAD_WAIT_S)
+        _join_loading(TRANSLATION_LOAD_WAIT_S)
         return _service.is_loaded(config)
     try:
         _last_attempt_key = key
@@ -65,10 +65,16 @@ def _unload() -> None:
     _service.stop_cached_service()
 
 
-def _wait(timeout_s: float) -> bool:
+def _join_loading(timeout_s: float) -> bool:
     deadline = time.monotonic() + timeout_s
     while _loading.is_set() and time.monotonic() < deadline:
         time.sleep(0.02)
+    return not _loading.is_set()
+
+
+def _wait(timeout_s: float) -> bool:
+    # The shared loader already waited on its single-flight event for the
+    # documented budget; a second full timeout here would double it.
     return not _loading.is_set()
 
 
@@ -119,7 +125,9 @@ def ensure_translation_loaded(config: Any, timeout_s: float = TRANSLATION_LOAD_W
     if _last_attempt_key == _service._service_key(config):
         # An in-flight load was attempted and did not make the kind ready.
         return False
-    return bool(policy.load(config))
+    if not model_lifecycle.load_in_background(KIND, config):
+        return False
+    return bool(model_lifecycle.ensure_loaded(KIND, config, timeout_s))
 
 
 def note_use() -> None:
