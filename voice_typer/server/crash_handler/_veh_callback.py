@@ -192,7 +192,10 @@ def _prepare_module_table() -> None:
         kernel32.GetModuleFileNameW.argtypes = [wintypes.HMODULE, wintypes.LPWSTR, wintypes.DWORD]
         kernel32.GetModuleFileNameW.restype = wintypes.DWORD
         for idx in range(total):
-            base = int(modules[idx])
+            raw = modules[idx]
+            if raw is None:
+                continue
+            base = int(raw)
             if not base:
                 continue
             length = kernel32.GetModuleFileNameW(modules[idx], name_buf, len(name_buf))

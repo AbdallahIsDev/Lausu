@@ -15,15 +15,15 @@ log = logging.getLogger(__name__)
 
 # Kernel32 function pointers (Windows-only; None on Linux).
 _kernel32: ctypes.WinDLL | None = None  # type: ignore[valid-type]
-_func_get_current_process_id: ctypes._FuncPtr | None = None
-_func_get_current_thread_id: ctypes._FuncPtr | None = None
-_func_get_system_time_as_file_time: ctypes._FuncPtr | None = None
-_func_file_time_to_system_time: ctypes._FuncPtr | None = None
-_func_create_file_w: ctypes._FuncPtr | None = None
-_func_write_file: ctypes._FuncPtr | None = None
-_func_set_file_pointer: ctypes._FuncPtr | None = None
-_func_close_handle: ctypes._FuncPtr | None = None
-_func_delete_file_w: ctypes._FuncPtr | None = None
+_func_get_current_process_id: Any = None
+_func_get_current_thread_id: Any = None
+_func_get_system_time_as_file_time: Any = None
+_func_file_time_to_system_time: Any = None
+_func_create_file_w: Any = None
+_func_write_file: Any = None
+_func_set_file_pointer: Any = None
+_func_close_handle: Any = None
+_func_delete_file_w: Any = None
 
 # Pre-allocated struct instances (no heap allocation in callback).
 if sys.platform == "win32":
