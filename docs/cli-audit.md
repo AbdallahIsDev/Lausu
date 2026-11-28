@@ -177,3 +177,38 @@ Options for a future leak-proof CLI (not implemented): (1) reuse `internal_surfa
 13. Media: max file size/duration, URL restrictions, job ids/status polling/cancel, where results go, time/cost estimates?
 14. Which five general settings are important? (Audit lists all keys; owner must pick.)
 15. Mic selection edge cases; command grammar (`noun verb` vs `verb noun`), aliases, completions; generated `help --json`/SKILL doc for agents; testing strategy; phased rollout; explicit out-of-scope items.
+
+---
+
+# Addendum: bare `lausu` launch bug (owner report, 2026-11-28)
+
+**Owner report:** typing bare `lausu` in a terminal was expected to launch the built/production app, but an Edge window opened with "Hmmm… can't reach this page — localhost refused to connect — ERR_CONNECTION_REFUSED". No code was changed to investigate this.
+
+## How `lausu` resolves what to launch
+
+1. The installed shim `C:\Users\11\.local\bin\lausu.cmd` runs `python.exe -c "from voice_typer.server.cli import main; sys.exit(main(sys.argv[1:]))"`. It does **not** use `python -m ...`.
+2. `cli.main()` (`voice_typer/server/cli.py:146-167`) parses only `--dev` and `--hidden`; with no flags it calls `launch_production(hidden=False)` (`:167`).
+3. `find_production_binary()` (`:36-51`) first asks `_tauri_binary()` from `autostart/tauri_spawn.py:82-134`, which checks `VT_TAURI_BINARY` then OS install paths from `tauri-binaries.json:27-30` (`%LOCALAPPDATA%\Programs\Lausu\lausu-tauri.exe`, `%PROGRAMFILES%\Lausu\lausu-tauri.exe`).
+4. If no installed binary is found, `find_production_binary()` falls back to two **local build** candidates (`cli.py:30-33`): `src-tauri/target/release/lausu-tauri.exe` and `src-tauri/target/debug/lausu-tauri.exe` (`:48-50`).
+5. `_is_local_build()` (`:54-61`) marks either candidate as "developer-owned artifact", and `launch_production()` (`:91-107`) spawns it directly with launcher env and hidden flags. This branch **treats a debug host as production**.
+6. If no binary at all is found, `launch_production()` logs `[CLI] Production app binary not found...` and prints plain English to stderr, returning 1 (`:76-89`). That branch did not fire here.
+7. The localhost URL comes from `src-tauri/tauri.conf.json:8` (`"devUrl": "http://localhost:1420"`), alongside `"frontendDist"` at `:7`. A debug host built by `cargo tauri dev`/`cargo build` uses that dev URL; `tauri.dev.conf.json:3` only blanks `beforeDevCommand`, and `voice_typer/client/scripts/tauri-dev.mjs:74,407` passes that config to `tauri dev`.
+8. `lausu --dev` (`:114-119`) deliberately calls `launch_dev_console("tauri:dev")`, which starts the dev server. `--hidden` (`:151-160`) sets `VT_START_HIDDEN=1` in the local-build branch and passes `hidden` to the installed branch (`:109-111`).
+
+**Why this machine ended up in the dev path:** on this checkout `src-tauri/target/debug/lausu-tauri.exe` exists (`find_production_binary()` returned that path during the audit), and a Vite dev server was running from earlier work, so spawning it appeared to work. On a machine with a leftover debug host but **no dev server**, the same branch gives the Edge `ERR_CONNECTION_REFUSED` page. The bug is the fallback at `cli.py:48-50,91-107`, not the missing-binary branch.
+
+**Proposed fix (plan item for the spec, not implemented):** only installed binaries (and explicitly release-built local binaries) count as production; a `target/debug` host must never be spawned by bare `lausu`. If no production binary exists, print a plain-English error such as "Lausu is not installed/built on this machine. Run the installer, or use `lausu --dev` for development." and exit non-zero. Bare `lausu` must never open a browser/dev URL by itself; `--dev` remains the only explicit dev entry.
+
+## Entry points that violate the app-name-first rule
+
+Owner decision: every public command must be `lausu <command> [flags]`. These entries exist but are internal/dev tools and must not be presented as the public CLI:
+
+- `python -m voice_typer` (`voice_typer/__main__.py:1-57`)
+- `python -m voice_typer.server` / `python -m voice_typer.server.ipc_server` (`voice_typer/server/__main__.py:1-6`, `ipc/entrypoint.py:99-197`)
+- `python -m voice_typer.worker` (`voice_typer/worker/__main__.py:189-232`)
+- `scripts/*.py` and `scripts/build/*.py` argparse tools (`scripts/diagnostics.py:387`, `scripts/run_bench.py`, `scripts/git_safe_commit.py`, ratchet checks, etc.)
+- `lausu-server` console script (`pyproject.toml:316`): starts with the app name but is a bare backend, not an operator CLI.
+- Tauri host direct binary `lausu-tauri[.exe] --hidden/--delay` (`src-tauri/src/launch_args.rs:36-65`): autostart-only.
+- The file-based dev diagnostics channel (`voice_typer/server/plugin_dev_driver.py:23-25,44-116`): not a shell command at all.
+
+`lausu` itself conforms; the bug is what it launches, not its name.
