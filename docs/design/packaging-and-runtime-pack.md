@@ -177,7 +177,8 @@ spawned from the repo venv and terminated by the probe afterwards.
   `load_backend: loaded Vulkan backend from …\pack\v9\ggml-vulkan.dll`,
   `load_backend: loaded CPU backend from …\pack\v9\ggml-cpu-cascadelake.dll`.
   Worker RSS 5.7 MiB before and after load (weights are mmap'd; resident pages are
-  touched at decode, not at open). MEASURED.
+  touched at decode, not at open). MEASURED.[^asr-memory]
+
 * **PASS — real decode:** 12.0 s / 192,000 samples from `test16k.wav` through
   `transcribe_samples` returned 259 chars in **1.85 s**,
   `device_info:"cpu (transcribe.cpp)"`, `error:null`; worker log
@@ -254,3 +255,14 @@ spawned from the repo venv and terminated by the probe afterwards.
   ships it today.
 * Who publishes `offline-pack`, and who runs the download path end to end once the
   manifest exists? Not answerable from the repo.
+
+[^asr-memory]: Round 9 correction (MEASURED 2026-11-28, same Windows counters as
+  the translator's 1.8 GB private): the 5.7 MiB figure above was the worker
+  **launcher parent**. The real worker child that owns the GGUF measured 26.2 MB
+  private / 35.6 MB working set before load, **421.9 MB private / 95.8 MB WS
+  after load**, 500.1 MB / 143.8 MB after a 12 s decode, and peaked around
+  **1,508 MB private / 837 MB WS** during load+decode. The in-process runner
+  settles at ~420 MB private after load and ~580 MB after a 120 s decode; its
+  `unload()` frees nothing (working set +0.07 MB, private +0.04 MB — noise),
+  so only process death reliably returns memory. The GGUF is mmap'd, which is
+  why resident pages are small at open and grow at decode.

@@ -499,3 +499,46 @@ verified. Full trimmed log excerpts and commands are in
 Follow-up, not done here: renderer label parity for a remote `asr_provider`
 (the renderer still treats some remote ids as "custom" in one label path); no
 user-visible behavior is wrong, so this is cosmetic.
+
+
+---
+
+## Round 9 review fixes (dated 2026-11-28)
+
+Plain English first. Three gaps were found in the Round 8 provider work and
+fixed with real-entry tests. A fourth area (start origins and the no-model
+sentinel) was proven and needed no product change.
+
+1. **No more silent plugin hotkey.** If a plugin is selected but its browser
+   session is unavailable (module/marker missing, daemon down, start timeout),
+   the press now gets ONE localized in-app notice plus a tray notice naming the
+   plugin and pointing at Plugins. No local model load, no microphone, no cycle.
+   When a plugin SESSION exists, it already reports its own start failure (the
+   bridge's `_report_start_failure`, `BRIDGE_UNAVLABLE` and target-ready hints),
+   so no duplicate app-level notice was added — proved with real-entry tests.
+2. **User presses always get feedback.** The missing-pack/model notice still
+   dedupes once per episode for AUTOMATIC attempts (startup load, idle reload,
+   record-start preload). A real user press (hotkey/button/tray with a
+   `dictation_origin` user action) with the LOCAL provider now notifies on
+   EVERY press, rate-limited to at most one per second, and refuses BEFORE the
+   microphone opens. A cheap pre-mic readiness probe uses the same model/pack/
+   native-runtime resolvers as the load path — it creates no backend, opens no
+   socket and downloads nothing.
+3. **Cloud really skips local weights.** Startup phase 7, model-manager warm
+   paths and startup config sync now treat cloud like plugin/remote: no local
+   warm thread, no stale local id reconciliation, no misleading local-load log.
+   A live scratch sidecar with a fake loopback endpoint and an empty HF cache
+   logged `openai serves dictation, skipping the local model load` and produced
+   zero ASR-registry/worker/transcribe/local-weight lines across two presses.
+
+**Origins and sentinel (proven, unchanged).** BUTTON (IPC renderer), TRAY and
+HOTKEY starts carry a real `dictation_origin` and are not dropped; no-origin app
+entries, the plugin wrapper without an origin, and stale dev-driver commands
+are refused. `NO_MODEL_SIZE` is the empty string (`gguf_model_registry.py:112`);
+`dictation_provider.for_config` classifies `""` as `none`, and a real id
+(`parakeet`, `qwen3-1.7b`, even an unknown id) as `local`, while a selected
+plugin/cloud/remote provider wins over a stale local model id.
+
+All cases are pinned by `tests/test_provider_start_notices.py` (24 tests) and
+the existing provider/lifecycle/gate suites; i18n keys were added to all eight
+locales and the completeness gate is green.
