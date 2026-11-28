@@ -20,8 +20,9 @@ from .core import (
     OfflinePackDiskFullError,
     OfflinePackRateLimitError,
 )
-from .events import _publish_event
+from .events import _publish_event, publish_download_failure
 from .gates import assert_offline_pack_url_allowed
+from .local_dev import allow_local_pack_dev_server
 from .progress import (
     record_download_completed,
     record_download_failed,
@@ -60,11 +61,7 @@ def download_offline_pack_with_resume(
         except _RateLimitedError as exc:
             reset_at = exc.reset_at
             if attempt > OFFLINE_PACK_RATE_LIMIT_MAX_ATTEMPTS:
-                _publish_event(
-                    event_bus,
-                    "offline_pack_download_failed",
-                    {"version": version, "reason": "rate_limited", "attempts": attempt},
-                )
+                publish_download_failure(event_bus, version, "rate_limited", attempts=attempt)
                 record_download_failed(version)
                 raise OfflinePackRateLimitError(
                     f"GitHub rate limit exhausted for pack {version}",
@@ -82,6 +79,15 @@ def download_offline_pack_with_resume(
             )
             sleep_interruptible(wait_s)
             continue
+        except (OSError, RuntimeError) as exc:
+            # A dead server / offline host fails in the request, BEFORE
+            # ``download_started``. Without this the renderer keeps showing
+            # "Preparing…" forever and never learns the transfer failed.
+            log.warning("[PACK] pack %s request failed: %s", version, exc)
+            reason = "offline" if isinstance(exc, OSError) else "fetch_failed"
+            publish_download_failure(event_bus, version, reason, attempts=attempt)
+            record_download_failed(version)
+            raise
         status = resp.get("status")
         if status == 416 and offset > 0 and resp.get("content_length") == offset:
             # The server cannot satisfy ``Range: bytes=<offset>-``
@@ -380,7 +386,12 @@ def _verify_pack_peer(url: str, resp: object) -> None:
     from voice_typer.server.service.offline_pack.gates import assert_offline_pack_url_allowed
 
     try:
-        expected = resolve_allowed_url_ips(url, field_name="pack_url", client_name="pack_downloader")
+        expected = resolve_allowed_url_ips(
+            url,
+            field_name="pack_url",
+            client_name="pack_downloader",
+            allow_loopback_http=allow_local_pack_dev_server(url),
+        )
     except Exception:
         assert_offline_pack_url_allowed(url)
         log.debug("[PACK] peer-IP pin lookup failed", exc_info=True)

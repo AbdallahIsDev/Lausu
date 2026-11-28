@@ -39,7 +39,7 @@ from .download import (
     _stream_response_to_disk,
     download_offline_pack_with_resume,
 )
-from .events import OFFLINE_PACK_EVENT_TYPES, _publish_event
+from .events import OFFLINE_PACK_EVENT_TYPES, PACK_FAILURE_REASONS, _publish_event, publish_download_failure
 from .gates import (
     assert_offline_pack_url_allowed,
     check_offline_pack_disk_space,
@@ -50,6 +50,7 @@ from .install import (
     atomic_swap_offline_pack,
     install_offline_pack,
 )
+from .local_dev import ENV_LOCAL_PACK_DEV_SERVER, allow_local_pack_dev_server
 from .lock import OfflinePackLock
 from .outdated import (
     PACK_OUTDATED_EVENT,
@@ -85,6 +86,7 @@ __all__ = [
     "APP_NAME",
     "OFFLINE_PACK_COMPRESSED_MB",
     "OFFLINE_PACK_EVENT_TYPES",
+    "ENV_LOCAL_PACK_DEV_SERVER",
     "OFFLINE_PACK_LOCK_POLL_S",
     "OFFLINE_PACK_LOCK_TIMEOUT_S",
     "OFFLINE_PACK_MAX_PER_FILE_BYTES",
@@ -92,6 +94,8 @@ __all__ = [
     "OFFLINE_PACK_RATE_LIMIT_MAX_ATTEMPTS",
     "OFFLINE_PACK_REQUIRED_MB",
     "OFFLINE_PACK_UNPACKED_MB",
+    "PACK_FAILURE_REASONS",
+    "allow_local_pack_dev_server",
     "BackgroundChecksum",
     "OfflinePackConsentRequiredError",
     "OfflinePackDiskFullError",
@@ -142,6 +146,7 @@ __all__ = [
     "offline_pack_manifest_path",
     "offline_pack_partial_path",
     "proxy_env",
+    "publish_download_failure",
     "require_offline_pack_consent",
     "verify_offline_pack_or_skip",
     "verify_offline_pack_signature_macos",

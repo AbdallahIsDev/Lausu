@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 from collections.abc import Callable
@@ -55,7 +56,6 @@ class UpdateCheckResult(TypedDict, total=False):
     reason: str
 
 
-
 def _local_offline_pack_version(root: Path | None = None) -> str | None:
     """Return the locally-installed pack version, or ``None`` if none."""
     base = offline_pack._default_offline_pack_root() if root is None else root
@@ -86,6 +86,12 @@ def _local_offline_pack_version(root: Path | None = None) -> str | None:
 # Per-version in-flight download guard (§8.13 / §8.16).
 _ACTIVE_PACK_DOWNLOADS: set[str] = set()
 _ACTIVE_PACK_DOWNLOADS_LOCK = threading.Lock()
+
+
+def _fail_pack(event_bus: ModuleType | None, version: str, reason: str) -> None:
+    """Surface a pre-download failure the transport itself cannot report."""
+    offline_pack.publish_download_failure(event_bus, version, reason)
+    offline_pack.record_download_failed(version)
 
 
 def _trigger_background_download(
@@ -131,34 +137,50 @@ def _trigger_background_download(
         def _bg() -> None:
             try:
                 # §8.8 disk gate: refuse to even START a ~200 MB download
-                offline_pack.check_offline_pack_disk_space(dest.parent)
+                try:
+                    offline_pack.check_offline_pack_disk_space(dest.parent)
+                except Exception:
+                    log.exception("[UPDATE] pack %s refused: disk gate failed", version)
+                    _fail_pack(event_bus, version, "disk_full")
+                    return
                 # §8.13 cross-process lock: serialize the partial-file
-                with offline_pack.OfflinePackLock(version, root=root):
-                    # Post-lock installed re-check: the version
-                    if offline_pack.offline_pack_exists(version, root=root):
-                        log.info(
-                            "[UPDATE] pack %s already installed (post-lock re-check), skipping the redundant download",
-                            version,
-                        )
-                        return
-                    downloaded = offline_pack.download_offline_pack_with_resume(
-                        pack_url,
-                        dest,
-                        expected_sha256=manifest["sha256"],
-                        version=version,
-                        event_bus=event_bus,
-                        http_get=http_get,
-                    )
-                    if downloaded:
-                        # Install stage: extract the verified archive
-                        offline_pack.install_offline_pack(
+                try:
+                    with offline_pack.OfflinePackLock(version, root=root):
+                        # Post-lock installed re-check: the version
+                        if offline_pack.offline_pack_exists(version, root=root):
+                            log.info(
+                                "[UPDATE] pack %s already installed (post-lock re-check), skipping download",
+                                version,
+                            )
+                            return
+                        downloaded = offline_pack.download_offline_pack_with_resume(
+                            pack_url,
                             dest,
-                            version,
-                            manifest,
-                            root=root,
+                            expected_sha256=manifest["sha256"],
+                            version=version,
                             event_bus=event_bus,
+                            http_get=http_get,
                         )
+                        if downloaded:
+                            # Install stage: extract the verified archive
+                            installed = offline_pack.install_offline_pack(
+                                dest,
+                                version,
+                                manifest,
+                                root=root,
+                                event_bus=event_bus,
+                            )
+                            if not installed:
+                                # A full-size but unusable partial would be
+                                # resumed forever (416 → hash → install fail).
+                                with contextlib.suppress(OSError):
+                                    dest.unlink()
+                except TimeoutError:
+                    _fail_pack(event_bus, version, "locked")
+                    return
             except Exception:  # background thread must not propagate
+                # The transport/install stages publish their own failure
+                # events; log only here to avoid a duplicate toast.
                 log.exception(
                     "[UPDATE] background pack download failed for %s",
                     version,
@@ -252,6 +274,7 @@ def check_offline_pack_update(
                 "download_triggered": False,
                 "reason": "no_remote_manifest",
             }
+        _fail_pack(event_bus, local_version or "", "manifest_unavailable")
         return {
             "success": False,
             "checked_at": int(time.time() * 1000),

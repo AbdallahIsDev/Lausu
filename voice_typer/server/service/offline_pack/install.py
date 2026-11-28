@@ -20,7 +20,7 @@ from .core import (
     _verify_manifest_files,
     offline_pack_dir_for_version,
 )
-from .events import _publish_event
+from .events import _publish_event, publish_download_failure
 from .ready import note_pack_verified
 
 log = logging.getLogger(__name__)
@@ -113,6 +113,8 @@ def install_offline_pack(
     *,
     root: Path | None = None,
     event_bus: ModuleType | None = None,
+    stop_worker: Callable[[], None] | None = None,
+    start_worker: Callable[[], None] | None = None,
 ) -> bool:
     """:func:`verify_offline_pack_or_skip` enforces on the installed"""
     archive = Path(archive_path)
@@ -130,11 +132,7 @@ def install_offline_pack(
     except (zipfile.BadZipFile, OSError):
         log.exception("[PACK] install failed while extracting %s (pack %s)", archive, version)
         shutil.rmtree(staging, ignore_errors=True)
-        _publish_event(
-            event_bus,
-            "offline_pack_download_failed",
-            {"version": version, "reason": "install_failed", "attempts": 1},
-        )
+        publish_download_failure(event_bus, version, "install_failed", attempts=1)
         return False
     if not _verify_manifest_files(staging, manifest, version=version):
         log.error("[PACK] install verification failed for pack %s. NOT swapped in", version)
@@ -152,15 +150,11 @@ def install_offline_pack(
     # Manifest written AFTER file verification: the installed pack's
     (staging / "pack-manifest.json").write_text(json.dumps(dict(manifest)), encoding="utf-8")
     try:
-        atomic_swap_offline_pack(staging, pack_dir)
+        atomic_swap_offline_pack(staging, pack_dir, stop_worker=stop_worker, start_worker=start_worker)
     except OSError:
         log.exception("[PACK] install failed at the atomic swap for pack %s", version)
         shutil.rmtree(staging, ignore_errors=True)
-        _publish_event(
-            event_bus,
-            "offline_pack_download_failed",
-            {"version": version, "reason": "install_failed", "attempts": 1},
-        )
+        publish_download_failure(event_bus, version, "install_failed", attempts=1)
         return False
     log.info("[PACK] installed pack %s at %s", version, pack_dir)
     # The archive is consumed, free the ~180 MB (mirrors the NSIS

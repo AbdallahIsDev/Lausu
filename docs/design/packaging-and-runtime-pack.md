@@ -266,3 +266,157 @@ spawned from the repo venv and terminated by the probe afterwards.
   `unload()` frees nothing (working set +0.07 MB, private +0.04 MB — noise),
   so only process death reliably returns memory. The GGUF is mmap'd, which is
   why resident pages are small at open and grow at decode.
+
+---
+
+## Round 10 Part D — local first-launch pack E2E (2026-11-28)
+
+Everything above was a read-only audit. This section is a **local, no-network,
+no-publish** execution of the real downloader/installer/updater chain against a
+loopback HTTP server. VERIFIED = pytest probe or harness output on this machine.
+
+### Plain English
+
+The download → hash → extract → verify → atomic-swap chain works when fed a
+real `pack-manifest.json` and zip over local HTTP. The frozen-flag guard works:
+the loopback opt-in is inert when either frozen marker is simulated. Two real
+user-visible gaps were found and fixed:
+
+* an offline/server-down failure or a disk-space refusal killed the background
+  thread with **no failure event**, so the renderer stayed on "Preparing…";
+* a corrupt zip left a full-size `.partial` that the next check resumed at
+  byte 0-of-N and failed again forever — now removed after a failed install.
+
+One product gap remains and is **not** silently "fixed": the Rust host caches
+`VOICE_TYPER_PACK_VERSION` in a `OnceLock` (`src-tauri/src/platform/worker_path.rs:23-38`),
+so a newly installed N+1 pack is not the worker path until host restart/respawn
+with the new version. Report item, not a code change in this part.
+
+### Harness (tests only, never active in production)
+
+* `tests/offline_pack_e2e/pack_server.py` — 127.0.0.1 HTTP server, Range/416,
+  optional mid-body disconnect, records requests.
+* `tests/offline_pack_e2e/fixtures.py` — builds zip + manifest through the real
+  `scripts/release/build_pack_manifest.py`.
+* `tests/offline_pack_e2e/test_*.py` — 22 pytest cases (dev seam, happy path,
+  failure matrix, installed-worker handshake).
+* `tests/offline_pack_e2e/run_local_pack_e2e.py` — owner manual harness: local
+  pack, real worker launched from the installed pack path via the supported
+  source dev seam (`runpy.run_module("voice_typer.worker")`), real host relay,
+  real sidecar worker client, real native runtime via `TRANSCRIBE_LIBRARY` +
+  the shared HF cache. No frozen worker is built locally, so the zip carries a
+  launcher script instead of the Nuitka exe; the installed path and protocol
+  are still exercised exactly as in a release.
+
+The test-only opt-in is `VT_PACK_DEV_LOCAL_SERVER=1` plus
+`VT_PACK_MANIFEST_URL=http://127.0.0.1:<port>/pack-manifest.json`. It is read
+through `voice_typer/server/service/offline_pack/local_dev.py`, which calls the
+same `is_frozen_build()` authority as ffmpeg and the ASR runner. Frozen test
+simulates both `sys.frozen` (PyInstaller) and `__compiled__` (Nuitka): the
+opt-in is refused and loopback HTTP raises from the SSRF gate in both cases.
+No production caller sets either variable.
+
+### Results table (all VERIFIED locally)
+
+| Case | Observed result | Evidence |
+| --- | --- | --- |
+| First launch, no pack | `download_started` → `download_progress` → `download_completed` → `verified`; worker hash + per-file hashes match; version recorded; archive consumed | `test_first_launch_downloads_verifies_and_installs` |
+| Local manifest 404, explicit URL | `success=False`, `reason=fetch_failed`, new `manifest_unavailable` failure event, nothing installed | `test_manifest_404_explicit_url_reports_failure` |
+| Local manifest 404, default URLs | benign `reason=no_remote_manifest`, **no** failure event (today's policy preserved) | `test_manifest_404_default_candidates_stays_benign` |
+| Server down / offline | `manifest_unavailable` failure event, no silent wait | `test_server_down_publishes_manifest_failure` |
+| Drop mid-download | `offline_pack_corrupt` / `sha256_mismatch`, partial deleted, no installed version | `test_drop_mid_download_deletes_partial_and_installs_nothing` |
+| Resume from partial | Range `bytes=128-` sent, verify + install succeed | `test_resume_from_partial_uses_range_and_finishes` |
+| Hash mismatch | corrupt event, partial deleted, nothing installed | `test_hash_mismatch_installs_nothing` |
+| Zip corruption | `install_failed` event, no version dir content, `.new` removed, partial deleted | `test_zip_corruption_removes_bad_partial_and_installs_nothing` |
+| Disk full (simulated `disk_usage`) | `disk_full` event before any zip request | `test_disk_full_gate_refuses_before_any_download` |
+| N → N+1 | new version verified and active; old version dir remains (host version pin is a separate gap) | `test_update_n_to_n_plus_1_replaces_worker` |
+| Downgrade | `update_available=False`, no zip request | `test_downgrade_is_refused_without_download` |
+| Two instances | one `download_started`, one zip request; in-flight dedupe + OS lock | `test_two_instances_only_one_download_starts` |
+| Lock contention | `locked` failure event, no zip request | `test_lock_contention_reports_busy_without_second_stream` |
+| Frozen flag | loopback opt-in inert under `sys.frozen` and `__compiled__` | `test_opt_in_is_inert_in_frozen_build` |
+| Installed worker | launcher spawned from installed pack path, real handshake parsed, `offline_pack_ready` published | `test_installed_worker_launcher_handshake_and_ready` |
+| Real worker dev seam | `python -m voice_typer.worker --version` exits 0 | `test_real_worker_dev_seam_is_available` |
+| Local dictation with real runtime | REAL worker + native runtime: `parakeet` backend loaded, Vulkan/CPU DLLs loaded, `[GGUF] run complete status=0`, transcript returned with `error=null` in 2.7 s (tone fixture → no words); hardware hotkey/paste still UNVERIFIED | `run_local_pack_e2e.py`, evidence `C:\Users\11\AppData\Local\Temp\opencode\r10-s3-manual-evidence.json`, worker log in scratch |
+
+Test command (repo venv, from repo root):
+
+```bash
+.venv\Scripts\python.exe -m pytest tests/offline_pack_e2e -q --no-cov --tb=short --import-mode=importlib
+ruff check tests/offline_pack_e2e voice_typer/server/service/offline_pack voice_typer/server/service/update_check.py
+```
+
+Result at final state: **22 passed in 11.62s**; ruff clean. No full suite was run
+(worker-session rule).
+
+Fail-before evidence: the same four failure tests were run from a scratch copy
+with `events.py`, `download.py`, `install.py`, `__init__.py` and `update_check.py`
+restored to HEAD content (old code) and current tests/harness: **3 failed,
+1 passed**. Failures were `no offline_pack_download_failed event: []` for
+server-down and disk-gate, and `condition never became true before the deadline`
+for the corrupt-partial deletion. The fourth (mid-download drop) passed on old
+code — it is a regression pin, not one of the fixes. Log:
+`C:\Users\11\AppData\Local\Temp\opencode\r10-s3-red3.txt`.
+
+### Signature decision
+
+The manifest/schema, downloader and installer verify SHA-256 only. The only
+signature helper is `verify_offline_pack_signature_macos()` in
+`voice_typer/server/service/offline_pack/core.py:304-333` and it still has **no
+production caller**. Decision: do **not** call it. Reasons: (1) Authenticode on
+Windows needs `signtool`/WinTrust, not available in the frozen Python runtime;
+(2) the helper is macOS-only and would make the guarantee platform-dependent;
+(3) the trust chain here is HTTPS + pinned GitHub release + archive SHA + every
+extracted file SHA, and build-time signing already happens in CI. The IPC doc
+claim that `offline_pack_verified` means Authenticode/notarization must be
+corrected (owner/S4 action on `client/src/renderer/src/types/ipc/push_events.ts`),
+not implemented in this part.
+
+### User-visible states and remaining gaps
+
+The backend now emits stable machine-readable reasons:
+`offline`, `fetch_failed`, `manifest_unavailable`, `rate_limited`, `disk_full`,
+`locked`, `sha256_mismatch`, `install_failed`, `io_error`, `internal_error`
+(`offline_pack/events.py`). Gaps the renderer still has (owner/S1 action; no
+renderer or locale file was touched here):
+
+* `usePackUpdateToast.ts:104-115` maps every failure to one generic
+  "Voice update failed" and drops the `reason`; the hook records it but the
+  toast does not show it.
+* A first-launch 404 stays intentionally silent; About still maps the result
+  to "Up to date". Owner needs to decide whether "No pack published yet" is a
+  distinct About outcome.
+* No cancel control exists; the download has no cancellation IPC. Retry and
+  Repair already exist in `OfflinePackSection.tsx`.
+* `useOfflinePackDownload.ts:1-11` still says "silent-mode / consent-gated /
+  no progress bar" while the hook tracks progress and the backend is always-on.
+
+Suggested new i18n keys for the parent to add to all 8 locales (not added here):
+`pack.downloadFailedOffline`, `pack.downloadFailedHash`,
+`pack.downloadFailedDiskFull`, `pack.downloadFailedManifestUnavailable`,
+`pack.downloadSize`, `pack.cancelDownload`,
+`about.updateOutcome.packUnavailable`.
+
+Automatic-vs-consent policy is **unchanged**: `require_offline_pack_consent()`
+is a no-op and `offline_pack_consent` is not settable via SEC-002. Decision
+options for the owner: (A) keep always-on (current, no consent UI), (B) keep
+always-on but add a first-launch notice with size + cancel/retry, (C) restore a
+SEC-002 allowlisted consent toggle with a just-in-time gate (new IPC + 8 locale
+keys). Recommendation: **B** — it fixes the visibility gap without a new
+security surface or a new permission prompt; A leaves users confused, C changes
+a settled product decision.
+
+### Manual repeat steps
+
+1. From the repo root with the venv active:
+   `python tests/offline_pack_e2e/run_local_pack_e2e.py --native-dir <dir with transcribe.dll + contract.json> --audio <16k mono wav> --expect "<text>" --out <evidence.json>`
+2. Expect console lines: `pack-verified`, installed worker `worker_started`,
+   sidecar client connected, transcript text, `matched=True`, evidence path.
+   In `<scratch>/worker.log` expect `slim-core sidecar connected`,
+   `loaded backend: parakeet`, `loaded Vulkan/CPU backend`, and
+   `[GGUF] run complete: status=0`.
+3. Delete only the scratch path printed at the end (the harness created it).
+   No system pack root, config dir or user model cache is touched.
+
+Hardware hotkey → bubble → clipboard paste with local ASR remains UNVERIFIED:
+OS key injection is barred by C-HOOK-1 and no Tauri host window was driven.
+

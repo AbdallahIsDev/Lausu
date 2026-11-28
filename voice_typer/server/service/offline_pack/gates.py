@@ -15,6 +15,7 @@ from .core import (
     OFFLINE_PACK_REQUIRED_MB,
     OFFLINE_PACK_UNPACKED_MB,
 )
+from .local_dev import allow_local_pack_dev_server
 
 if TYPE_CHECKING:
     from voice_typer.server.config import Config
@@ -88,7 +89,12 @@ def assert_offline_pack_url_allowed(url: str) -> None:
     github_hosts = {"github.com", "objects.githubusercontent.com", "codeload.github.com"}
     if not github_hosts.issubset(get_url_allowlist()):
         extend_url_allowlist(github_hosts, caller="pack_downloader")
-    assert_url_allowed(url, field_name="pack_url", client_name="pack_downloader")
+    assert_url_allowed(
+        url,
+        field_name="pack_url",
+        client_name="pack_downloader",
+        allow_loopback_http=allow_local_pack_dev_server(url),
+    )
 
 
 def proxy_env() -> dict[str, str]:
