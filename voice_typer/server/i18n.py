@@ -333,12 +333,8 @@ _INITIAL_LABELS: dict[str, str] = {
     "notify.model_manager.offline_pack_missing": ("Offline pack is not installed.\nOpen Settings to download it."),
     # no_model_selected: notification twin of the state message above —
     "notify.model_manager.no_model_selected": ("No model selected.\nGo to the models page to select a model."),
-    "notify.worker.crashed": (
-        "The speech worker stopped unexpectedly. It will restart automatically."
-    ),
-    "notify.worker.restart_failed": (
-        "The speech worker kept stopping. Open Settings to check the offline pack."
-    ),
+    "notify.worker.crashed": ("The speech worker stopped unexpectedly. It will restart automatically."),
+    "notify.worker.restart_failed": ("The speech worker kept stopping. Open Settings to check the offline pack."),
     # last_resort_unloaded: fired by get_active()'s last-resort branch
     "notify.model_manager.last_resort_unloaded": (
         "The model is not loaded.\nOpen the models page to download a model."

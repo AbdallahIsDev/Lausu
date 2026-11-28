@@ -103,8 +103,11 @@ def _mark_backend_unloaded() -> None:
     from .registry import current_app
 
     app = current_app()
+    models = getattr(app, "models", None) if app is not None else None  # C-ATTR-1: one hop at a time
+    if models is None:
+        return
     try:
-        engine = getattr(app, "models", None).active_transcriber()
+        engine = models.active_transcriber()
         if engine is not None and getattr(engine, "worker_backed", False):
             engine._loaded = False
     except Exception:
