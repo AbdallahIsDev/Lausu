@@ -32,7 +32,7 @@ Three reviewer ideas do not survive contact with the code:
    functional downgrade, not a size win.
 3. **"The ADR-0026 80 MB diet already shipped."** False. ADR-0026 set a *target*; the current
    sidecar freeze script still includes `yt_dlp`, `yt_dlp_ejs`, `Crypto`, and follows scipy and
-   onnxruntime. The measured 11/22 extraction still holds 62.05 MiB of PyAV libs (already removed
+   onnxruntime. The measured 11/22 extraction still holds 62.05 MiB of the retired media-decoding libraries libs (already removed
    from source — stale evidence, not a current byte count).
 
 The cheapest real win is **not** a Python rewrite: it is shipping a smaller ffmpeg (45–75 MiB
@@ -74,22 +74,22 @@ All MiB values MEASURED but **stale** unless marked otherwise.
 |---:|---|---:|---|---|
 | 1 | `python-sidecar-*.exe` (onefile container) | 156.78 | extraction dir | Stale exe; CI artifact zip 118.68 MiB MEASURED |
 | 2 | ffmpeg.exe | 128.23 | `src-tauri/bin` | MEASURED, still in slim installer (`slim conf:50`) |
-| 3 | `av.libs/avcodec-62-0f4d…dll` | 18.32 | PyAV | **Retired** in source (ADR-0031 Phase 1); stale extraction only |
+| 3 | `retired-media/avcodec-62-0f4d…dll` | 18.32 | the retired media-decoding libraries | **Retired** in source (ADR-0031 Phase 1); stale extraction only |
 | 4 | `onnxruntime/capi/onnxruntime_pybind11_state.pyd` | 17.88 | ORT | VERIFIED still included (`build_worker_windows.sh:242`; sidecar follows ORT imports) |
 | 5 | `onnxruntime/capi/onnxruntime.dll` | 17.26 | ORT | same |
 | 6 | `rnnoise.dll` | 14.14 | native denoiser | VERIFIED shipped as sidecar data (`build_sidecar_windows.sh:167`) |
-| 7 | `av.libs/libx265-7e74…dll` | 11.98 | PyAV | **Retired** in source; GPL-named |
+| 7 | `retired-media/libx265-7e74…dll` | 11.98 | the retired media-decoding libraries | **Retired** in source; GPL-named |
 | 8 | `voice_typer/server/dpdfnet2.onnx` | 9.71 | default denoiser model | VERIFIED included via `--include-package-data=voice_typer.server` |
 | 9 | `hf_xet/hf_xet.pyd` | 9.06 | HF hub transfer | Needed by model downloads |
-| 10 | `av.libs/libSvtAv1Enc-5ee…dll` | 7.25 | PyAV | **Retired** |
+| 10 | `retired-media/libSvtAv1Enc-5ee…dll` | 7.25 | the retired media-decoding libraries | **Retired** |
 | 11 | `tokenizers/tokenizers.pyd` | 7.21 | HF tokenizers | Needed by model/provider paths — UNVERIFIED which callers remain |
 | 12 | `python312.dll` | 6.61 | CPython runtime | Irremovable while Python remains |
 | 13 | `scipy/optimize/_highspy/_core.pyd` | 6.40 | scipy | Not used by this app's code; follows from `import scipy.signal` package graph |
 | 14 | `libcrypto-3-x64.dll` | 5.66 | OpenSSL/TLS | Needed for HTTPS |
-| 15 | `av.libs/avfilter-11-780a…dll` | 5.49 | PyAV | **Retired** |
+| 15 | `retired-media/avfilter-11-780a…dll` | 5.49 | the retired media-decoding libraries | **Retired** |
 | 16 | `scipy/sparse/_sparsetools.pyd` | 4.04 | scipy | Not used directly; package graph |
 | 17 | `numpy/_core/_multiarray_umath.pyd` | 3.67 | numpy | Irremovable (mic/VAD math) |
-| 18 | `av.libs/avformat-62-9c2d…dll` | 2.69 | PyAV | **Retired** |
+| 18 | `retired-media/avformat-62-9c2d…dll` | 2.69 | the retired media-decoding libraries | **Retired** |
 | 19 | `scipy/fft/_duccfft/pyduccfft.pyd` | 2.66 | scipy | Not used directly; package graph |
 | 20 | `scipy/special/_ufuncs_cxx.pyd` | 2.55 | scipy | Not used directly; package graph |
 | 21 | `PIL/_imaging.pyd` | 2.54 | Pillow | VERIFIED declared (`pyproject.toml:145`) |
@@ -99,7 +99,7 @@ All MiB values MEASURED but **stale** unless marked otherwise.
 
 Package-level totals from that same stale extraction (MEASURED, stale):
 
-`av.libs` 62.05 · `scipy` 46.03 + `scipy.libs` 19.32 = **65.35** · `onnxruntime` **35.16** ·
+`the retired media DLL folder` 62.05 · `scipy` 46.03 + `scipy.libs` 19.32 = **65.35** · `onnxruntime` **35.16** ·
 `numpy.libs` 20.09 + `numpy` 5.97 = **26.06** · `voice_typer` 12.58 · `hf_xet` 9.06 ·
 `tokenizers` 7.21 · `PIL` 5.08 · `Crypto` 1.90 · `zstandard` 1.14 · `certifi` 0.23 MiB.
 
@@ -219,7 +219,7 @@ Installer savings below use the measured 0.45–0.59 payload→installer ratio a
 
 | Order | Lever | Installer MB saved | Risk | Effort | Evidence / note |
 |---:|---|---:|---|---|---|
-| 1 | Confirm retired media stack gone in a real build | 25–35 | Low | Low (build + gate only) | Code already changed (ADR-0031 Phase 1); stale extraction still shows 62.05 MiB `av.libs`. Verify, do not redesign. |
+| 1 | Confirm retired media stack gone in a real build | 25–35 | Low | Low (build + gate only) | Code already changed (ADR-0031 Phase 1); stale extraction still shows 62.05 MiB `the retired media DLL folder`. Verify, do not redesign. |
 | 2 | Publish the worker pack (delivery fix) | 0 | Low | Low | No installer change; unblocks local ASR. Prerequisite for levers 3 and 5. |
 | 3 | Move ffmpeg into the first-launch pack | 55–75 | Medium | Medium | `performance-measurements.md:453`; needs pack contents + gate + media-missing copy; media blocked before pack. |
 | 4 | Audio-only pinned-source ffmpeg build | 45–75 | Medium | High (first build + toolchain pin) | 128.23 MiB MEASURED → 10–30 MB static ESTIMATE; owner's acceptable path in ADR-0031 §5. Alternative to 3, not additive with it. |
@@ -248,7 +248,7 @@ Levers 5 and 6 stay as separately scoped ADRs with their own parity evidence.
 | "scipy is only the resampler; dropping it is a packaging tweak." | **False** | `highpass.py:33,42`; `notch.py:50,61`; `gtcrn_backend.py:173`; `audio_filters/base.py:198,215,232`; worker shares the resampler (`worker/_transcribe.py:61`). |
 | "RNNoise depends on ONNX Runtime." | **False** | Native `rnnoise.dll` via ctypes; `pyrnnoise`/`audiolab` excluded at freeze (`build_worker_windows.sh:236-239`). |
 | "The ADR-0026 80 MB diet shipped." | **False** | It was a target; current sidecar script still includes yt_dlp/Crypto and follows scipy/ORT (`build_sidecar_windows.sh:138,154-164`). |
-| "PyAV's 62.05 MiB is still in the installer." | **Stale / false for current source** | ADR-0031 Phase 1 removed it; the 11/22 extraction predates that change. Current-code size UNVERIFIED. |
+| "the retired media-decoding libraries's 62.05 MiB is still in the installer." | **Stale / false for current source** | ADR-0031 Phase 1 removed it; the 11/22 extraction predates that change. Current-code size UNVERIFIED. |
 | "The 163.66 MiB CI size describes HEAD." | **False** | CI run 45024128135 is 2026-11-22, head `9c099320`; HEAD here is `2efdf2e70` (2026-11-28). |
 | "NSIS compression options unlock big savings." | **False** | LZMA default; alternatives zlib/bzip2/none; MSI/WiX no key (`runtime-delivery-options.md:151`). |
 | "ORT can go now for 16–21 MiB." | **False / downgrade** | ADR-0031 decision #1 keeps ORT for DPDFNet/GTCRN; no GGUF backend for either (`partA-inventory.md:94-98,112`). |
