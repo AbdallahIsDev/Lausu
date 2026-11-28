@@ -542,3 +542,42 @@ plugin/cloud/remote provider wins over a stale local model id.
 All cases are pinned by `tests/test_provider_start_notices.py` (24 tests) and
 the existing provider/lifecycle/gate suites; i18n keys were added to all eight
 locales and the completeness gate is green.
+
+
+---
+
+## Round 10 — real ASR worker unload and crash visibility (2026-11-28)
+
+Plain English first. "Keep Models in Memory" is now real for the ASR worker.
+Round 9 proved that calling `engine.unload()` in-process returns no memory
+(private bytes +0.04 MB); the only reliable way to give the GGUF's memory back
+is to end the process that owns it. The ASR policy's `unload()` now asks
+`model_lifecycle/worker_lifecycle.py` to stop the worker intentionally. The
+intentional stop is recognized by the Tauri supervisor (no respawn on this
+path), and the next user press requests a fresh worker through the existing
+`offline_pack_verified` / relayed-port path.
+
+Live scratch numbers (real runtime via the supported pack-root seam, tiny idle
+setting, serial measurements):
+- Before the fix, after idle unload: worker private **513.79 MB**, same PID alive.
+- After the fix, after idle unload: worker private **494.66 MB → 0 MB**, process
+  gone; next press respawned at 25.63 MB private, and a real dictation decoded
+  16 chars with final status `Done`.
+- "Always" (`model_idle_unload_minutes=0`) never sends an unload; a busy worker
+  (decode/load or dictation in flight) is deferred. No orphan processes 10 s
+  after the fault run.
+
+Worker death is now visible: an unexpected exit publishes the existing
+`worker_crashed` event, sets ERROR tray/status (never "Ready" while the engine
+is gone), and shows one critical in-app + tray notice in all eight locales;
+three crashes in 60 s produce a persistent actionable `restart_failed` notice.
+The host supervisor owns respawn with bounded backoff (500/1000/2000/4000/8000 ms).
+The VEH crash file went from **0 bytes** to a **1,974-byte** record with code,
+address, PID/TID, timestamp, module+offset and app version. Full UI visibility
+still needs a real Tauri-host re-check (the scratch harness has no host).
+
+Round 10 also unified the two no-engine notice publishers onto the shared
+helper and fixed a silent bug: the old hotkey path called `tray.notify(message)`
+with one argument while the real signature is `notify(title, message)`, so the
+tray balloon raised `TypeError` inside a swallowed `except`. Tests now use the
+real arity and fail loudly on a mismatch.
