@@ -3,9 +3,10 @@
 
 use futures_util::FutureExt;
 use std::panic::AssertUnwindSafe;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tauri::{Emitter, Listener};
 use tauri_plugin_shell::process::CommandEvent;
 
 use super::lifecycle::format_duration_suffix;
@@ -18,6 +19,11 @@ use crate::util::SUPERVISOR_BACKOFF_MS;
 /// Poll interval for the liveness probe (dev-mode path; release mode
 /// wakes on the drained exit channel instead).
 const WORKER_WATCH_POLL_MS: u64 = 1000;
+
+/// Set when the sidecar published `worker_unloaded` for an idle stop. The
+/// exit watcher must not turn that deliberate exit into a crash respawn;
+/// the next user start re-publishes `offline_pack_verified` to clear it.
+static INTENTIONAL_STOP: AtomicBool = AtomicBool::new(false);
 
 /// Backoff delay before respawn attempt `attempt` (0-based). `None`
 /// past the schedule end: the episode is exhausted. Shares the sidecar
@@ -44,9 +50,43 @@ pub(crate) fn should_keep_worker_running(keep_running_setting: bool) -> bool {
 /// successful `initialize_worker`; racers serialize on the restart
 /// slot, so at most one respawn runs at a time.
 pub(crate) fn spawn_worker_exit_watcher(app: &tauri::AppHandle, state: Arc<WorkerState>) {
+    install_lifecycle_listeners(app, state.clone());
     let app_handle = app.clone();
     tauri::async_runtime::spawn(async move {
         worker_exit_watch_loop(&app_handle, &state).await;
+    });
+}
+
+/// The sidecar owns the DECISION, the host owns the child. Both signals are
+/// existing allowlisted events, so no fourth event name is introduced.
+fn install_lifecycle_listeners(app: &tauri::AppHandle, state: Arc<WorkerState>) {
+    let stop_state = state.clone();
+    app.listen("worker_unloaded", move |event| {
+        if serde_json::from_str::<serde_json::Value>(event.payload()).is_err() {
+            return;
+        }
+        INTENTIONAL_STOP.store(true, Ordering::SeqCst);
+        log::info!("[WORKER] idle unload: intentional stop, exit will not respawn");
+        let st = stop_state.clone();
+        #[allow(clippy::let_underscore_future)] // fire-and-forget child teardown
+        let _ = tauri::async_runtime::spawn(async move {
+            stop_worker_child(&st).await;
+        });
+    });
+
+    let restart_app = app.clone();
+    let restart_state = state;
+    app.listen("offline_pack_verified", move |_event| {
+        if !INTENTIONAL_STOP.swap(false, Ordering::SeqCst) {
+            return;
+        }
+        log::info!("[WORKER] restart requested after intentional stop");
+        let app_handle = restart_app.clone();
+        let st = restart_state.clone();
+        #[allow(clippy::let_underscore_future)] // WS reader has the same trigger
+        let _ = tauri::async_runtime::spawn(async move {
+            super::spawn::worker::start_worker_if_ready(&app_handle, st).await;
+        });
     });
 }
 
@@ -59,6 +99,27 @@ async fn worker_exit_watch_loop(app: &tauri::AppHandle, state: &Arc<WorkerState>
         if let Some(mut rx) = rx_opt {
             match rx.recv().await {
                 Some(CommandEvent::Terminated(payload)) => {
+                    if INTENTIONAL_STOP.swap(false, Ordering::SeqCst) {
+                        log::info!(
+                            "[WORKER] intentional stop observed (code={:?}): staying stopped",
+                            payload.code
+                        );
+                        *state.child_exit_rx.lock().await = None;
+                        continue;
+                    }
+                    // Renderer does not subscribe to the sidecar event bus
+                    // directly: emit the same envelope the WS reader uses,
+                    // so a death is visible even if the Python hop is lost.
+                    let _ = app.emit(
+                        "python-event",
+                        serde_json::json!({
+                            "type": "worker_crashed",
+                            "data": {
+                                "pid": 0,
+                                "exit_code": payload.code.unwrap_or(-1),
+                            },
+                        }),
+                    );
                     log::warn!(
                         "[WORKER] worker exited (code={:?}, signal={:?}): respawning",
                         payload.code,
@@ -76,6 +137,11 @@ async fn worker_exit_watch_loop(app: &tauri::AppHandle, state: &Arc<WorkerState>
             }
         }
         if worker_probe_exited(state) {
+            if INTENTIONAL_STOP.swap(false, Ordering::SeqCst) {
+                log::info!("[WORKER] intentional stop observed by probe: staying stopped");
+                *state.child_exit_rx.lock().await = None;
+                continue;
+            }
             let generation = state.ws_generation.load(Ordering::SeqCst);
             let _ = respawn_worker(app, state, Some(generation)).await;
             continue;
@@ -267,6 +333,15 @@ async fn respawn_worker_inner(
         "[WORKER] backoff exhausted after {} attempts{}: worker left stopped (sidecar unaffected, no app relaunch)",
         attempts,
         format_duration_suffix(started.elapsed())
+    );
+    // Persistent, actionable state: reuse the already-localized
+    // `worker_crashed` renderer handler instead of inventing a new event.
+    let _ = app.emit(
+        "python-event",
+        serde_json::json!({
+            "type": "worker_crashed",
+            "data": {"pid": 0, "exit_code": -1, "persistent": true},
+        }),
     );
     state.respawn_in_progress.store(false, Ordering::SeqCst);
     Err("worker respawn backoff exhausted".to_string())

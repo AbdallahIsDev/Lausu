@@ -127,6 +127,12 @@ def set_crash_handler_config_dir(config_dir: Path) -> None:
         # Pre-compute the header once at config-dir cache time so the
         with contextlib.suppress(Exception):
             _ch._crash_header_bytes = _compute_crash_header()
+        # Open the crash file BEFORE any fault. The VEH callback then only
+        # fills fixed slots and writes through this handle.
+        with contextlib.suppress(Exception):
+            from voice_typer.server.crash_handler._veh_callback import prepare_veh_file
+
+            prepare_veh_file()
         # refresh the cached ASR backend at config-dir cache
         with contextlib.suppress(Exception):
             from voice_typer.server.crash_handler._python_excepthook import (

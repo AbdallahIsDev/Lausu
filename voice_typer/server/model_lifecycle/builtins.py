@@ -38,9 +38,19 @@ class _AsrPolicy(ModelPolicy):
     def is_loaded(self, config: Any) -> bool:
         engine = getattr(current_app(), "models", None)
         engine = getattr(engine, "active_transcriber", lambda: None)()
-        return bool(engine is not None and getattr(engine, "is_loaded", False))
+        if engine is None or not getattr(engine, "is_loaded", False):
+            return False
+        if getattr(engine, "worker_backed", False):
+            from . import worker_lifecycle
+
+            return worker_lifecycle.is_worker_ready()
+        return True
 
     def is_busy(self) -> bool:
+        from . import worker_lifecycle
+
+        if worker_lifecycle.is_busy():
+            return True
         app = current_app()
         try:
             backend = getattr(app.config, "asr_backend", "")
@@ -49,20 +59,37 @@ class _AsrPolicy(ModelPolicy):
             return False
 
     def load(self, config: Any) -> bool:
+        from . import worker_lifecycle
+
         models = getattr(current_app(), "models", None)
         if models is None:
+            return False
+        if not worker_lifecycle.request_start("idle_reload"):
             return False
         models.ensure_active_engine_loaded()
         return self.is_loaded(config)
 
     def unload(self) -> None:
-        # ASR idle unload and teardown stay owned by model_manager. Touching
-        # it here would add a second unload path for the same shared engine.
-        return None
+        # One decision point: the worker process is the only thing that
+        # really gives ASR memory back. Idle unload stops it; the next
+        # record-start load asks the host to respawn it.
+        from . import worker_lifecycle
+
+        worker_lifecycle.request_idle_stop()
+        models = getattr(current_app(), "models", None)
+        if models is not None:
+            try:
+                models.cancel_idle_unload_timer()
+            except Exception:
+                log.debug("[LIFECYCLE] ASR idle timer disarm failed", exc_info=True)
 
     def wait(self, timeout_s: float) -> bool:
+        from . import worker_lifecycle
+
         models = getattr(current_app(), "models", None)
         if models is None:
+            return False
+        if not worker_lifecycle.request_start("idle_reload"):
             return False
         return models.wait_for_active_engine_loaded(timeout_s) is not None
 

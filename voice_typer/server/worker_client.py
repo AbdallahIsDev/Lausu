@@ -75,7 +75,23 @@ class WorkerClient:
             log.debug("[WORKER] worker_started relay without a valid port: ignoring")
             return False
         self.set_port(port)
+        try:
+            from voice_typer.server.model_lifecycle import worker_lifecycle
+
+            worker_lifecycle.note_worker_started(payload)
+        except Exception:
+            log.debug("[WORKER] lifecycle did not observe the new bind", exc_info=True)
         return True
+
+    def has_outstanding(self) -> bool:
+        """True while a request owns this worker.
+
+        A live WS session is NOT busy: it exists at rest. Streaming sessions
+        register a finalize resolver immediately after open, so they are
+        covered by ``_resolvers``.
+        """
+        with self._lock:
+            return bool(self._resolvers) or not self._outbound.empty()
 
     def set_port(self, port: int) -> None:
         """Point the client at a worker; bumps the generation (C-WS-3)."""
@@ -456,8 +472,22 @@ class WorkerClient:
         await connect_loop(self, generation)
 
     async def _run_session(self, ws: Any, generation: int) -> None:
-        """Delegate to :func:`voice_typer.server.worker_session.run_session`."""
-        await run_session(self, ws, generation)
+        """Delegate to :func:`voice_typer.server.worker_session.run_session`.
+
+        One session end = one possible worker death. The lifecycle module
+        decides whether it is a crash or an intentional idle stop; this
+        client never publishes a crash event itself.
+        """
+        try:
+            await run_session(self, ws, generation)
+        finally:
+            if self._is_current(generation):
+                try:
+                    from voice_typer.server.model_lifecycle import worker_lifecycle
+
+                    worker_lifecycle.note_connection_lost(generation=generation)
+                except Exception:
+                    log.debug("[WORKER] lifecycle did not observe session loss", exc_info=True)
 
     async def _pump(self, ws: Any, generation: int, wake: asyncio.Event) -> None:
         """Delegate to :func:`voice_typer.server.worker_session.pump`."""
@@ -466,7 +496,6 @@ class WorkerClient:
     async def _drain_outbound(self, ws: Any) -> None:
         """Delegate to :func:`voice_typer.server.worker_session.drain_outbound`."""
         await drain_outbound(self, ws)
-
 
 
 _lock = threading.Lock()
@@ -502,6 +531,7 @@ def close_shared_client() -> bool:
         log.debug("[WORKER] shared client close failed", exc_info=True)
         return False
     return True
+
 
 # Facade re-exports: the wire codec (``worker_protocol``) and the WS session
 # machinery (``worker_session``) keep resolving through this module, so every
