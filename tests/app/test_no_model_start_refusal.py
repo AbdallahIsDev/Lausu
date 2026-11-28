@@ -26,5 +26,7 @@ def test_no_model_button_press_is_refused_before_the_microphone_opens(app, monke
         app.toggle_dictation()
 
     app.recorder.start.assert_not_called()
-    app.tray.notify.assert_called_once_with(i18n.t("notify.model_manager.no_model_selected"))
+    from voice_typer.server.branding import APP_NAME
+
+    app.tray.notify.assert_called_once_with(APP_NAME, i18n.t("notify.model_manager.no_model_selected"))
     assert any(event.get("type") == "notification" for event in published)

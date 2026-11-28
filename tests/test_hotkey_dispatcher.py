@@ -157,7 +157,9 @@ class TestActiveEngineGate:
         dispatcher._app.toggle_dictation.assert_not_called()
         message = t("notify.model_manager.no_model_selected")
         assert any(event["type"] == "notification" and event["data"]["message"] == message for event in published)
-        dispatcher._app.tray.notify.assert_called_once_with(message)
+        from voice_typer.server.branding import APP_NAME
+
+        dispatcher._app.tray.notify.assert_called_once_with(APP_NAME, message)
 
     def test_cloud_backend_owns_dictation_without_local_model(self, dispatcher):
         dispatcher._app.config.model_size = ""

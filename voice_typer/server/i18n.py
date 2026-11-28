@@ -123,6 +123,8 @@ _INITIAL_LABELS: dict[str, str] = {
     "state.model_manager.offline_pack_missing": ("Offline pack is not installed. Open Settings to download it."),
     # no_model_selected: genuine "no model selected" state
     "state.model_manager.no_model_selected": ("No model selected. Go to the models page to select a model."),
+    "state.worker.crashed": "Speech worker stopped. Restarting.",
+    "state.worker.restart_failed": "Speech worker unavailable. Check the offline pack in Settings.",
     "state.model_manager.model_integrity_failed": (
         "{backend} model failed integrity verification. Delete and re-download it from the Models page."
     ),
@@ -331,6 +333,12 @@ _INITIAL_LABELS: dict[str, str] = {
     "notify.model_manager.offline_pack_missing": ("Offline pack is not installed.\nOpen Settings to download it."),
     # no_model_selected: notification twin of the state message above —
     "notify.model_manager.no_model_selected": ("No model selected.\nGo to the models page to select a model."),
+    "notify.worker.crashed": (
+        "The speech worker stopped unexpectedly. It will restart automatically."
+    ),
+    "notify.worker.restart_failed": (
+        "The speech worker kept stopping. Open Settings to check the offline pack."
+    ),
     # last_resort_unloaded: fired by get_active()'s last-resort branch
     "notify.model_manager.last_resort_unloaded": (
         "The model is not loaded.\nOpen the models page to download a model."

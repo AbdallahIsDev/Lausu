@@ -2091,6 +2091,10 @@
 		}
 	},
 	"notify": {
+		"worker": {
+			"crashed": "Der Sprach-Arbeitsprozess wurde unerwartet beendet. Er startet automatisch neu.",
+			"restart_failed": "Der Sprach-Arbeitsprozess ist wiederholt abgestürzt. Öffnen Sie „Einstellungen“ und prüfen Sie das Offline-Paket."
+		},
 		"dictation_provider": {
 			"plugin_unavailable": "{name} ist für die Diktatfunktion nicht verfügbar. Öffnen Sie „Plugins“, um es zu prüfen, oder wechseln Sie zu einem lokalen Modell.",
 			"local_runtime_missing": "Die lokale Sprach-Laufzeit ist nicht installiert. Öffnen Sie „Einstellungen“, um das Offline-Paket zu prüfen."
@@ -2234,11 +2238,22 @@
 		}
 	},
 	"state": {
+		"worker": {
+			"crashed": "Sprach-Arbeitsprozess beendet. Neustart läuft.",
+			"restart_failed": "Sprach-Arbeitsprozess nicht verfügbar. Prüfen Sie das Offline-Paket in den Einstellungen."
+		},
 		"app": {
 			"starting": "Wird gestartet..."
 		}
 	},
 	"pack": {
+		"failReasonOffline": "Keine Internetverbindung. Das Offline-Paket konnte nicht heruntergeladen werden.",
+		"failReasonManifestUnavailable": "Die Aktualisierungsliste ist nicht verfügbar. Lokale Diktate funktionieren erst nach ihrer Veröffentlichung.",
+		"failReasonDiskFull": "Nicht genug Speicherplatz für das Offline-Paket.",
+		"failReasonFetch": "Das Offline-Paket konnte nicht geladen werden. Bitte erneut versuchen.",
+		"failReasonLocked": "Eine andere Instanz aktualisiert das Offline-Paket. Bitte kurz warten.",
+		"failReasonInstall": "Das Offline-Paket konnte nicht installiert werden. Bitte erneut versuchen.",
+		"failReasonInternal": "Die Aktualisierung des Offline-Pakets ist fehlgeschlagen.",
 		"preparingOfflineEngine": "Offline-Engine wird vorbereitet…",
 		"preparingOfflineEngineAria": "Offline-Engine wird vorbereitet. Status: {status}",
 		"downloadingOfflineEngine": "Offline-Engine wird heruntergeladen, {percent} %",

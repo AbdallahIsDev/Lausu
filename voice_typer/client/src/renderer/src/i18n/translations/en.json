@@ -2091,6 +2091,10 @@
 		}
 	},
 	"notify": {
+		"worker": {
+			"crashed": "The speech worker stopped unexpectedly. It will restart automatically.",
+			"restart_failed": "The speech worker kept stopping. Open Settings to check the offline pack."
+		},
 		"dictation_provider": {
 			"plugin_unavailable": "{name} is not available for dictation. Open Plugins to check it or switch to a local model.",
 			"local_runtime_missing": "The local speech runtime is not installed. Open Settings to check the offline pack."
@@ -2234,11 +2238,22 @@
 		}
 	},
 	"state": {
+		"worker": {
+			"crashed": "Speech worker stopped. Restarting.",
+			"restart_failed": "Speech worker unavailable. Check the offline pack in Settings."
+		},
 		"app": {
 			"starting": "Starting..."
 		}
 	},
 	"pack": {
+		"failReasonOffline": "No internet connection. The offline pack could not be downloaded.",
+		"failReasonManifestUnavailable": "The update manifest is unavailable. Local dictation will not work until it is published.",
+		"failReasonDiskFull": "Not enough disk space to download the offline pack.",
+		"failReasonFetch": "The offline pack could not be fetched. Try again.",
+		"failReasonLocked": "Another instance is updating the offline pack. Try again shortly.",
+		"failReasonInstall": "The offline pack could not be installed. Try again.",
+		"failReasonInternal": "The offline pack update failed. Try again.",
 		"preparingOfflineEngine": "Preparing offline engine…",
 		"preparingOfflineEngineAria": "Preparing offline engine. Status: {status}",
 		"downloadingOfflineEngine": "Downloading voice pack {percent}%",

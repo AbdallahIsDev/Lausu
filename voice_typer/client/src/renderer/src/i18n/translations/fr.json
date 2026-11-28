@@ -2091,6 +2091,10 @@
 		}
 	},
 	"notify": {
+		"worker": {
+			"crashed": "Le processus vocal s'est arrêté de manière inattendue. Il redémarrera automatiquement.",
+			"restart_failed": "Le processus vocal s'arrête sans cesse. Ouvrez Paramètres pour vérifier le pack hors ligne."
+		},
 		"dictation_provider": {
 			"plugin_unavailable": "{name} n'est pas disponible pour la dictée. Ouvrez Plugins pour le vérifier ou passez à un modèle local.",
 			"local_runtime_missing": "L'environnement vocal local n'est pas installé. Ouvrez Paramètres pour vérifier le pack hors ligne."
@@ -2234,11 +2238,22 @@
 		}
 	},
 	"state": {
+		"worker": {
+			"crashed": "Processus vocal arrêté. Redémarrage en cours.",
+			"restart_failed": "Processus vocal indisponible. Vérifiez le pack hors ligne dans Paramètres."
+		},
 		"app": {
 			"starting": "Démarrage..."
 		}
 	},
 	"pack": {
+		"failReasonOffline": "Pas de connexion internet. Le pack hors ligne n'a pas pu être téléchargé.",
+		"failReasonManifestUnavailable": "Le manifeste de mise à jour est indisponible. La dictée locale ne fonctionnera pas avant sa publication.",
+		"failReasonDiskFull": "Espace disque insuffisant pour le pack hors ligne.",
+		"failReasonFetch": "Le pack hors ligne n'a pas pu être récupéré. Réessayez.",
+		"failReasonLocked": "Une autre instance met à jour le pack. Réessayez dans un instant.",
+		"failReasonInstall": "Le pack hors ligne n'a pas pu être installé. Réessayez.",
+		"failReasonInternal": "La mise à jour du pack hors ligne a échoué.",
 		"preparingOfflineEngine": "Préparation du moteur hors ligne…",
 		"preparingOfflineEngineAria": "Préparation du moteur hors ligne. Statut : {status}",
 		"downloadingOfflineEngine": "Téléchargement du moteur hors ligne, {percent} %",

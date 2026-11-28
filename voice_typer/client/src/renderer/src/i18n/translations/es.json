@@ -2091,6 +2091,10 @@
 		}
 	},
 	"notify": {
+		"worker": {
+			"crashed": "El proceso de voz se detuvo inesperadamente. Se reiniciará automáticamente.",
+			"restart_failed": "El proceso de voz se detuvo repetidamente. Abre Configuración para revisar el paquete sin conexión."
+		},
 		"dictation_provider": {
 			"plugin_unavailable": "{name} no está disponible para dictar. Abre Plugins para comprobarlo o cambia a un modelo local.",
 			"local_runtime_missing": "El entorno de voz local no está instalado. Abre Configuración para revisar el paquete sin conexión."
@@ -2234,11 +2238,22 @@
 		}
 	},
 	"state": {
+		"worker": {
+			"crashed": "Proceso de voz detenido. Reiniciando.",
+			"restart_failed": "Proceso de voz no disponible. Revisa el paquete sin conexión en Configuración."
+		},
 		"app": {
 			"starting": "Iniciando..."
 		}
 	},
 	"pack": {
+		"failReasonOffline": "Sin conexión a internet. No se pudo descargar el paquete sin conexión.",
+		"failReasonManifestUnavailable": "El manifiesto de actualización no está disponible. La dictación local no funcionará hasta que se publique.",
+		"failReasonDiskFull": "No hay suficiente espacio en disco para el paquete sin conexión.",
+		"failReasonFetch": "No se pudo descargar el paquete sin conexión. Inténtalo de nuevo.",
+		"failReasonLocked": "Otra instancia está actualizando el paquete. Inténtalo en un momento.",
+		"failReasonInstall": "No se pudo instalar el paquete sin conexión. Inténtalo de nuevo.",
+		"failReasonInternal": "La actualización del paquete sin conexión falló.",
 		"preparingOfflineEngine": "Preparando motor sin conexión…",
 		"preparingOfflineEngineAria": "Preparando motor sin conexión. Estado: {status}",
 		"downloadingOfflineEngine": "Descargando motor sin conexión, {percent} %",

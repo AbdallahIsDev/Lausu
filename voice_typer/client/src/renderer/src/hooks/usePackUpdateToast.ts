@@ -101,10 +101,26 @@ export function usePackUpdateToast(
 		showSnack(message, "error");
 	};
 
+	// The backend publishes a normalized machine reason (`offline`,
+	// `manifest_unavailable`, `disk_full`, ...) with the failure event.
+	// Map the known reasons to plain localized text instead of dropping
+	// them and showing the same generic failure for every cause.
+	const FAILURE_REASON_KEYS: Record<string, string> = {
+		offline: "pack.failReasonOffline",
+		manifest_unavailable: "pack.failReasonManifestUnavailable",
+		disk_full: "pack.failReasonDiskFull",
+		fetch_failed: "pack.failReasonFetch",
+		locked: "pack.failReasonLocked",
+		install_failed: "pack.failReasonInstall",
+		internal_error: "pack.failReasonInternal",
+	};
+
 	usePythonEvent(
 		"offline_pack_download_failed",
-		(): (() => void) | undefined => {
-			fail(t("pack.updateFailed"));
+		(data?: Record<string, unknown>): (() => void) | undefined => {
+			const reason = typeof data?.reason === "string" ? data.reason : "";
+			const key = FAILURE_REASON_KEYS[reason] ?? "pack.updateFailed";
+			fail(t(key));
 			return undefined;
 		},
 	);

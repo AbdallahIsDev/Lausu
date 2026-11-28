@@ -25,6 +25,14 @@ from voice_typer.server.tray_types import AppState
 
 
 @pytest.fixture(autouse=True)
+def _worker_start_at_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Provider tests own no worker process; worker lifecycle has its own tests."""
+    from voice_typer.server.model_lifecycle import worker_lifecycle
+
+    monkeypatch.setattr(worker_lifecycle, "request_start", lambda *_a, **_k: True)
+
+
+@pytest.fixture(autouse=True)
 def isolated_state(monkeypatch: pytest.MonkeyPatch) -> Any:
     saved = {kind: registry.get(kind) for kind in registry.kinds()}
     saved_app = registry.current_app()

@@ -37,6 +37,8 @@ export function trayLabelsForLocale(): Record<string, string> {
 		// agree verbatim in every locale (server keeps its matching
 		// English fallback before the first push).
 		["state.model_manager.no_model_selected", "home.noModelSelectedHint"],
+		["state.worker.crashed", "state.worker.crashed"],
+		["state.worker.restart_failed", "state.worker.restart_failed"],
 		// Every remaining server tray STATE message (the ``state.*``
 		// keys in ``voice_typer/server/i18n.py`` ``_INITIAL_LABELS``)
 		// is pushed from the renderer's ``trayState.*`` translations so
@@ -288,6 +290,8 @@ export function trayLabelsForLocale(): Record<string, string> {
 			"notify.model_manager.no_model_selected",
 			"notify.model_manager.no_model_selected",
 		],
+		["notify.worker.crashed", "notify.worker.crashed"],
+		["notify.worker.restart_failed", "notify.worker.restart_failed"],
 		[
 			"notify.dictation_provider.plugin_unavailable",
 			"notify.dictation_provider.plugin_unavailable",

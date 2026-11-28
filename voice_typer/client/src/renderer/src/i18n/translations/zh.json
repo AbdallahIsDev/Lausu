@@ -2091,6 +2091,10 @@
 		}
 	},
 	"notify": {
+		"worker": {
+			"crashed": "语音工作进程意外停止，将自动重启。",
+			"restart_failed": "语音工作进程反复停止。请打开设置检查离线包。"
+		},
 		"dictation_provider": {
 			"plugin_unavailable": "{name} 无法用于听写。打开“插件”检查，或切换回本地模型。",
 			"local_runtime_missing": "本地语音运行时未安装。打开“设置”检查离线包。"
@@ -2234,11 +2238,22 @@
 		}
 	},
 	"state": {
+		"worker": {
+			"crashed": "语音工作进程已停止，正在重启。",
+			"restart_failed": "语音工作进程不可用，请在设置中检查离线包。"
+		},
 		"app": {
 			"starting": "正在启动..."
 		}
 	},
 	"pack": {
+		"failReasonOffline": "没有网络连接，无法下载离线包。",
+		"failReasonManifestUnavailable": "更新清单不可用。在发布之前，本地听写无法使用。",
+		"failReasonDiskFull": "磁盘空间不足，无法下载离线包。",
+		"failReasonFetch": "无法获取离线包，请重试。",
+		"failReasonLocked": "另一个实例正在更新离线包，请稍后重试。",
+		"failReasonInstall": "离线包安装失败，请重试。",
+		"failReasonInternal": "离线包更新失败，请重试。",
 		"preparingOfflineEngine": "正在准备离线引擎…",
 		"preparingOfflineEngineAria": "正在准备离线引擎。状态：{status}",
 		"downloadingOfflineEngine": "正在下载离线引擎，已完成 {percent}%",
