@@ -2091,6 +2091,10 @@
 		}
 	},
 	"notify": {
+		"dictation_provider": {
+			"plugin_unavailable": "{name} no está disponible para dictar. Abre Plugins para comprobarlo o cambia a un modelo local.",
+			"local_runtime_missing": "El entorno de voz local no está instalado. Abre Configuración para revisar el paquete sin conexión."
+		},
 		"recording_controller": {
 			"consent_required_title": "{appName}",
 			"consent_required_body": "Se requiere el consentimiento de biometría de voz para iniciar la grabación.\nActívalo en Configuración > Privacidad > Consentimiento de biometría de voz.",

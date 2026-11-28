@@ -2091,6 +2091,10 @@
 		}
 	},
 	"notify": {
+		"dictation_provider": {
+			"plugin_unavailable": "{name} is not available for dictation. Open Plugins to check it or switch to a local model.",
+			"local_runtime_missing": "The local speech runtime is not installed. Open Settings to check the offline pack."
+		},
 		"recording_controller": {
 			"consent_required_title": "{appName}",
 			"consent_required_body": "Voice biometric consent is required to start recording.\nEnable it in Settings > Privacy > Voice Biometric Consent.",

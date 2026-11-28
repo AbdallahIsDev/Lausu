@@ -60,36 +60,50 @@ class LastResortNotifyMixin:
                 "state.model_manager.model_not_downloaded",
                 backend=backend_name,
             )
-        from voice_typer.server.dictation_provider import for_app
+        from voice_typer.server.dictation_notices import publish_notice, user_notice_allowed, user_press_recent
+        from voice_typer.server.dictation_provider import NONE, for_app
 
         provider = for_app(self._app)
-        if provider.kind in ("plugin", "remote"):
+        if provider.kind not in ("local", NONE):
             # Another provider owns the hotkey: this local refusal is not the
             # user's problem and must never produce a local-model notice.
             log.debug("[MODEL] %s load refusal suppressed: %s serves dictation", backend_name, provider.label)
             return reason
 
+        episode = getattr(self._app, "_load_refusal_episode", None)
+        if episode is None:
+            episode = object()
+            self._app._load_refusal_episode = episode
         key = (
+            episode,
             provider.kind,
             provider.name,
             str(backend or ""),
             str(getattr(exc, "model_size", "") or ""),
             reason,
         )
-        with _notice_lock:
-            repeat = _last_refusal == key
-            if not repeat:
-                _last_refusal = key
-        if repeat:
-            log.debug("[MODEL] %s load refused again; notice already shown for this episode", backend_name)
-            return reason
+        user_press = user_press_recent(self._app)
+        if user_press:
+            # A fresh press is news even if the same automatic load already
+            # refused; only the one-per-second floor stops key-repeat floods.
+            if not user_notice_allowed(self._app, "load-refusal:" + reason):
+                log.debug("[MODEL] %s load refused again; user notice rate-limited", backend_name)
+                return reason
+        else:
+            with _notice_lock:
+                repeat = _last_refusal == key
+                if not repeat:
+                    _last_refusal = key
+            if repeat:
+                log.debug("[MODEL] %s load refused again; notice already shown for this episode", backend_name)
+                return reason
 
         log_method = log.info if no_model_selected else log.warning
         log_method("[MODEL] %s load refused: %s", backend_name, exc)
         try:
             self._app.tray.set_state(AppState.ERROR, reason)
-            self._app.tray.notify(
-                APP_NAME,
+            publish_notice(
+                self._app,
                 i18n.t(
                     "notify.model_manager.offline_pack_missing"
                     if pack_missing

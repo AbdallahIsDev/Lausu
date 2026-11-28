@@ -2091,6 +2091,10 @@
 		}
 	},
 	"notify": {
+		"dictation_provider": {
+			"plugin_unavailable": "{name} n'est pas disponible pour la dictée. Ouvrez Plugins pour le vérifier ou passez à un modèle local.",
+			"local_runtime_missing": "L'environnement vocal local n'est pas installé. Ouvrez Paramètres pour vérifier le pack hors ligne."
+		},
 		"recording_controller": {
 			"consent_required_title": "{appName}",
 			"consent_required_body": "Le consentement à la biométrie vocale est requis pour démarrer l'enregistrement.\nActivez-le dans Paramètres > Confidentialité > Consentement à la biométrie vocale.",

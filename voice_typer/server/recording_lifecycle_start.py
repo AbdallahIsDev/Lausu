@@ -70,15 +70,25 @@ class RecordingLifecycleStartMixin:
         except Exception:
             log.debug("[DICTATION] no-engine precheck failed; continuing", exc_info=True)
 
-        # A selected plugin owns the hotkey. If its session is not ready the
-        # plugin reports that itself; falling through to the local recorder
-        # would silently switch engines behind the user's back.
+        # A selected plugin owns the hotkey. When its session is missing the
+        # plugin cannot report anything itself, so this press must be told
+        # why nothing happened; a live session reports its own start failure.
+        from voice_typer.server.dictation_notices import notify_local_start_refused, notify_plugin_unavailable
         from voice_typer.server.dictation_provider import for_app
 
         provider = for_app(app)
         if provider.kind == "plugin":
             log.warning("[DICTATION] %s serves dictation; local fallback refused", provider.label)
+            notify_plugin_unavailable(app, provider.label)
             return
+        if provider.kind == "local":
+            from voice_typer.server import local_asr_readiness
+
+            problem = local_asr_readiness.readiness_probe(app.config)
+            if problem:
+                log.warning("[DICTATION] local ASR not ready (%s); dictation not started", problem)
+                notify_local_start_refused(app, problem, backend=str(getattr(app.config, "asr_backend", "") or ""))
+                return
 
         # Record-while-loading: an in-flight loader is no reason to
         # refuse the hotkey. Recording starts immediately; the
@@ -93,7 +103,7 @@ class RecordingLifecycleStartMixin:
                 app._cycle_id,
             )
 
-        if active is None and not loader_alive:
+        if active is None and not loader_alive and provider.serves_local_asr:
             # Permission pre-check doubles as the model-load gate: a
             # denied hotkey press refuses here, before the load below
             # and before the _start_impl gate. Granted/unknown probes

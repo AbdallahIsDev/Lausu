@@ -5,6 +5,16 @@ from unittest.mock import MagicMock
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _local_asr_ready(monkeypatch):
+    """App-wiring tests own no pack/GGUF; treat local ASR as ready here.
+
+    A test that actually exercises readiness overrides ``readiness_probe``
+    itself with ``monkeypatch`` after this fixture has run.
+    """
+    monkeypatch.setattr("voice_typer.server.local_asr_readiness.readiness_probe", lambda _config: None)
+
+
 @pytest.fixture
 def app(tmp_config_dir, monkeypatch):
     """Create a LausuApp with mocked dependencies."""

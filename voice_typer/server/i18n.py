@@ -312,6 +312,12 @@ _INITIAL_LABELS: dict[str, str] = {
     "notify.recording_controller.cloud_cancel_requested": (
         "Cancellation requested.\nThe cloud provider may still finish processing; the result will be discarded."
     ),
+    "notify.dictation_provider.plugin_unavailable": (
+        "{name} is not available for dictation. Open Plugins to check it or switch to a local model."
+    ),
+    "notify.dictation_provider.local_runtime_missing": (
+        "The local speech runtime is not installed. Open Settings to check the offline pack."
+    ),
     "notify.model_manager.backend_init_failed": "Could not initialize the {backend} backend.{hint}",
     "notify.model_manager.load_failed_critical": (
         "Could not load the speech model.\nThe app will keep running. Press {hotkey} to retry loading."

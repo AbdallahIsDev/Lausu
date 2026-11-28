@@ -2091,6 +2091,10 @@
 		}
 	},
 	"notify": {
+		"dictation_provider": {
+			"plugin_unavailable": "{name} 无法用于听写。打开“插件”检查，或切换回本地模型。",
+			"local_runtime_missing": "本地语音运行时未安装。打开“设置”检查离线包。"
+		},
 		"recording_controller": {
 			"consent_required_title": "{appName}",
 			"consent_required_body": "开始录音需要语音生物识别同意。\n请在 设置 > 隐私 > 语音生物识别同意 中启用。",

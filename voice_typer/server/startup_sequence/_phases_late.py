@@ -376,7 +376,7 @@ class LatePhases:
         from voice_typer.server.dictation_provider import for_app
 
         provider = for_app(app)
-        if provider.kind in ("plugin", "remote"):
+        if provider.kind != "local" and provider.kind != "none":
             # This provider never uses local weights: no local recording, no
             # local decode. On-demand local loads (Media, switching back) stay.
             log.info(

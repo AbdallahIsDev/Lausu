@@ -71,7 +71,7 @@ def test_noop_when_already_no_model_selected() -> None:
 
 def test_noop_for_cloud_backends() -> None:
     """Cloud providers have no local model to install, never touched."""
-    for backend in ("openai", "groq", "deepgram", "custom"):
+    for backend in ("cloud", "openai", "groq", "deepgram", "custom"):
         app, saves = make_app("tiny", asr_backend=backend)
         with patch(
             "voice_typer.server.tray_models.is_active_model_downloaded",

@@ -288,6 +288,14 @@ export function trayLabelsForLocale(): Record<string, string> {
 			"notify.model_manager.no_model_selected",
 			"notify.model_manager.no_model_selected",
 		],
+		[
+			"notify.dictation_provider.plugin_unavailable",
+			"notify.dictation_provider.plugin_unavailable",
+		],
+		[
+			"notify.dictation_provider.local_runtime_missing",
+			"notify.dictation_provider.local_runtime_missing",
+		],
 		// ── permissions notifications (macOS/Linux permission prompts)
 		// The renderer values use the ``{appName}`` brand placeholder
 		// C-BRAND-1: use {appName}; server formats with the same APP_NAME.

@@ -82,6 +82,13 @@ def decide_toggle(app: Any) -> str:
     if action.startswith("ignore"):
         log.info("[DICTATION-GATE] %s (generation=%d)", action, gate_for(app).generation)
     if action == "start":
+        # Async loaders lose the ContextVar, so pin the press time here: their
+        # refusals must notify on every user press, not once per episode.
+        from voice_typer.server import dictation_origin
+        from voice_typer.server.dictation_notices import mark_user_press
+
+        if dictation_origin.current() in dictation_origin.USER_ORIGINS:
+            mark_user_press(app)
         # Shared for local, cloud and plugin starts. The lifecycle hook checks
         # the user origin itself and never blocks dictation.
         try:

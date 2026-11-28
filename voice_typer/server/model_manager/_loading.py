@@ -174,7 +174,7 @@ class LoadingMixin:
         from voice_typer.server.dictation_provider import for_app
 
         provider = for_app(self._app)
-        if provider.kind in ("plugin", "remote"):
+        if provider.kind not in ("local", "none"):
             log.info("[MODEL] local model load skipped: %s serves dictation", provider.label)
             return
         # can log them without re-reading ``self._app.config`` (which
@@ -295,7 +295,7 @@ class LoadingMixin:
         from voice_typer.server.dictation_provider import for_app
 
         provider = for_app(self._app)
-        if provider.kind in ("plugin", "remote"):
+        if provider.kind not in ("local", "none"):
             log.info("[MODEL] background load skipped: %s serves dictation", provider.label)
             return
         if self._model_load_thread is not None and self._model_load_thread.is_alive():

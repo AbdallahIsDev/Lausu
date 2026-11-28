@@ -115,6 +115,7 @@ def sync_autostart(app: AppProtocol) -> dict:
         result = {"registered": False, "error": str(e), "actual_post_sync": False}
     return result
 
+
 def reconcile_configured_model(app: AppProtocol) -> bool:
     """Clear ``config.model_size`` when the configured ASR model isn't on disk."""
     from voice_typer.server.model_registry import NO_MODEL_SIZE
@@ -126,7 +127,7 @@ def reconcile_configured_model(app: AppProtocol) -> bool:
         return False
     backend = getattr(config, "asr_backend", "whisper") or "whisper"
     # Cloud backends have no local model to install, don't touch.
-    if backend in ("openai", "groq", "deepgram", "gemini", "custom"):
+    if backend in ("cloud", "openai", "groq", "deepgram", "gemini", "custom"):
         return False
     # Model IS on disk, nothing to do.
     if is_active_model_downloaded(config):
@@ -146,6 +147,7 @@ def reconcile_configured_model(app: AppProtocol) -> bool:
         backend,
     )
     return True
+
 
 def reset_onboarding_complete(
     config_dir: Path | None = None,

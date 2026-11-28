@@ -149,6 +149,13 @@ def test_denied_hotkey_press_kicks_no_model_load():
     app._cycle_counter = 0
     app.config = MagicMock()
     app.config.voice_biometric_consent = True
+    # A concrete local model is required: the shared start entry refuses a
+    # no-provider press before reaching the permission gate.
+    app.config.model_size = "tiny"
+    app.config.asr_backend = "whisper"
+    app.config.asr_provider = ""
+    app.config.active_plugin = ""
+    app.config.developer_mode = False
     app.tray = MagicMock()
     app._waveform_bubble = MagicMock()
     from tests.fixtures.bubble_policy_fixture import attach_policy as _attach_policy
