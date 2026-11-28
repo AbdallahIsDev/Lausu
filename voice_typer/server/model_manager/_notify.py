@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from voice_typer.server import i18n
 from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("voice_typer.server.model_manager")
 
 _notice_lock = threading.Lock()
-_last_refusal: tuple[str, ...] | None = None
+_last_refusal: tuple[Any, ...] | None = None
 
 
 def clear_load_refusal_notice() -> None:
