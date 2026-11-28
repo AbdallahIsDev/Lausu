@@ -262,3 +262,122 @@ driven by a human tester (C-HOOK-1); an agent must not synthesize hotkeys.
   injection allowed here).
 - MSI/NSIS on-disk size after any of the options; all option totals are ESTIMATE from artifact
   metadata and raw file sizes, not from a build made in this round.
+
+---
+
+## C. llama-server delivery — provenance, inventory and design options (Worker S4)
+
+Read-only, 2026-11-28; no download, build, workflow edit or installer was made. Labels as above.
+This section answers the one asset class the parent brief left undecided: the text-translation
+runtime. Related measured numbers live in `docs/design/installer-size-audit.md`.
+
+### C1. How a normal user gets it today: nothing
+
+A clean install gets **no `llama-server` at all**. It is absent from both Tauri configurations
+(`tauri.windows-x86_64-slim.conf.json:48-57` lists only the sidecar + ffmpeg, plus resources),
+absent from the worker-only runtime pack (`runtime-pack-publish.yml:309-327` writes one file), and
+no workflow or script stages it (grep of `.github/workflows/` and `scripts/`; **VERIFIED**). The
+resolver searches shipped dirs, then the writable `%APPDATA%\lausu\translation` as a **last
+fallback** (`translation/paths.py:92-127`), so the docstring's "installer-bundled" claim
+(`:8-11`) is false — the contradiction is already recorded at `runtime-delivery-options.md:90`.
+
+When missing, `resolve_runtime_path()` raises `TranslationError`
+(`translation/service.py:150-158`), caught at `:374-383` and shown as the generic
+"Translation failed. Your original transcription was kept…" notice (`en.json:2211`). The user is
+not told the runtime is missing and gets no install/repair action. **VERIFIED**.
+
+### C2. How this machine got it
+
+The app-data directory was populated by hand on 2026-11-22 21:44–21:53 (file mtimes, **MEASURED**).
+The installed process reports `build_info: b12521-6f311d7ad` through its live `/props` endpoint
+(`C:\Users\11\AppData\Local\Temp\opencode\r4-s2-token-evidence.txt:6`; also
+`tests/translation/test_translation_group_chunking.py:124` and `translation/chunking.py:26`),
+so the binary identity is **VERIFIED**. GitHub release metadata for tag `b12521` (read-only
+`gh api`, 2026-11-28) shows the matching upstream asset
+`llama-b12521-bin-win-vulkan-x64.zip`, 38,757,221 B, SHA-256
+`d2498cfdd7973e0c14e832dbd1db7f5d8f409ebb08df27abfc5c54dfc3161c6a`, published
+2026-11-18. **VERIFIED** metadata; the exact command/zip used to place the files is
+**UNVERIFIED** — no install script exists in the repo (`git log -S 'llama-b12521'` finds only
+docs that cite the build), the PowerShell history contains no such download, and the separate
+`C:\Users\11\gguf-spike\releases\llama-vulkan.zip` (38,932,073 B) is a *different* build whose
+`ggml-vulkan.dll` is 44,867,072 B versus 43,092,480 B installed. Do not present the spike zip as
+the source of the installed runtime.
+
+### C3. Exact installed inventory and what is actually needed
+
+`%APPDATA%\lausu\translation`: **54 files, 108,776,009 B / 103.74 MiB MEASURED** (plus the
+app-written `index_translate_chat_template.jinja` 7,755 B and `llama-server.log`). Groups:
+
+| Group | Files | Bytes | MiB | Needed? |
+|---|---:|---:|---:|---|
+| `ggml-vulkan.dll` | 1 | 43,092,480 | 41.10 | **Yes** when GPU mode on (`-ngl 99 -fa on`, `service.py:228-229`) |
+| `ggml-cpu-*.dll` (14 variants) | 14 | 20,944,384 | 19.97 | **One** for CPU mode (`-ngl 0`); variant chosen by CPUID. Keep one, not all 14 |
+| `llama-*-impl.dll` (8) | 8 | 14,877,184 | 14.19 | `llama-server-impl.dll` 10,482,176 B **yes**; the other seven are tools/benchmarks — no |
+| llama core (`llama.dll` 3,942,912; `llama-common.dll` 8,616,960; `llama.exe` 105,984; `ggml.dll` 78,848) | 4 | 12,668,414 | 12.08 | `llama.dll`, `llama-common.dll`, `ggml.dll` yes; `llama.exe` no |
+| `llama-*.exe` CLI tools (20) | 20 | 12,291,584 | 11.72 | No — includes `llama-connect.exe` 11,473,920 B, `llama-tts.exe`, quantize/bench/imatrix/rpc tools |
+| `mtmd.dll` | 1 | 2,863,104 | 2.73 | Multimodal support; text-only translation probably does not need it, but the runtime's load-time dependency is **UNVERIFIED** (no PE import table was readable with the local tooling) |
+| `ggml-base.dll` + `libomp.dll` | 2 | 1,600,512 | 1.53 | Yes (base runtime + OpenMP) |
+| `ggml-rpc.dll` | 1 | 234,496 | 0.22 | No |
+
+Minimal translation set: **~67.8 MiB** with Vulkan, **~25.2 MiB** with one CPU backend, plus an
+uncertain 2.73 MiB for `mtmd.dll` — **ESTIMATE** from the measured file sizes and the resolver's
+argv. TTS does **not** use this runtime: `tts/runtime_server.py:43-51` starts `audiocpp_server` /
+`nemo-speech` from its own GitHub release assets; the bundled `llama-tts.exe` is llama.cpp's own
+example and is unused. "Future polish" is the local ONNX LLM provider
+(`model_providers/local_onnx/client.py:117-123`), which could move to a GGUF model served by this
+same `llama-server` — that is a code/model change, not a packaging detail (**VERIFIED** from the
+call sites; model availability **UNVERIFIED**, `partA-inventory.md:32`).
+
+### C4. Three delivery options, compared
+
+| | **(a) Hash-pinned first-launch pack, CI-built from upstream release** | **(b) User-triggered consent-gated download row** | **(c) Inside the installer** |
+|---|---|---|---|
+| What ships | Worker pack zip gains an allowlisted `llama-server/` subtree, built in CI from the pinned upstream zip; per-file SHA-256 in `pack-manifest.json` | New IPC command downloads the pinned zip on button press, verifies SHA/size, unpacks into `<config>/translation` | `externalBin`/resources entries + CI fetch, mirroring ffmpeg |
+| First-install bytes | 163.66 MiB installer (unchanged) + worker pack 117.82 MiB + ~25–35 MiB llama compressed → **~305–320 MiB ESTIMATE** | 163.66 MiB installer + 117.82 MiB worker pack; +37 MiB only if the user opts in | **~190–205 MiB ESTIMATE** installer (MEASURED 163.66 + ~37 MiB compressed asset) |
+| Code-only update | Installer only; pack unchanged | Installer only; no re-download | Every update repays the runtime bytes |
+| Offline | Full translation offline after pack install; unavailable before it | Full translation offline after opt-in download; unavailable before it | Best: present from first launch, no pack dependency |
+| Update frequency | Pin bump → new pack version → existing hash/protocol gates | Pin bump → new catalogue row → user must click again | Pin bump → new installer build |
+| Licensing / notices | Needs new MIT entries for llama.cpp, vendored ggml and LLVM OpenMP (`THIRD_PARTY_NOTICES.md` has no llama.cpp row today — **VERIFIED**); LGPL-style source offer not required for MIT code, but attribution is | same | same, plus notices must be in the signed installer resource |
+| Security | Archive SHA + per-file SHA/size already verified (`build_pack_manifest.py:96-127`, `checksum.py:48-70`); URL from GitHub Release, host allowlist via `offline_pack/gates.py:68-91`; **no arbitrary EXE download**. Client verifies hash only — do not claim Authenticode (`runtime-delivery-options.md:85`) | Same hash/size discipline if it reuses the pack downloader; needs its own allowlist path and a new SEC-002 consent field; no arbitrary URL from config | Build-time SHA only; no runtime hash check (same as ffmpeg/native DLLs); unsigned DLLs may affect SmartScreen; no runtime download surface |
+| Failure UX | Reuses pack states (Downloading / Verifying / Corrupt / Ready) but needs a new "translation runtime not ready" notice with a Models action, in 8 locales (C-I18N-1) | Natural row state (Download / progress / failed / installed), like `TranslationModelDownloadRow.tsx`; most new states and most new IPC surface | No install UX; a missing/corrupt DLL still needs a repair notice — today it is the generic translation-failure toast |
+| Moving parts / risk | Low: reuses every existing gate; blocked until a pack is actually published (404 today) | Medium-high: new renderer row, new IPC command in Python + Rust allowlist + renderer types, new consent field, 8 locale keys | Medium: config + CI + notices + bundle gate; largest first download |
+
+### C5. Recommendation and later-round change list
+
+**Recommend option (a), gated behind the parent brief's step 3 (publish the worker pack first).**
+It is the only path that adds no new IPC surface or consent field, reuses the manifest/hash/SSRF
+gates that already exist, and keeps code-only updates at the current installer size. Option (b)
+is a reasonable fallback if the pack stays worker-only for other reasons and translation is treated
+as strictly opt-in, but it is the most expensive surface to get right (SEC-002 allowlist, IPC
+parity, 8 locales, consent dialog). Option (c) is not justified: it makes every code update pay
+~37 MiB and gives no offline advantage over a completed (a).
+
+A later implementation round would change exactly these places (none changed here):
+
+1. **`scripts/llama-vulkan-win64.json` (new)** — pin `version: b12521`, tag, asset name, URL,
+   SHA-256 `d2498cfd…`, size 38,757,221, upstream MIT source URLs, and an explicit `install_names`
+   allowlist containing only the files listed as needed in C3. Never invent a hash.
+2. **`.github/workflows/runtime-pack-publish.yml`** — add a fetch-and-verify step before
+   "Resolve canonical zip name + pack the worker" (`:309`), using the same SHA check pattern as
+   `tauri-windows-build.yml:227-231,816-832`; stage only allowlisted files; add a pack-content gate.
+   `build_pack_manifest.py` needs no change — it hashes every zip member generically.
+3. **`offline_pack/core.py:36-39`** — re-check the 180 MB compressed / 450 MB unpacked budgets with
+   real bytes; do not bump them speculatively.
+4. **`translation/paths.py:92-127`** — add the installed pack root as an authoritative resolver
+   seam (single source of truth: the same `core.py` root the downloader uses), keeping app-data as
+   the last fallback for dev/manual installs. `service.py:150-158,374-383` gets a structured
+   "runtime not ready" outcome so UI copy can name the real state.
+5. **Renderer** — translation status reads the resolver's real state; one missing-runtime notice
+   with a Models/settings action, translated into all 8 locales (C-UI-1, C-I18N-1). No second
+   download button: the pack owns the transfer.
+6. **`docs/THIRD_PARTY_NOTICES.md` + `scripts/generate_third_party_notices.py`** — add llama.cpp
+   (MIT), ggml (MIT) and LLVM OpenMP entries; re-run notices `--check`.
+7. **Tests** — pack manifest includes/excludes the right names, resolver finds pack root before
+   app-data, hash mismatch refuses to install, missing runtime notice copy, i18n completeness; end
+   to end per the parent brief's fresh-profile step 9.
+
+**Owner must do by hand:** choose the pin version and CPU/Vulkan target; confirm the release digest
+(the values above are read-only GitHub metadata, not an agent download); publish the worker pack so
+the path exists; approve the new notice copy in all 8 locales; provide a clean Windows profile and
+a human tester for the real hotkey/paste step (C-HOOK-1). No agent should download or ship the
+runtime in this round.
