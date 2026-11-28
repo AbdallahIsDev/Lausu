@@ -29,31 +29,15 @@ def no_active_engine(app: Any) -> bool:
 
 
 def notify_no_active_engine(app: Any, caller: str = "HOTKEY") -> None:
-    """One localized notice for every user-facing start entry."""
-    from voice_typer.server import event_bus
-    from voice_typer.server.branding import APP_NAME
-    from voice_typer.server.i18n import t
+    """One localized notice for every user-facing start entry.
 
-    message = t("notify.model_manager.no_model_selected")
-    log.info("[%s] no active engine; dictation not started", caller)
-    try:
-        event_bus.publish(
-            {
-                "type": "notification",
-                "data": {
-                    "title": APP_NAME,
-                    "message": message,
-                    "duration_ms": 0,
-                    "critical": False,
-                },
-            }
-        )
-    except Exception:
-        log.debug("[%s] in-app no-engine notification failed", caller, exc_info=True)
-    try:
-        app.tray.notify(message)
-    except Exception:
-        log.debug("[%s] no-engine notification failed", caller, exc_info=True)
+    Thin adapter: the in-app event and tray balloon share
+    ``dictation_notices.publish_notice`` so the tray call signature and the
+    event payload cannot drift between the hotkey and the start entry.
+    """
+    from voice_typer.server.dictation_notices import publish_no_engine_notice
+
+    publish_no_engine_notice(app, caller=caller)
 
 
 class HotkeyDispatchMixin:

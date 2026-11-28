@@ -89,6 +89,13 @@ def publish_notice(
         log.debug("[NOTICE] tray notification failed", exc_info=True)
 
 
+def publish_no_engine_notice(app: Any, *, caller: str = "HOTKEY") -> None:
+    """ONE notice path for a user press with nothing able to transcribe."""
+    message = t("notify.model_manager.no_model_selected")
+    log.info("[%s] no active engine; dictation not started", caller)
+    publish_notice(app, message)
+
+
 def notify_plugin_unavailable(app: Any, label: str) -> None:
     """The selected plugin owns dictation but has no usable browser session."""
     if not user_notice_allowed(app, "plugin-unavailable"):
@@ -120,6 +127,7 @@ __all__ = [
     "mark_user_press",
     "notify_local_start_refused",
     "notify_plugin_unavailable",
+    "publish_no_engine_notice",
     "publish_notice",
     "user_notice_allowed",
     "user_press_recent",

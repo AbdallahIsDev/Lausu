@@ -20,10 +20,9 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from voice_typer.server.media_ingest.ffmpeg_binaries import (
-    _shipped_dirs,
-    bundled_bin_dir,
-    is_frozen_build,
+from voice_typer.server.local_asr_readiness import (
+    ENV_TRANSCRIBE_LIBRARY,
+    LIBRARY_BASENAME,
 )
 from voice_typer.server.worker_backed_asr import _TRANSCRIBE_TIMEOUT_SECONDS as DEFAULT_TIMEOUT_S
 from voice_typer.worker.asr_runner.contract import (
@@ -38,8 +37,6 @@ from voice_typer.worker.asr_runner.contract import (
 
 log = logging.getLogger("voice_typer.worker.asr_runner")
 
-ENV_TRANSCRIBE_LIBRARY = "TRANSCRIBE_LIBRARY"
-LIBRARY_BASENAME = "transcribe.dll" if os.name == "nt" else "libtranscribe.so"
 MAX_SAMPLES = 16_000 * 60 * 30  # 30 minutes of 16 kHz mono; bounds native allocations
 
 
@@ -105,20 +102,14 @@ def library_dir(
     module_globals: dict[str, object] | None = None,
     sys_module: ModuleType | None = None,
 ) -> Path | None:
-    """Return the shipped DLL directory; never use PATH inside a frozen build."""
-    override = os.environ.get(ENV_TRANSCRIBE_LIBRARY)
-    if override:
-        candidate = Path(override).expanduser()
-        if candidate.is_file():
-            return candidate.parent
-        return None
-    for directory in _shipped_dirs():
-        for candidate in (directory, directory / "transcribe-cpp"):
-            if (candidate / LIBRARY_BASENAME).is_file():
-                return candidate
-    if not is_frozen_build(module_globals=module_globals, sys_module=sys_module):
-        return bundled_bin_dir() if (bundled_bin_dir() / LIBRARY_BASENAME).is_file() else None
-    return None
+    """Return the shipped DLL directory; never use PATH inside a frozen build.
+
+    Delegates to the sidecar-safe shared resolver so the worker loader and the
+    pre-mic readiness probe cannot disagree about the runtime location.
+    """
+    from voice_typer.server.local_asr_readiness import resolve_native_runtime_dir
+
+    return resolve_native_runtime_dir(module_globals=module_globals, sys_module=sys_module)
 
 
 def _bind(lib: ctypes.CDLL) -> None:
